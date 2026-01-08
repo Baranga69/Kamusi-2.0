@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import AppShell from "./components/AppShell";
 
 export const metadata = {
   title: "Kamusi Admin",
@@ -10,7 +11,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <main className="container">{children}</main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
