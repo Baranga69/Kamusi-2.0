@@ -1,0 +1,7 @@
+{
+  "/lexemes/page": "app/lexemes/page.js",
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/expressions/page": "app/expressions/page.js",
+  "/tags/page": "app/tags/page.js"
+}
