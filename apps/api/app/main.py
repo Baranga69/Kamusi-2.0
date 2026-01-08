@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 
+from app.routers import admin, public
+
 app = FastAPI(title="Kamusi API")
 
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+app.include_router(public.router)
+app.include_router(admin.router)
