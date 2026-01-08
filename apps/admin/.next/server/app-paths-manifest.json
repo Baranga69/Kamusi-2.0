@@ -1,0 +1,9 @@
+{
+  "/login/page": "app/login/page.js",
+  "/lexemes/page": "app/lexemes/page.js",
+  "/expressions/page": "app/expressions/page.js",
+  "/sources/page": "app/sources/page.js",
+  "/page": "app/page.js",
+  "/tags/page": "app/tags/page.js",
+  "/licenses/page": "app/licenses/page.js"
+}
