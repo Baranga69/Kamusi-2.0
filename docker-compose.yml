@@ -1,19 +1,18 @@
-version: "3.9"
-
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: kamusi-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kamusi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kamusi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kamusi123}
       POSTGRES_DB: ${POSTGRES_DB:-kamusi}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:
+
 
