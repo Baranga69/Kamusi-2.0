@@ -1,0 +1,13 @@
+{
+  "name": "@kamusi/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "gen:ts": "openapi-typescript openapi.yaml -o generated/ts/types.ts",
+    "gen:dart": "openapi-generator-cli generate -i openapi.yaml -g dart -o generated/dart"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.13.4",
+    "openapi-typescript": "6.7.4"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "kamusi",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@8.15.4",
+  "scripts": {
+    "gen:ts": "pnpm --filter @kamusi/contracts gen:ts",
+    "gen:dart": "pnpm --filter @kamusi/contracts gen:dart"
+  }
+}

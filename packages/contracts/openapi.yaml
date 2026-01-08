@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info:
+  title: Kamusi API
+  version: 0.1.0
+  description: Placeholder OpenAPI spec for Kamusi.
+servers:
+  - url: http://localhost:8000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
