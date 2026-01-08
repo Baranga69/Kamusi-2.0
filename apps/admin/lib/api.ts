@@ -7,13 +7,18 @@ export interface DefinitionInput {
   id?: string;
   language: LanguageCode;
   text: string;
+  gloss?: string;
   is_primary: boolean;
+  source_id?: string;
 }
 
 export interface ExampleInput {
   id?: string;
   language: LanguageCode;
   text: string;
+  is_primary?: boolean;
+  attested?: boolean;
+  source_id?: string;
 }
 
 export interface SenseInput {
@@ -30,7 +35,13 @@ export interface SenseInput {
 export interface LexemeInput {
   id?: string;
   lemma: string;
+  normalized_lemma?: string;
   part_of_speech: string;
+  pronunciation?: string;
+  audio_url?: string;
+  variants?: string[];
+  default_language?: LanguageCode;
+  notes?: string;
   status: WorkflowStatus;
   tags: string[];
   senses: SenseInput[];
@@ -110,6 +121,10 @@ export const createAdminClient = (apiKey: string) => {
     },
     async publishLexeme(id: string) {
       const response = await client.post<LexemeInput>(`/admin/lexemes/${id}/publish`);
+      return response.data;
+    },
+    async reviewLexeme(id: string) {
+      const response = await client.post<LexemeInput>(`/admin/lexemes/${id}/review`);
       return response.data;
     },
     async listExpressions(query?: string, status?: WorkflowStatus) {
