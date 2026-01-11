@@ -2,6 +2,7 @@ import axios from "axios";
 
 export type WorkflowStatus = "draft" | "reviewed" | "published" | "archived";
 export type LanguageCode = "sw" | "en";
+export type ReviewStatus = "unreviewed" | "approved" | "edited" | "rejected" | "reviewed";
 
 export interface DefinitionInput {
   id?: string;
@@ -77,6 +78,63 @@ export interface License {
   id: string;
   name: string;
   url?: string;
+}
+
+export interface ReviewQueueItem {
+  sense_definition_id: string;
+  sense_id: string;
+  lexeme_id: string;
+  lemma: string;
+  pos_code: string;
+  sw_definition_preview: string;
+  en_definition_preview?: string | null;
+  created_at: string;
+  review_status?: string | null;
+  is_ai_generated: boolean;
+  morphology_like: boolean;
+}
+
+export interface ReviewDefinitionReference {
+  id: string;
+  definition: string;
+  gloss?: string | null;
+  source_id?: string | null;
+}
+
+export interface ReviewSourceInfo {
+  id: string;
+  title: string;
+  author?: string | null;
+  year?: number | null;
+  source_type: string;
+  url?: string | null;
+}
+
+export interface ReviewDetail {
+  sense_definition_id: string;
+  sense_id: string;
+  lexeme_id: string;
+  lemma: string;
+  pos_code: string;
+  sw_definition: string;
+  sw_gloss?: string | null;
+  en_definitions: ReviewDefinitionReference[];
+  source?: ReviewSourceInfo | null;
+  review_status?: string | null;
+  is_ai_generated: boolean;
+  created_at: string;
+}
+
+export interface ReviewActionResponse {
+  sense_definition_id: string;
+  review_status: string;
+  reviewed_by: string;
+  reviewed_at: string;
+}
+
+export interface ReviewBulkResponse {
+  updated_count: number;
+  skipped_count: number;
 }
 
 export interface ListResponse<T> {
@@ -193,6 +251,49 @@ export const createAdminClient = (apiKey: string) => {
     },
     async deleteLicense(id: string) {
       await client.delete(`/admin/licenses/${id}`);
+    },
+    async listReviewQueue(params?: {
+      status?: ReviewStatus;
+      q?: string;
+      pos_code?: string;
+      lexeme_status?: string;
+      limit?: number;
+      offset?: number;
+      sort?: "oldest" | "newest" | "lemma";
+    }) {
+      const response = await client.get<ReviewQueueItem[]>(\"/admin/review/queue\", { params });
+      return response.data;
+    },
+    async getReviewItem(id: string) {
+      const response = await client.get<ReviewDetail>(`/admin/review/item/${id}`);
+      return response.data;
+    },
+    async approveReviewItem(id: string, reviewer: string) {
+      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/approve`, {
+        reviewer,
+      });
+      return response.data;
+    },
+    async editReviewItem(id: string, payload: { reviewer: string; definition: string; gloss?: string | null }) {
+      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/edit`, payload);
+      return response.data;
+    },
+    async rejectReviewItem(
+      id: string,
+      payload: { reviewer: string; reason: string; note?: string | null }
+    ) {
+      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/reject`, payload);
+      return response.data;
+    },
+    async bulkReview(payload: {
+      reviewer: string;
+      action: \"approve\" | \"reject\";
+      ids: string[];
+      reason?: string;
+      note?: string | null;
+    }) {
+      const response = await client.post<ReviewBulkResponse>(\"/admin/review/bulk\", payload);
+      return response.data;
     },
   };
 };

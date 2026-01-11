@@ -178,6 +178,13 @@ class SenseDefinitionUpdate(BaseModel):
 class SenseDefinitionRead(SenseDefinitionCreate):
     id: uuid.UUID
     created_at: datetime
+    is_ai_generated: bool | None = None
+    review_status: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    ai_model: str | None = None
+    ai_prompt_version: str | None = None
+    review_note: str | None = None
 
 
 class ExampleCreate(BaseModel):
@@ -399,6 +406,8 @@ class SenseDefinitionPublic(BaseModel):
     definition: str
     gloss: str | None
     is_primary: bool
+    is_ai_generated: bool | None = None
+    review_status: str | None = None
 
 
 class SensePublic(BaseModel):
@@ -418,6 +427,87 @@ class LexemePublic(BaseModel):
     status: str
     default_language_code: str
     senses: list[SensePublic]
+
+
+class ReviewQueueItem(BaseModel):
+    sense_definition_id: uuid.UUID
+    sense_id: uuid.UUID
+    lexeme_id: uuid.UUID
+    lemma: str
+    pos_code: str
+    sw_definition_preview: str
+    en_definition_preview: str | None
+    created_at: datetime
+    review_status: str | None
+    is_ai_generated: bool
+    morphology_like: bool
+
+
+class ReviewDefinitionReference(BaseModel):
+    id: uuid.UUID
+    definition: str
+    gloss: str | None
+    source_id: uuid.UUID | None
+
+
+class ReviewSourceInfo(BaseModel):
+    id: uuid.UUID
+    title: str
+    author: str | None
+    year: int | None
+    source_type: str
+    url: str | None
+
+
+class ReviewDetail(BaseModel):
+    sense_definition_id: uuid.UUID
+    sense_id: uuid.UUID
+    lexeme_id: uuid.UUID
+    lemma: str
+    pos_code: str
+    sw_definition: str
+    sw_gloss: str | None
+    en_definitions: list[ReviewDefinitionReference]
+    source: ReviewSourceInfo | None
+    review_status: str | None
+    is_ai_generated: bool
+    created_at: datetime
+
+
+class ReviewApproveRequest(BaseModel):
+    reviewer: str
+
+
+class ReviewEditRequest(BaseModel):
+    reviewer: str
+    definition: str
+    gloss: str | None = None
+
+
+class ReviewRejectRequest(BaseModel):
+    reviewer: str
+    reason: str
+    note: str | None = None
+
+
+class ReviewBulkRequest(BaseModel):
+    reviewer: str
+    action: str
+    ids: list[uuid.UUID]
+    reason: str | None = None
+    note: str | None = None
+
+
+class ReviewActionResponse(BaseModel):
+    sense_definition_id: uuid.UUID
+    review_status: str
+    reviewed_by: str
+    reviewed_at: datetime
+
+
+class ReviewBulkResponse(BaseModel):
+    updated_count: int
+    skipped_count: int
 
 
 class ExpressionMeaningPublic(BaseModel):

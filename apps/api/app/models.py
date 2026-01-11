@@ -216,6 +216,13 @@ class SenseDefinition(Base):
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("source.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    review_status: Mapped[str | None] = mapped_column(String, default="unreviewed")
+    reviewed_by: Mapped[str | None] = mapped_column(String)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ai_model: Mapped[str | None] = mapped_column(String)
+    ai_prompt_version: Mapped[str | None] = mapped_column(String)
+    review_note: Mapped[str | None] = mapped_column(Text)
 
     sense: Mapped[Sense] = relationship(back_populates="definitions")
 
