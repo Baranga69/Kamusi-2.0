@@ -17,6 +17,7 @@ EXCLUDE_PREFIXES = (
     "Reciprocal form of",
     "Causative form of",
     "Passive form of",
+    "Stative form of"
 )
 
 SQL = """
