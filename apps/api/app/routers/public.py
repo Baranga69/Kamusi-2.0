@@ -61,17 +61,27 @@ def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(Fal
     for sense in lexeme.senses:
         if not include_drafts and sense.workflow != "published":
             continue
-        definitions = [
-            {
-                "id": definition.id,
-                "lang_code": definition.lang_code,
-                "definition": definition.definition,
-                "gloss": definition.gloss,
-                "is_primary": definition.is_primary,
-            }
-            for definition in sense.definitions
-            if definition.lang_code == lang
-        ]
+        definitions = []
+        for definition in sense.definitions:
+            if definition.lang_code != lang:
+                continue
+            if (
+                lang == "sw"
+                and definition.is_ai_generated
+                and definition.review_status not in {"approved", "edited"}
+            ):
+                continue
+            definitions.append(
+                {
+                    "id": definition.id,
+                    "lang_code": definition.lang_code,
+                    "definition": definition.definition,
+                    "gloss": definition.gloss,
+                    "is_primary": definition.is_primary,
+                    "is_ai_generated": definition.is_ai_generated,
+                    "review_status": definition.review_status,
+                }
+            )
         examples = []
         for example in sense.examples:
             texts = [

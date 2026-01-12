@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useApiKey } from "../../lib/storage";
 
 const navItems = [
+  { href: "/review", label: "Review" },
   { href: "/lexemes", label: "Lexemes" },
   { href: "/expressions", label: "Expressions" },
   { href: "/tags", label: "Tags" },
