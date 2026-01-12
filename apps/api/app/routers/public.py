@@ -52,14 +52,14 @@ def search(
 
 
 @router.get("/lexemes/{lexeme_id}", response_model=LexemePublic)
-def get_lexeme(lexeme_id: str, lang: str = "sw", db: Session = Depends(get_db)) -> LexemePublic:
+def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(False), db: Session = Depends(get_db)) -> LexemePublic:
     stmt = select(Lexeme).where(Lexeme.id == lexeme_id, Lexeme.workflow == "published")
     lexeme = db.scalar(stmt)
     if not lexeme:
         raise HTTPException(status_code=404, detail="Lexeme not found")
     senses = []
     for sense in lexeme.senses:
-        if sense.workflow != "published":
+        if not include_drafts and sense.workflow != "published":
             continue
         definitions = [
             {
@@ -115,9 +115,9 @@ def get_lexeme(lexeme_id: str, lang: str = "sw", db: Session = Depends(get_db)) 
 @router.get("/lookup/{lemma}", response_model=LexemePublic)
 def lookup_lemma(lemma: str, lang: str = "sw", db: Session = Depends(get_db)) -> LexemePublic:
     normalized = normalize_sw(lemma)
-    stmt = select(Lexeme).where(
-        Lexeme.normalized_lemma == normalized, Lexeme.workflow == "published"
-    )
+    stmt = select(Lexeme).where(Lexeme.normalized_lemma == normalized)
+    if not include_drafts:
+      stmt = stmt.where(Lexeme.workflow == "published")
     lexeme = db.scalar(stmt)
     if not lexeme:
         raise HTTPException(status_code=404, detail="Lexeme not found")

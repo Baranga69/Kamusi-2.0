@@ -11,7 +11,7 @@ class ApiClient {
     );
   }
 
-  final String baseUrl;
+  String baseUrl = "http://10.0.2.2:8000";
   late final Dio _dio;
 
   Future<Response<dynamic>> get(
