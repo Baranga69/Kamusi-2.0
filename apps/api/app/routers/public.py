@@ -52,25 +52,43 @@ def search(
 
 
 @router.get("/lexemes/{lexeme_id}", response_model=LexemePublic)
-def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(False), db: Session = Depends(get_db)) -> LexemePublic:
-    stmt = select(Lexeme).where(Lexeme.id == lexeme_id, Lexeme.workflow == "published")
-    lexeme = db.scalar(stmt)
+def get_lexeme(
+    lexeme_id: str,
+    lang: str = "sw",
+    include_drafts: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> LexemePublic:
+    # Base query: by ID
+    stmt = select(Lexeme).where(Lexeme.id == lexeme_id)
+
+    # Default behavior: published only
+    if not include_drafts:
+        stmt = stmt.where(Lexeme.workflow == "published")
+
+    # In dev mode: allow any workflow (draft/reviewed/published/archived)
+    lexeme = db.scalars(stmt).first()
     if not lexeme:
         raise HTTPException(status_code=404, detail="Lexeme not found")
+
     senses = []
     for sense in lexeme.senses:
+        # Default: published senses only
         if not include_drafts and sense.workflow != "published":
             continue
+
         definitions = []
         for definition in sense.definitions:
             if definition.lang_code != lang:
                 continue
+
+            # Keep your guardrail: don't show unreviewed AI Swahili defs
             if (
                 lang == "sw"
-                and definition.is_ai_generated
-                and definition.review_status not in {"approved", "edited"}
+                and getattr(definition, "is_ai_generated", False)
+                and getattr(definition, "review_status", None) not in {"approved", "edited"}
             ):
                 continue
+
             definitions.append(
                 {
                     "id": definition.id,
@@ -78,10 +96,11 @@ def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(Fal
                     "definition": definition.definition,
                     "gloss": definition.gloss,
                     "is_primary": definition.is_primary,
-                    "is_ai_generated": definition.is_ai_generated,
-                    "review_status": definition.review_status,
+                    "is_ai_generated": getattr(definition, "is_ai_generated", False),
+                    "review_status": getattr(definition, "review_status", None),
                 }
             )
+
         examples = []
         for example in sense.examples:
             texts = [
@@ -101,6 +120,7 @@ def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(Fal
                     "texts": texts,
                 }
             )
+
         senses.append(
             {
                 "id": sense.id,
@@ -112,6 +132,7 @@ def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(Fal
                 "examples": examples,
             }
         )
+
     return LexemePublic(
         id=lexeme.id,
         lemma=lexeme.lemma,
@@ -121,17 +142,25 @@ def get_lexeme(lexeme_id: str, lang: str = "sw",include_drafts: bool = Query(Fal
         senses=senses,
     )
 
-
-@router.get("/lookup/{lemma}", response_model=LexemePublic)
-def lookup_lemma(lemma: str, lang: str = "sw", db: Session = Depends(get_db)) -> LexemePublic:
+@router.get("/lookup/lemma", response_model=LexemePublic)
+def lookup_lemma(
+    lemma: str,
+    lang: str = "sw",
+    include_drafts: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> LexemePublic:
     normalized = normalize_sw(lemma)
+
     stmt = select(Lexeme).where(Lexeme.normalized_lemma == normalized)
     if not include_drafts:
-      stmt = stmt.where(Lexeme.workflow == "published")
-    lexeme = db.scalar(stmt)
+        stmt = stmt.where(Lexeme.workflow == "published")
+
+    lexeme = db.scalars(stmt).first()
     if not lexeme:
         raise HTTPException(status_code=404, detail="Lexeme not found")
-    return get_lexeme(str(lexeme.id), lang=lang, db=db)
+
+    # Reuse the same rendering logic as /lexemes/{id}
+    return get_lexeme(str(lexeme.id), lang=lang, include_drafts=include_drafts, db=db)
 
 
 @router.get("/expressions/{expression_id}", response_model=ExpressionPublic)
