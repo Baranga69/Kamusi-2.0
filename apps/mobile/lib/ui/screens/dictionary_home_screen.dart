@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
 import '../theme/app_theme.dart';
@@ -33,6 +34,7 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final bodyCard = Card(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
@@ -42,12 +44,13 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
-              children: const [
-                Icon(Icons.history, size: 18, color: KamusiColors.textMuted),
-                SizedBox(width: 8),
+              children: [
+                const Icon(Icons.history,
+                    size: 18, color: KamusiColors.textMuted),
+                const SizedBox(width: 8),
                 Text(
-                  "Something Something",
-                  style: TextStyle(
+                  l10n.homeRecentHeader,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 12,
                     color: KamusiColors.textMuted,
@@ -60,11 +63,11 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
           const SizedBox(height: 8),
           const Divider(height: 1),
           if (widget.recent.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(14),
               child: Text(
-                "Swahili lexicon.",
-                style: TextStyle(color: KamusiColors.textMuted),
+                l10n.homeRecentEmpty,
+                style: const TextStyle(color: KamusiColors.textMuted),
               ),
             )
           else
@@ -87,7 +90,7 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
       body: Column(
         children: [
           KamusiHeader(
-            title: "KAMUSI",
+            title: l10n.headerTitle,
             leading: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
               onPressed: () {},
@@ -103,7 +106,7 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
             child: GestureDetector(
               onTap: widget.onOpenSearch,
               child: RoundedSearchBar(
-                hint: "Tafuta neno...",
+                hint: l10n.homeSearchHint,
                 controller: _controller,
                 onClear: () {
                   _controller.clear();
@@ -138,15 +141,20 @@ class _KamusiBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return NavigationBar(
       selectedIndex: currentIndex,
       onDestinationSelected: onTap,
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), label: "Home"),
-        NavigationDestination(icon: Icon(Icons.search), label: "Search"),
+      destinations: [
         NavigationDestination(
-            icon: Icon(Icons.star_border), label: "Favorites"),
-        NavigationDestination(icon: Icon(Icons.history), label: "Profile"),
+            icon: const Icon(Icons.home_outlined), label: l10n.bottomNavHome),
+        NavigationDestination(
+            icon: const Icon(Icons.search), label: l10n.bottomNavSearch),
+        NavigationDestination(
+            icon: const Icon(Icons.star_border),
+            label: l10n.bottomNavFavorites),
+        NavigationDestination(
+            icon: const Icon(Icons.history), label: l10n.bottomNavProfile),
       ],
     );
   }

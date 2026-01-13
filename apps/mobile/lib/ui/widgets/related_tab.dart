@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../theme/app_theme.dart';
 
@@ -8,6 +9,7 @@ class _RelatedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
@@ -15,9 +17,9 @@ class _RelatedTab extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: related.isEmpty
-                ? const Text(
-                    "İlişkili kelime yok.",
-                    style: TextStyle(color: KamusiColors.textMuted),
+                ? Text(
+                    l10n.relatedEmpty,
+                    style: const TextStyle(color: KamusiColors.textMuted),
                   )
                 : Wrap(
                     spacing: 10,

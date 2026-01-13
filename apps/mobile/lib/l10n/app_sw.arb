@@ -1,0 +1,48 @@
+{
+  "appTitle": "Kamusi",
+  "headerTitle": "KAMUSI",
+  "homeRecentHeader": "Utafutaji wa hivi karibuni",
+  "homeRecentEmpty": "Kamusi ya Kiswahili.",
+  "homeSearchHint": "Tafuta neno...",
+  "bottomNavHome": "Mwanzo",
+  "bottomNavSearch": "Tafuta",
+  "bottomNavFavorites": "Vipendwa",
+  "bottomNavProfile": "Wasifu",
+  "searchHeaderTitle": "Tafuta kwenye kamusi",
+  "searchHint": "Tafuta...",
+  "searchErrorFailed": "Utafutaji haukufaulu. Tafadhali jaribu tena.",
+  "searchUnsupportedResultType": "Aina ya matokeo hayatumiki.",
+  "searchStartPrompt": "Anza kutafuta.",
+  "searchNoResults": "Hakuna matokeo yaliyopatikana.",
+  "filterAll": "Zote",
+  "filterWord": "Neno",
+  "filterProverb": "Methali",
+  "filterIdiom": "Nahau",
+  "relatedEmpty": "Hakuna maneno yanayohusiana.",
+  "retry": "Jaribu tena",
+  "lexemeTitle": "Leksema",
+  "lexemeSenses": "Maana",
+  "lexemeSenseNumber": "Maana {number}",
+  "@lexemeSenseNumber": {
+    "description": "Lebo ya namba ya maana kwenye ingizo la leksema.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "lexemeOtherMeanings": "Maana nyingine",
+  "examples": "Mifano",
+  "lexemeUnableLoad": "Imeshindikana kupakia leksema",
+  "definitionLabel": "Ufafanuzi",
+  "favoritesTitle": "Vipendwa",
+  "favoritesTabLexemes": "Leksema",
+  "favoritesTabExpressions": "Semi",
+  "favoritesUnableLoad": "Imeshindikana kupakia vipendwa",
+  "favoritesEmptyTitle": "Bado hakuna vipendwa",
+  "favoritesEmptyMessage": "Hifadhi leksema au semi ili uirudie haraka.",
+  "expressionTitle": "Semi",
+  "expressionMeanings": "Maana",
+  "expressionUnableLoad": "Imeshindikana kupakia semi",
+  "meaningLabel": "Maana"
+}

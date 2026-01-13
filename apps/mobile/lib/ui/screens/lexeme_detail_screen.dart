@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/favorite_item.dart';
 import '../../domain/models/lexeme_public.dart';
@@ -15,12 +16,13 @@ class LexemeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final detail = ref.watch(lexemeDetailProvider(lexemeId));
     final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lexeme'),
+        title: Text(l10n.lexemeTitle),
         actions: [
           favorites.when(
             data: (items) {
@@ -61,7 +63,7 @@ class LexemeDetailScreen extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 24),
-              const SectionHeader(title: 'Senses'),
+              SectionHeader(title: l10n.lexemeSenses),
               const SizedBox(height: 12),
               ...lexeme.senses.map((sense) => _SenseCard(sense: sense)),
             ],
@@ -69,7 +71,7 @@ class LexemeDetailScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorState(
-          title: 'Unable to load lexeme',
+          title: l10n.lexemeUnableLoad,
           message: error.toString(),
           onRetry: () => ref.refresh(lexemeDetailProvider(lexemeId)),
         ),
@@ -97,6 +99,7 @@ class _SenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final definitions = _prioritizeSwahili(sense.definitions);
     if (definitions.isEmpty) {
       return const SizedBox.shrink();
@@ -124,7 +127,7 @@ class _SenseCard extends StatelessWidget {
         children: [
           if (sense.senseNumber != null)
             Text(
-              'Sense ${sense.senseNumber}',
+              l10n.lexemeSenseNumber(sense.senseNumber!),
               style: Theme.of(context).textTheme.labelMedium,
             ),
           if (sense.senseNumber != null) const SizedBox(height: 8),
@@ -135,7 +138,7 @@ class _SenseCard extends StatelessWidget {
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
               title: Text(
-                'Other meanings',
+                l10n.lexemeOtherMeanings,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               children: secondary
@@ -150,7 +153,7 @@ class _SenseCard extends StatelessWidget {
           ],
           if (sense.examples.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Examples', style: Theme.of(context).textTheme.titleSmall),
+            Text(l10n.examples, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 6),
             ...sense.examples
                 .map(_preferredExampleText)
@@ -215,9 +218,10 @@ class _DefinitionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final language = (definition.langCode ?? '').isNotEmpty
         ? definition.langCode!.toUpperCase()
-        : 'Definition';
+        : l10n.definitionLabel;
     final text = definition.definition?.isNotEmpty == true
         ? definition.definition!
         : (definition.gloss ?? '');
