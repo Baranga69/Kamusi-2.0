@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/favorite_item.dart';
 import '../../providers/favorites_provider.dart';
@@ -13,17 +14,18 @@ class FavoritesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final favorites = ref.watch(favoritesProvider);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Favorites'),
-          bottom: const TabBar(
+          title: Text(l10n.favoritesTitle),
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Lexemes'),
-              Tab(text: 'Expressions'),
+              Tab(text: l10n.favoritesTabLexemes),
+              Tab(text: l10n.favoritesTabExpressions),
             ],
           ),
         ),
@@ -45,7 +47,7 @@ class FavoritesScreen extends ConsumerWidget {
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => ErrorState(
-            title: 'Unable to load favorites',
+            title: l10n.favoritesUnableLoad,
             message: error.toString(),
             onRetry: () => ref.refresh(favoritesProvider),
           ),
@@ -63,9 +65,10 @@ class _FavoritesList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (items.isEmpty) {
-      return const EmptyState(
-        title: 'No favorites yet',
-        message: 'Save a lexeme or expression to revisit it quickly.',
+      final l10n = AppLocalizations.of(context)!;
+      return EmptyState(
+        title: l10n.favoritesEmptyTitle,
+        message: l10n.favoritesEmptyMessage,
       );
     }
 

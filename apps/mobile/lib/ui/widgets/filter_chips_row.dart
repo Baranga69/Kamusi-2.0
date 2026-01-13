@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../theme/app_theme.dart';
 
@@ -14,6 +15,7 @@ class FilterChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     Widget chip(String label, SearchFilter value) {
       final isActive = selected == value;
       return GestureDetector(
@@ -46,13 +48,13 @@ class FilterChipsRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          chip("Tümü", SearchFilter.all),
+          chip(l10n.filterAll, SearchFilter.all),
           const SizedBox(width: 10),
-          chip("Kelime", SearchFilter.word),
+          chip(l10n.filterWord, SearchFilter.word),
           const SizedBox(width: 10),
-          chip("Atasözü", SearchFilter.proverb),
+          chip(l10n.filterProverb, SearchFilter.proverb),
           const SizedBox(width: 10),
-          chip("Deyim", SearchFilter.idiom),
+          chip(l10n.filterIdiom, SearchFilter.idiom),
         ],
       ),
     );

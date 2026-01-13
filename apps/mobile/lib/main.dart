@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:kamusi_mobile/ui/screens/dictionary_home_screen.dart';
 import 'package:kamusi_mobile/ui/screens/search_screen_new.dart';
 
@@ -16,7 +17,9 @@ class KamusiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kamusi',
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: buildAppTheme(),
       home: Builder(
         builder: (context) => DictionaryHomeScreen(

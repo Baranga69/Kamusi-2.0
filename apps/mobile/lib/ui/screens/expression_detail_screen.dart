@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/expression_detail.dart';
 import '../../domain/models/favorite_item.dart';
@@ -15,12 +16,13 @@ class ExpressionDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final detail = ref.watch(expressionDetailProvider(expressionId));
     final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expression'),
+        title: Text(l10n.expressionTitle),
         actions: [
           favorites.when(
             data: (_) {
@@ -29,7 +31,7 @@ class ExpressionDetailScreen extends ConsumerWidget {
                   .isFavorite(expressionId, FavoriteKind.expression);
               return IconButton(
                 onPressed: () {
-                  final item = _favoriteFromDetail(detail.value);
+                  final item = _favoriteFromDetail(context, detail.value);
                   if (item != null) {
                     ref.read(favoritesProvider.notifier).toggleFavorite(item);
                   }
@@ -52,14 +54,14 @@ class ExpressionDetailScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 24),
-              const SectionHeader(title: 'Meanings'),
+              SectionHeader(title: l10n.expressionMeanings),
               const SizedBox(height: 12),
               ..._prioritizeSwahili(expression.meanings).map(
                 (meaning) => _MeaningCard(meaning: meaning),
               ),
               if (expression.examples.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                const SectionHeader(title: 'Examples'),
+                SectionHeader(title: l10n.examples),
                 const SizedBox(height: 12),
                 ...expression.examples.map(
                   (example) => Padding(
@@ -73,7 +75,7 @@ class ExpressionDetailScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorState(
-          title: 'Unable to load expression',
+          title: l10n.expressionUnableLoad,
           message: error.toString(),
           onRetry: () => ref.refresh(expressionDetailProvider(expressionId)),
         ),
@@ -81,7 +83,10 @@ class ExpressionDetailScreen extends ConsumerWidget {
     );
   }
 
-  FavoriteItem? _favoriteFromDetail(ExpressionDetail? detail) {
+  FavoriteItem? _favoriteFromDetail(
+    BuildContext context,
+    ExpressionDetail? detail,
+  ) {
     if (detail == null || detail.id.isEmpty) {
       return null;
     }
@@ -89,7 +94,7 @@ class ExpressionDetailScreen extends ConsumerWidget {
       id: detail.id,
       kind: FavoriteKind.expression,
       title: detail.text,
-      subtitle: 'Expression',
+      subtitle: AppLocalizations.of(context)!.expressionTitle,
     );
   }
 
@@ -111,9 +116,10 @@ class _MeaningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final language = meaning.language.isNotEmpty
         ? meaning.language.toUpperCase()
-        : 'Meaning';
+        : l10n.meaningLabel;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),

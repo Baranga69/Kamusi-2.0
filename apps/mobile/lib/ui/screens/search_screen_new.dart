@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
 import '../../providers/app_providers.dart';
@@ -58,6 +59,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _doSearch(String q) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
       _lastQuery = q;
@@ -72,7 +74,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!mounted) return;
       setState(() {
         _results = [];
-        _errorMessage = 'Arama başarısız. Lütfen tekrar deneyin.';
+        _errorMessage = l10n.searchErrorFailed;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_errorMessage!)),
@@ -91,18 +93,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unsupported result type')),
+        SnackBar(
+          content:
+              Text(AppLocalizations.of(context)!.searchUnsupportedResultType),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: Column(
         children: [
           KamusiHeader(
-            title: "Sözlük'te Ara",
+            title: l10n.searchHeaderTitle,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
@@ -111,7 +117,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Column(
               children: [
                 RoundedSearchBar(
-                  hint: "Ara...",
+                  hint: l10n.searchHint,
                   controller: _controller,
                   onClear: () {
                     _controller.clear();
@@ -166,8 +172,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           padding: const EdgeInsets.all(14),
                           child: Text(
                             _lastQuery.isEmpty
-                                ? "Aramaya başlayın."
-                                : _errorMessage ?? "Sonuç bulunamadı.",
+                                ? l10n.searchStartPrompt
+                                : _errorMessage ?? l10n.searchNoResults,
                             style:
                                 const TextStyle(color: KamusiColors.textMuted),
                           ),
