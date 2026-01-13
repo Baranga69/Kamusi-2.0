@@ -1,0 +1,48 @@
+{
+  "appTitle": "Kamusi",
+  "headerTitle": "KAMUSI",
+  "homeRecentHeader": "Recent searches",
+  "homeRecentEmpty": "Swahili lexicon.",
+  "homeSearchHint": "Search for a word...",
+  "bottomNavHome": "Home",
+  "bottomNavSearch": "Search",
+  "bottomNavFavorites": "Favorites",
+  "bottomNavProfile": "Profile",
+  "searchHeaderTitle": "Search the dictionary",
+  "searchHint": "Search...",
+  "searchErrorFailed": "Search failed. Please try again.",
+  "searchUnsupportedResultType": "Unsupported result type",
+  "searchStartPrompt": "Start searching.",
+  "searchNoResults": "No results found.",
+  "filterAll": "All",
+  "filterWord": "Word",
+  "filterProverb": "Proverb",
+  "filterIdiom": "Idiom",
+  "relatedEmpty": "No related words.",
+  "retry": "Retry",
+  "lexemeTitle": "Lexeme",
+  "lexemeSenses": "Senses",
+  "lexemeSenseNumber": "Sense {number}",
+  "@lexemeSenseNumber": {
+    "description": "Label for a sense number in a lexeme entry.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "lexemeOtherMeanings": "Other meanings",
+  "examples": "Examples",
+  "lexemeUnableLoad": "Unable to load lexeme",
+  "definitionLabel": "Definition",
+  "favoritesTitle": "Favorites",
+  "favoritesTabLexemes": "Lexemes",
+  "favoritesTabExpressions": "Expressions",
+  "favoritesUnableLoad": "Unable to load favorites",
+  "favoritesEmptyTitle": "No favorites yet",
+  "favoritesEmptyMessage": "Save a lexeme or expression to revisit it quickly.",
+  "expressionTitle": "Expression",
+  "expressionMeanings": "Meanings",
+  "expressionUnableLoad": "Unable to load expression",
+  "meaningLabel": "Meaning"
+}
