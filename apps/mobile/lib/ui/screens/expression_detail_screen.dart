@@ -7,7 +7,10 @@ import '../../domain/models/favorite_item.dart';
 import '../../providers/detail_providers.dart';
 import '../../providers/favorites_provider.dart';
 import '../widgets/error_state.dart';
+import '../widgets/lexeme_header.dart';
+import '../widgets/loading_skeleton.dart';
 import '../widgets/section_header.dart';
+import '../theme/kamusi_typography.dart';
 
 class ExpressionDetailScreen extends ConsumerWidget {
   const ExpressionDetailScreen({super.key, required this.expressionId});
@@ -49,10 +52,7 @@ class ExpressionDetailScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              Text(
-                expression.text,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              LexemeHeader(lemma: expression.text),
               const SizedBox(height: 24),
               SectionHeader(title: l10n.expressionMeanings),
               const SizedBox(height: 12),
@@ -73,7 +73,7 @@ class ExpressionDetailScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingSkeleton(lines: 6),
         error: (error, _) => ErrorState(
           title: l10n.expressionUnableLoad,
           message: error.toString(),
@@ -117,6 +117,8 @@ class _MeaningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final language = meaning.language.isNotEmpty
         ? meaning.language.toUpperCase()
         : l10n.meaningLabel;
@@ -124,28 +126,33 @@ class _MeaningCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            language,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: Colors.grey.shade600),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              language,
+              style: textTheme.labelLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(meaning.text),
+          const SizedBox(height: 6),
+          Text(
+            meaning.text,
+            style: KamusiTypography.serif(
+              textTheme.bodyLarge,
+              color: colorScheme.onSurface,
+            ),
+          ),
         ],
       ),
     );

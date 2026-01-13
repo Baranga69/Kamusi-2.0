@@ -6,6 +6,7 @@ import '../../domain/models/favorite_item.dart';
 import '../../providers/favorites_provider.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
+import '../widgets/loading_skeleton.dart';
 import 'expression_detail_screen.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -45,7 +46,7 @@ class FavoritesScreen extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const LoadingSkeleton(lines: 6),
           error: (error, _) => ErrorState(
             title: l10n.favoritesUnableLoad,
             message: error.toString(),
@@ -64,6 +65,8 @@ class _FavoritesList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     if (items.isEmpty) {
       final l10n = AppLocalizations.of(context)!;
       return EmptyState(
@@ -77,12 +80,19 @@ class _FavoritesList extends ConsumerWidget {
       itemBuilder: (context, index) {
         final item = items[index];
         return ListTile(
-          tileColor: Colors.white,
+          tileColor: colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(item.title),
-          subtitle: item.subtitle.isEmpty ? null : Text(item.subtitle),
+          subtitle: item.subtitle.isEmpty
+              ? null
+              : Text(
+                  item.subtitle,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
           trailing: IconButton(
-            icon: const Icon(Icons.star),
+            icon: Icon(Icons.star, color: colorScheme.secondary),
             onPressed: () =>
                 ref.read(favoritesProvider.notifier).toggleFavorite(item),
           ),
