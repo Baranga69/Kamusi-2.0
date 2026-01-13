@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/favorite_item.dart';
-import '../../domain/models/lexeme_detail.dart';
+import '../../domain/models/lexeme_public.dart';
 import '../../providers/detail_providers.dart';
 import '../../providers/favorites_provider.dart';
 import '../widgets/error_state.dart';
 import '../widgets/section_header.dart';
-import 'expression_detail_screen.dart';
 
 class LexemeDetailScreen extends ConsumerWidget {
   const LexemeDetailScreen({super.key, required this.lexemeId});
@@ -49,51 +48,22 @@ class LexemeDetailScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             children: [
               Text(
-                lexeme.headword,
+                lexeme.lemma ?? '',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
-              if (lexeme.partOfSpeech.isNotEmpty) ...[
+              if ((lexeme.posId ?? '').isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
-                  lexeme.partOfSpeech,
+                  lexeme.posId!,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.grey.shade700,
                       ),
                 ),
               ],
-              if (lexeme.pronunciations.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _PronunciationRow(pronunciations: lexeme.pronunciations),
-              ],
               const SizedBox(height: 24),
               const SectionHeader(title: 'Senses'),
               const SizedBox(height: 12),
               ...lexeme.senses.map((sense) => _SenseCard(sense: sense)),
-              if (lexeme.linkedExpressions.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                const SectionHeader(title: 'Linked expressions'),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: lexeme.linkedExpressions
-                      .map(
-                        (expression) => ActionChip(
-                          label: Text(expression.text),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ExpressionDetailScreen(
-                                  expressionId: expression.id,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
             ],
           );
         },
@@ -107,56 +77,15 @@ class LexemeDetailScreen extends ConsumerWidget {
     );
   }
 
-  FavoriteItem? _favoriteFromDetail(LexemeDetail? detail) {
+  FavoriteItem? _favoriteFromDetail(LexemePublic? detail) {
     if (detail == null || detail.id.isEmpty) {
       return null;
     }
     return FavoriteItem(
       id: detail.id,
       kind: FavoriteKind.lexeme,
-      title: detail.headword,
-      subtitle: detail.partOfSpeech,
-    );
-  }
-}
-
-class _PronunciationRow extends StatelessWidget {
-  const _PronunciationRow({required this.pronunciations});
-
-  final List<Pronunciation> pronunciations;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Pronunciation', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: pronunciations.map((pronunciation) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(pronunciation.ipa.isEmpty ? 'IPA' : pronunciation.ipa),
-                  if (pronunciation.audioUrl.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.volume_up, size: 16),
-                  ],
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+      title: detail.lemma ?? '',
+      subtitle: detail.posId ?? '',
     );
   }
 }
@@ -193,6 +122,12 @@ class _SenseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (sense.senseNumber != null)
+            Text(
+              'Sense ${sense.senseNumber}',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          if (sense.senseNumber != null) const SizedBox(height: 8),
           _DefinitionRow(definition: primary),
           if (secondary.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -217,12 +152,15 @@ class _SenseCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Examples', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 6),
-            ...sense.examples.map(
-              (example) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('“${example.text}”'),
-              ),
-            ),
+            ...sense.examples
+                .map(_preferredExampleText)
+                .whereType<ExampleText>()
+                .map(
+                  (example) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('“${example.text ?? ''}”'),
+                  ),
+                ),
           ],
         ],
       ),
@@ -232,13 +170,41 @@ class _SenseCard extends StatelessWidget {
   List<Definition> _prioritizeSwahili(List<Definition> definitions) {
     final swahili = definitions
         .where((definition) =>
-            definition.language.toLowerCase().startsWith('sw') ||
-            definition.language.toLowerCase().contains('swahili'))
+            (definition.langCode ?? '').toLowerCase().startsWith('sw'))
         .toList();
     final others = definitions
         .where((definition) => !swahili.contains(definition))
         .toList();
+    if (swahili.isNotEmpty) {
+      return swahili;
+    }
+    final english = definitions
+        .where((definition) =>
+            (definition.langCode ?? '').toLowerCase().startsWith('en'))
+        .toList();
+    if (english.isNotEmpty) {
+      return english;
+    }
     return [...swahili, ...others];
+  }
+
+  ExampleText? _preferredExampleText(Example example) {
+    if (example.texts.isEmpty) {
+      return null;
+    }
+    final sw = example.texts.firstWhere(
+      (text) => (text.langCode ?? '').toLowerCase().startsWith('sw'),
+      orElse: () => example.texts.first,
+    );
+    final en = example.texts.firstWhere(
+      (text) => (text.langCode ?? '').toLowerCase().startsWith('en'),
+      orElse: () => sw,
+    );
+    final primary = example.texts.firstWhere(
+      (text) => text.isPrimary == true,
+      orElse: () => en,
+    );
+    return primary;
   }
 }
 
@@ -249,9 +215,12 @@ class _DefinitionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final language = definition.language.isNotEmpty
-        ? definition.language.toUpperCase()
+    final language = (definition.langCode ?? '').isNotEmpty
+        ? definition.langCode!.toUpperCase()
         : 'Definition';
+    final text = definition.definition?.isNotEmpty == true
+        ? definition.definition!
+        : (definition.gloss ?? '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -263,7 +232,7 @@ class _DefinitionRow extends StatelessWidget {
               ?.copyWith(color: Colors.grey.shade600),
         ),
         const SizedBox(height: 4),
-        Text(definition.text),
+        Text(text),
       ],
     );
   }

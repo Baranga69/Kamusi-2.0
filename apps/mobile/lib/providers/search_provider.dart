@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/models/search_suggestion.dart';
+import '../domain/models/search_entry.dart';
 import 'app_providers.dart';
 
 class SearchSuggestionsController
-    extends AutoDisposeAsyncNotifier<List<SearchSuggestion>> {
+    extends AutoDisposeAsyncNotifier<List<SearchEntry>> {
   @override
-  Future<List<SearchSuggestion>> build() async {
+  Future<List<SearchEntry>> build() async {
     return [];
   }
 
@@ -23,6 +23,6 @@ class SearchSuggestionsController
 
 final searchSuggestionsProvider =
     AutoDisposeAsyncNotifierProvider<SearchSuggestionsController,
-        List<SearchSuggestion>>(
+        List<SearchEntry>>(
   SearchSuggestionsController.new,
 );

@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models/expression_detail.dart';
-import '../domain/models/lexeme_detail.dart';
+import '../domain/models/lexeme_public.dart';
 import 'app_providers.dart';
 
 final lexemeDetailProvider =
-    FutureProvider.family<LexemeDetail, String>((ref, id) async {
+    FutureProvider.family<LexemePublic, String>((ref, id) async {
   final repository = ref.read(kamusiRepositoryProvider);
   return repository.fetchLexeme(id);
 });

@@ -9,7 +9,7 @@ import '../domain/repositories/kamusi_repository.dart';
 final apiBaseUrlProvider = Provider<String>((ref) {
   return const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: 'http://10.0.2.2:8000',
   );
 });
 

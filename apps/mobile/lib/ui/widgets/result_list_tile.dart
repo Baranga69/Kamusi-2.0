@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/models/search_suggestion.dart';
+import '../../domain/models/search_entry.dart';
 import '../theme/app_theme.dart';
 
 class ResultListTile extends StatelessWidget {
-  final SearchResultItem item;
+  final SearchEntry item;
   final VoidCallback onTap;
 
   const ResultListTile({
@@ -35,7 +35,7 @@ class ResultListTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.title,
+                    item.text,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: KamusiColors.textDark,
@@ -44,25 +44,13 @@ class ResultListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    item.subtitle,
+                    item.targetType,
                     style: const TextStyle(
                       color: KamusiColors.textMuted,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (item.example != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      item.example!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: KamusiColors.textMuted,
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
