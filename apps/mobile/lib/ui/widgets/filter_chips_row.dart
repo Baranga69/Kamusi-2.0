@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-import '../theme/app_theme.dart';
-
 class FilterChipsRow extends StatelessWidget {
   final SearchFilter selected;
   final ValueChanged<SearchFilter> onChanged;
@@ -16,31 +14,22 @@ class FilterChipsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     Widget chip(String label, SearchFilter value) {
       final isActive = selected == value;
-      return GestureDetector(
-        onTap: () => onChanged(value),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color:
-                isActive ? KamusiColors.chipBg : Colors.white.withOpacity(0.22),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isActive
-                  ? Colors.transparent
-                  : Colors.white.withOpacity(0.35),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-              fontSize: 12.5,
-            ),
-          ),
+      return ChoiceChip(
+        label: Text(label),
+        selected: isActive,
+        onSelected: (_) => onChanged(value),
+        labelStyle: textTheme.labelLarge?.copyWith(
+          color: isActive
+              ? colorScheme.onSecondaryContainer
+              : colorScheme.onSurfaceVariant,
         ),
+        selectedColor: colorScheme.secondaryContainer,
+        backgroundColor: colorScheme.surfaceVariant,
+        shape: const StadiumBorder(),
       );
     }
 

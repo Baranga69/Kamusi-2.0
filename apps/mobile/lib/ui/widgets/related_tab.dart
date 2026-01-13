@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-import '../theme/app_theme.dart';
-
 class _RelatedTab extends StatelessWidget {
   final List<String> related;
   const _RelatedTab({required this.related});
@@ -10,6 +8,8 @@ class _RelatedTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       children: [
@@ -19,7 +19,9 @@ class _RelatedTab extends StatelessWidget {
             child: related.isEmpty
                 ? Text(
                     l10n.relatedEmpty,
-                    style: const TextStyle(color: KamusiColors.textMuted),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   )
                 : Wrap(
                     spacing: 10,
@@ -30,14 +32,13 @@ class _RelatedTab extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: KamusiColors.cardBg,
+                              color: colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               w,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: KamusiColors.textDark,
+                              style: textTheme.labelLarge?.copyWith(
+                                color: colorScheme.onSurface,
                               ),
                             ),
                           ),

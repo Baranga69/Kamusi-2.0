@@ -6,11 +6,13 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
 import '../../providers/app_providers.dart';
-import '../theme/app_theme.dart';
 import '../widgets/filter_chips_row.dart';
 import '../widgets/kamusi_header.dart';
+import '../widgets/loading_skeleton.dart';
 import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/error_state.dart';
 import 'lexeme_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -104,19 +106,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Column(
         children: [
           KamusiHeader(
             title: l10n.searchHeaderTitle,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.pop(context),
               splashRadius: 22,
             ),
             child: Column(
               children: [
-                RoundedSearchBar(
+                KamusiSearchBar(
                   hint: l10n.searchHint,
                   controller: _controller,
                   onClear: () {
@@ -159,33 +162,38 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           Expanded(
-            child: Card(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                      padding: EdgeInsets.all(18),
-                      child: CircularProgressIndicator(),
-                    ))
-                  : _results.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Text(
-                            _lastQuery.isEmpty
-                                ? l10n.searchStartPrompt
-                                : _errorMessage ?? l10n.searchNoResults,
-                            style:
-                                const TextStyle(color: KamusiColors.textMuted),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Material(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                child: _loading
+                    ? const LoadingSkeleton(lines: 8)
+                    : _results.isEmpty
+                        ? _errorMessage != null
+                            ? ErrorState(
+                                title: l10n.searchErrorFailed,
+                                message: _errorMessage!,
+                                onRetry: () => _doSearch(_lastQuery),
+                              )
+                            : EmptyState(
+                                title: _lastQuery.isEmpty
+                                    ? l10n.searchStartPrompt
+                                    : l10n.searchNoResults,
+                                message: _lastQuery.isEmpty
+                                    ? l10n.searchHint
+                                    : l10n.searchHint,
+                              )
+                        : ListView.separated(
+                            itemCount: _results.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 6),
+                            itemBuilder: (_, i) => SearchResultTile(
+                              item: _results[i],
+                              onTap: () => _openEntry(_results[i]),
+                            ),
                           ),
-                        )
-                      : ListView.separated(
-                          itemCount: _results.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (_, i) => ResultListTile(
-                            item: _results[i],
-                            onTap: () => _openEntry(_results[i]),
-                          ),
-                        ),
+              ),
             ),
           ),
         ],

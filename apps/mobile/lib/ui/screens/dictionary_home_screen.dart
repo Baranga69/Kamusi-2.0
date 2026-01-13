@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
-import '../theme/app_theme.dart';
 import '../widgets/kamusi_header.dart';
 import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
@@ -35,6 +34,8 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final bodyCard = Card(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
@@ -45,16 +46,13 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                const Icon(Icons.history,
-                    size: 18, color: KamusiColors.textMuted),
+                Icon(Icons.history,
+                    size: 18, color: colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   l10n.homeRecentHeader,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                    color: KamusiColors.textMuted,
-                    letterSpacing: 0.6,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -67,18 +65,20 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
               padding: EdgeInsets.all(14),
               child: Text(
                 l10n.homeRecentEmpty,
-                style: const TextStyle(color: KamusiColors.textMuted),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             )
           else
             ...widget.recent.map(
               (r) => Column(
                 children: [
-                  ResultListTile(
+                  SearchResultTile(
                     item: r,
                     onTap: () => widget.onSearchSubmitted(r.text),
                   ),
-                  const Divider(height: 1),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -92,20 +92,20 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
           KamusiHeader(
             title: l10n.headerTitle,
             leading: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
+              icon: const Icon(Icons.menu),
               onPressed: () {},
               splashRadius: 22,
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.mic_none, color: Colors.white),
+                icon: const Icon(Icons.mic_none),
                 onPressed: () {},
                 splashRadius: 22,
               ),
             ],
             child: GestureDetector(
               onTap: widget.onOpenSearch,
-              child: RoundedSearchBar(
+              child: KamusiSearchBar(
                 hint: l10n.homeSearchHint,
                 controller: _controller,
                 onClear: () {

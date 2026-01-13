@@ -13,6 +13,8 @@ class _ActionIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -20,20 +22,18 @@ class _ActionIcon extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.16),
+            color: colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.20)),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Column(
             children: [
-              Icon(icon, color: Colors.white),
+              Icon(icon, color: colorScheme.onPrimaryContainer),
               const SizedBox(height: 6),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
+                style: textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
                 ),
               ),
             ],

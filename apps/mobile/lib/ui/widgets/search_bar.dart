@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
-
-class RoundedSearchBar extends StatelessWidget {
+class KamusiSearchBar extends StatelessWidget {
   final String hint;
   final TextEditingController controller;
   final VoidCallback? onClear;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
-  const RoundedSearchBar({
+  const KamusiSearchBar({
     super.key,
     required this.hint,
     required this.controller,
@@ -20,37 +18,23 @@ class RoundedSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 46,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: KamusiColors.textMuted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              textInputAction: TextInputAction.search,
-              onChanged: onChanged,
-              onSubmitted: onSubmitted,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: InputBorder.none,
-                hintStyle: const TextStyle(color: KamusiColors.textMuted),
-              ),
-            ),
-          ),
-          if (controller.text.isNotEmpty)
-            IconButton(
-              onPressed: onClear,
-              icon: const Icon(Icons.close, color: KamusiColors.textMuted),
-              splashRadius: 18,
-            ),
-        ],
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      style: textTheme.bodyLarge,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(Icons.search, color: colorScheme.onSurfaceVariant),
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                onPressed: onClear,
+                icon: Icon(Icons.close, color: colorScheme.onSurfaceVariant),
+              )
+            : null,
       ),
     );
   }
