@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../domain/models/expression_detail.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
+import '../domain/models/word_of_day.dart';
 import '../domain/repositories/kamusi_repository.dart';
 import 'api_client.dart';
 import 'dtos/expression_detail_dto.dart';
@@ -41,6 +42,11 @@ class KamusiApiRepository implements KamusiRepository {
       );
     }
     return ExpressionDetailDto.fromJson(data).toDomain();
+  }
+
+  @override
+  Future<WordOfDay> fetchWordOfDay() async {
+    return client.getWordOfDay();
   }
 
 }

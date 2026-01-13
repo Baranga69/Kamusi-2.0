@@ -1,11 +1,13 @@
+from datetime import date, datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Expression, Lexeme, SearchEntry
+from app.models import Expression, Lexeme, SearchEntry, Sense, SenseDefinition
 from app.normalize import normalize_sw
-from app.schemas import ExpressionPublic, LexemePublic, SearchResult
+from app.schemas import ExpressionPublic, LexemePublic, SearchResult, WordOfDayPublic
 
 router = APIRouter()
 
@@ -49,6 +51,85 @@ def search(
         )
         for row in results
     ]
+
+
+def _pick_definition(lexeme: Lexeme, lang: str) -> str | None:
+    for sense in sorted(lexeme.senses, key=lambda s: s.sense_number):
+        if sense.workflow != "published":
+            continue
+        definitions = [
+            definition
+            for definition in sense.definitions
+            if definition.lang_code == lang
+            and not (
+                lang == "sw"
+                and definition.is_ai_generated
+                and definition.review_status not in {"approved", "edited"}
+            )
+        ]
+        if not definitions:
+            continue
+        primary = next((definition for definition in definitions if definition.is_primary), definitions[0])
+        return primary.definition
+    return None
+
+
+@router.get("/word-of-the-day", response_model=WordOfDayPublic)
+def word_of_day(
+    lang: str = "sw",
+    db: Session = Depends(get_db),
+) -> WordOfDayPublic:
+    today = datetime.now(timezone.utc).date()
+    day_index = (today - date(1970, 1, 1)).days
+
+    filters = [
+        Lexeme.workflow == "published",
+        Sense.workflow == "published",
+        SenseDefinition.lang_code == lang,
+    ]
+    if lang == "sw":
+        filters.append(
+            or_(
+                SenseDefinition.is_ai_generated.is_(False),
+                SenseDefinition.review_status.in_(["approved", "edited"]),
+            )
+        )
+
+    eligible_stmt = (
+        select(Lexeme.id, Lexeme.normalized_lemma)
+        .join(Sense, Sense.lexeme_id == Lexeme.id)
+        .join(SenseDefinition, SenseDefinition.sense_id == Sense.id)
+        .where(*filters)
+        .distinct()
+    )
+    total = db.execute(select(func.count()).select_from(eligible_stmt.subquery())).scalar_one()
+    if total == 0:
+        raise HTTPException(status_code=404, detail="No word of the day available")
+
+    offset = day_index % total
+    row = db.execute(
+        eligible_stmt.order_by(Lexeme.normalized_lemma.asc(), Lexeme.id.asc())
+        .offset(offset)
+        .limit(1)
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Word of the day not found")
+
+    lexeme = db.scalar(select(Lexeme).where(Lexeme.id == row[0]))
+    if not lexeme:
+        raise HTTPException(status_code=404, detail="Lexeme not found")
+
+    definition = _pick_definition(lexeme, lang)
+    if not definition:
+        raise HTTPException(status_code=404, detail="Definition not found")
+
+    return WordOfDayPublic(
+        date=today,
+        lexeme_id=lexeme.id,
+        lemma=lexeme.lemma,
+        definition=definition,
+        lang_code=lang,
+    )
 
 
 @router.get("/lexemes/{lexeme_id}", response_model=LexemePublic)

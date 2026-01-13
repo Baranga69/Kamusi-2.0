@@ -122,6 +122,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 KamusiSearchBar(
                   hint: l10n.searchHint,
                   controller: _controller,
+                  autofocus: true,
                   onClear: () {
                     _controller.clear();
                     setState(() {

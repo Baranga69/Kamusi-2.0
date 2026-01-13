@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
+import '../domain/models/word_of_day.dart';
 
 class ApiClient {
   ApiClient({required this.baseUrl}) {
@@ -91,6 +92,21 @@ class ApiClient {
       );
     }
     return LexemePublic.fromJson(data);
+  }
+
+  Future<WordOfDay> getWordOfDay({String lang = 'sw'}) async {
+    final response = await get(
+      '/word-of-the-day',
+      queryParameters: {'lang': lang},
+    );
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        error: 'Unexpected word of the day response',
+      );
+    }
+    return WordOfDay.fromJson(data);
   }
 
   List<dynamic> _extractList(dynamic data) {

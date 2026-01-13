@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -385,6 +385,14 @@ class SearchResult(BaseModel):
     text: str
     normalized: str
     popularity: int
+
+
+class WordOfDayPublic(BaseModel):
+    date: date
+    lexeme_id: uuid.UUID
+    lemma: str
+    definition: str
+    lang_code: str
 
 
 class ExampleTextPublic(BaseModel):

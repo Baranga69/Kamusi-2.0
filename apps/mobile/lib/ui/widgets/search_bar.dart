@@ -6,6 +6,10 @@ class KamusiSearchBar extends StatelessWidget {
   final VoidCallback? onClear;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onTap;
+  final FocusNode? focusNode;
+  final bool autofocus;
+  final bool readOnly;
 
   const KamusiSearchBar({
     super.key,
@@ -14,6 +18,10 @@ class KamusiSearchBar extends StatelessWidget {
     this.onClear,
     this.onChanged,
     this.onSubmitted,
+    this.onTap,
+    this.focusNode,
+    this.autofocus = false,
+    this.readOnly = false,
   });
 
   @override
@@ -22,10 +30,15 @@ class KamusiSearchBar extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return TextField(
       controller: controller,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      readOnly: readOnly,
+      onTap: onTap,
       textInputAction: TextInputAction.search,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       style: textTheme.bodyLarge,
+      showCursor: readOnly ? false : null,
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(Icons.search, color: colorScheme.onSurfaceVariant),

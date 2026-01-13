@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/search_entry.dart';
+import '../../providers/word_of_day_provider.dart';
 import '../widgets/kamusi_header.dart';
 import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
+import '../widgets/word_of_day_card.dart';
+import 'lexeme_detail_screen.dart';
 
-class DictionaryHomeScreen extends StatefulWidget {
+class DictionaryHomeScreen extends ConsumerStatefulWidget {
   final List<SearchEntry> recent;
   final ValueChanged<String> onSearchSubmitted;
   final VoidCallback? onOpenSearch;
@@ -19,10 +23,12 @@ class DictionaryHomeScreen extends StatefulWidget {
   });
 
   @override
-  State<DictionaryHomeScreen> createState() => _DictionaryHomeScreenState();
+  ConsumerState<DictionaryHomeScreen> createState() =>
+      _DictionaryHomeScreenState();
 }
 
-class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
+class _DictionaryHomeScreenState
+    extends ConsumerState<DictionaryHomeScreen> {
   final _controller = TextEditingController();
 
   @override
@@ -36,6 +42,23 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final wordOfDaySection = ref.watch(wordOfDayProvider).when(
+          data: (word) => WordOfDayCard(
+            title: l10n.homeWordOfDayTitle,
+            lemma: word.lemma,
+            definition: word.definition,
+            onTap: () => _openLexeme(word.lexemeId),
+          ),
+          loading: () => WordOfDayCard(
+            title: l10n.homeWordOfDayTitle,
+            isLoading: true,
+            message: l10n.homeWordOfDayLoading,
+          ),
+          error: (_, __) => WordOfDayCard(
+            title: l10n.homeWordOfDayTitle,
+            message: l10n.homeWordOfDayError,
+          ),
+        );
     final bodyCard = Card(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
@@ -103,28 +126,42 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
                 splashRadius: 22,
               ),
             ],
-            child: GestureDetector(
+            child: KamusiSearchBar(
+              hint: l10n.homeSearchHint,
+              controller: _controller,
+              readOnly: true,
               onTap: widget.onOpenSearch,
-              child: KamusiSearchBar(
-                hint: l10n.homeSearchHint,
-                controller: _controller,
-                onClear: () {
-                  _controller.clear();
-                  setState(() {});
-                },
-                onSubmitted: (q) {
-                  if (q.trim().isNotEmpty) widget.onSearchSubmitted(q.trim());
-                },
-                onChanged: (_) => setState(() {}),
-              ),
+              onClear: () {
+                _controller.clear();
+                setState(() {});
+              },
+              onSubmitted: (q) {
+                if (q.trim().isNotEmpty) widget.onSearchSubmitted(q.trim());
+              },
+              onChanged: (_) => setState(() {}),
             ),
           ),
-          Expanded(child: ListView(children: [bodyCard])),
+          Expanded(
+            child: ListView(
+              children: [
+                wordOfDaySection,
+                bodyCard,
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _KamusiBottomNav(
         currentIndex: 1,
         onTap: (_) {},
+      ),
+    );
+  }
+
+  void _openLexeme(String lexemeId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LexemeDetailScreen(lexemeId: lexemeId),
       ),
     );
   }

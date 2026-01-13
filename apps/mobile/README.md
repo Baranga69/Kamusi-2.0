@@ -43,10 +43,12 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 curl "http://localhost:8000/search?q=agua&lang=sw&limit=20"
 curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw&include_drafts=true"
+curl "http://localhost:8000/word-of-the-day?lang=sw"
 ```
 
 ## Features
 
 - Search suggestions with debounce
+- Word of the day card on the home screen
 - Lexeme and expression detail views
 - Favorites with local persistence
