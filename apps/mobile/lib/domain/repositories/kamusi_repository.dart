@@ -1,9 +1,10 @@
 import '../models/expression_detail.dart';
-import '../models/lexeme_detail.dart';
-import '../models/search_suggestion.dart';
+import '../models/lexeme_public.dart';
+import '../models/search_entry.dart';
 
 abstract class KamusiRepository {
-  Future<List<SearchSuggestion>> search(String query);
-  Future<LexemeDetail> fetchLexeme(String id);
+  Future<List<SearchEntry>> search(String query);
+  Future<LexemePublic> fetchLexeme(String id);
+  Future<LexemePublic> lookupLemma(String lemma);
   Future<ExpressionDetail> fetchExpression(String id);
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/models/search_suggestion.dart';
+import '../../domain/models/search_entry.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kamusi_header.dart';
 import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
 
 class DictionaryHomeScreen extends StatefulWidget {
-  final List<SearchResultItem> recent;
+  final List<SearchEntry> recent;
   final ValueChanged<String> onSearchSubmitted;
   final VoidCallback? onOpenSearch;
 
@@ -73,7 +73,7 @@ class _DictionaryHomeScreenState extends State<DictionaryHomeScreen> {
                 children: [
                   ResultListTile(
                     item: r,
-                    onTap: () => widget.onSearchSubmitted(r.title),
+                    onTap: () => widget.onSearchSubmitted(r.text),
                   ),
                   const Divider(height: 1),
                 ],

@@ -1,35 +1,37 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-import '../../domain/models/search_suggestion.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/models/search_entry.dart';
+import '../../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/filter_chips_row.dart';
 import '../widgets/kamusi_header.dart';
 import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
+import 'lexeme_detail_screen.dart';
 
-class SearchScreen extends StatefulWidget {
-  final Future<List<SearchResultItem>> Function(
-      String query, SearchFilter filter) onSearch;
-  final void Function(SearchResultItem item) onOpenItem;
+class SearchScreen extends ConsumerStatefulWidget {
   final String initialQuery;
 
   const SearchScreen({
     super.key,
-    required this.onSearch,
-    required this.onOpenItem,
     this.initialQuery = "",
   });
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   SearchFilter _filter = SearchFilter.all;
   bool _loading = false;
-  List<SearchResultItem> _results = [];
+  List<SearchEntry> _results = [];
   String _lastQuery = "";
+  String? _errorMessage;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -43,20 +45,54 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _scheduleSearch(String q) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _doSearch(q);
+    });
   }
 
   Future<void> _doSearch(String q) async {
     setState(() {
       _loading = true;
       _lastQuery = q;
+      _errorMessage = null;
     });
     try {
-      final res = await widget.onSearch(q, _filter);
+      final repository = ref.read(kamusiRepositoryProvider);
+      final res = await repository.search(q);
       if (!mounted) return;
       setState(() => _results = res);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _results = [];
+        _errorMessage = 'Arama başarısız. Lütfen tekrar deneyin.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage!)),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _openEntry(SearchEntry entry) {
+    if (entry.targetType.toLowerCase() == 'lexeme') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LexemeDetailScreen(lexemeId: entry.targetId),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unsupported result type')),
+      );
     }
   }
 
@@ -82,13 +118,27 @@ class _SearchScreenState extends State<SearchScreen> {
                     setState(() {
                       _results = [];
                       _lastQuery = "";
+                      _errorMessage = null;
                     });
                   },
                   onSubmitted: (q) {
                     final t = q.trim();
                     if (t.isNotEmpty) _doSearch(t);
                   },
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (q) {
+                    setState(() {});
+                    final t = q.trim();
+                    if (t.isEmpty) {
+                      _debounce?.cancel();
+                      setState(() {
+                        _results = [];
+                        _lastQuery = "";
+                        _errorMessage = null;
+                      });
+                    } else {
+                      _scheduleSearch(t);
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
                 FilterChipsRow(
@@ -117,7 +167,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           child: Text(
                             _lastQuery.isEmpty
                                 ? "Aramaya başlayın."
-                                : "Sonuç bulunamadı.",
+                                : _errorMessage ?? "Sonuç bulunamadı.",
                             style:
                                 const TextStyle(color: KamusiColors.textMuted),
                           ),
@@ -127,7 +177,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (_, i) => ResultListTile(
                             item: _results[i],
-                            onTap: () => widget.onOpenItem(_results[i]),
+                            onTap: () => _openEntry(_results[i]),
                           ),
                         ),
             ),
