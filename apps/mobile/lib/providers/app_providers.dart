@@ -34,6 +34,7 @@ final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
   return LocalFavoritesRepository();
 });
 
-final recentSearchesRepositoryProvider = Provider<RecentSearchesRepository>((ref) {
+final recentSearchesRepositoryProvider =
+    Provider<RecentSearchesRepository>((ref) {
   return LocalRecentSearchesRepository();
 });
