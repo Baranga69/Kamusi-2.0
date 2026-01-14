@@ -13,7 +13,7 @@ uvicorn = { version = "^0.27.1", extras = ["standard"] }
 python-dotenv = "^1.0.1"
 sqlalchemy = "^2.0.29"
 alembic = "^1.13.1"
-psycopg = { version = "^3.1.18", extras = ["binary"] }
+psycopg = {extras = ["binary"], version = "^3.3.2"}
 pydantic-settings = "^2.2.1"
 wiktextract = "^1.99.7"
 
