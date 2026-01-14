@@ -50,5 +50,7 @@ curl "http://localhost:8000/word-of-the-day?lang=sw"
 
 - Search suggestions with debounce
 - Word of the day card on the home screen
+- Light/dark mode toggle on the home screen
+- Recent searches (last 10) with clear action
 - Lexeme and expression detail views
 - Favorites with local persistence

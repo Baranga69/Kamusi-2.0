@@ -2,32 +2,70 @@ import 'package:flutter/material.dart';
 
 import 'kamusi_typography.dart';
 
-class KamusiColors {
-  static const primary = Color(0xFF3A4A6B);
-  static const secondary = Color(0xFF4F8F8B);
-  static const error = Color(0xFFB42318);
-  static const background = Color(0xFFFDFDFE);
-  static const surface = Color(0xFFF7F8FA);
-  static const surfaceVariant = Color(0xFFE9EBF0);
-  static const onSurface = Color(0xFF1F2937);
-  static const onSurfaceVariant = Color(0xFF4B5563);
-  static const outlineVariant = Color(0xFFD7DAE1);
+class KamusiPalette {
+  final Color primary;
+  final Color secondary;
+  final Color error;
+  final Color background;
+  final Color surface;
+  final Color surfaceVariant;
+  final Color onSurface;
+  final Color onSurfaceVariant;
+  final Color outlineVariant;
+
+  const KamusiPalette({
+    required this.primary,
+    required this.secondary,
+    required this.error,
+    required this.background,
+    required this.surface,
+    required this.surfaceVariant,
+    required this.onSurface,
+    required this.onSurfaceVariant,
+    required this.outlineVariant,
+  });
 }
 
-ThemeData buildKamusiTheme() {
+const kamusiLightPalette = KamusiPalette(
+  primary: Color(0xFF3A4A6B),
+  secondary: Color(0xFF4F8F8B),
+  error: Color(0xFFB42318),
+  background: Color(0xFFFDFDFE),
+  surface: Color(0xFFF7F8FA),
+  surfaceVariant: Color(0xFFE9EBF0),
+  onSurface: Color(0xFF1F2937),
+  onSurfaceVariant: Color(0xFF4B5563),
+  outlineVariant: Color(0xFFD7DAE1),
+);
+
+const kamusiDarkPalette = KamusiPalette(
+  primary: Color(0xFF8BA3D1),
+  secondary: Color(0xFF7BC0B9),
+  error: Color(0xFFF97066),
+  background: Color(0xFF0F141B),
+  surface: Color(0xFF151B24),
+  surfaceVariant: Color(0xFF1F2834),
+  onSurface: Color(0xFFE6E9EF),
+  onSurfaceVariant: Color(0xFFB3BAC6),
+  outlineVariant: Color(0xFF2A3444),
+);
+
+ThemeData buildKamusiTheme({Brightness brightness = Brightness.light}) {
+  final palette =
+      brightness == Brightness.dark ? kamusiDarkPalette : kamusiLightPalette;
   final colorScheme = ColorScheme.fromSeed(
-    seedColor: KamusiColors.primary,
-    brightness: Brightness.light,
+    seedColor: palette.primary,
+    brightness: brightness,
   ).copyWith(
-    primary: KamusiColors.primary,
-    secondary: KamusiColors.secondary,
-    error: KamusiColors.error,
-    background: KamusiColors.background,
-    surface: KamusiColors.surface,
-    surfaceVariant: KamusiColors.surfaceVariant,
-    onSurface: KamusiColors.onSurface,
-    onSurfaceVariant: KamusiColors.onSurfaceVariant,
-    outlineVariant: KamusiColors.outlineVariant,
+    primary: palette.primary,
+    secondary: palette.secondary,
+    error: palette.error,
+    background: palette.background,
+    surface: palette.surface,
+    surfaceVariant: palette.surfaceVariant,
+    onSurface: palette.onSurface,
+    onSurfaceVariant: palette.onSurfaceVariant,
+    outlineVariant: palette.outlineVariant,
   );
 
   final textTheme = KamusiTypography.textTheme(colorScheme);

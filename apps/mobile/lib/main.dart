@@ -4,26 +4,28 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:kamusi_mobile/ui/screens/dictionary_home_screen.dart';
 import 'package:kamusi_mobile/ui/screens/search_screen_new.dart';
 
-import 'domain/models/search_entry.dart';
+import 'providers/app_providers.dart';
 import 'ui/theme/kamusi_theme.dart';
 
 void main() {
   runApp(const ProviderScope(child: KamusiApp()));
 }
 
-class KamusiApp extends StatelessWidget {
+class KamusiApp extends ConsumerWidget {
   const KamusiApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: buildKamusiTheme(),
+      theme: buildKamusiTheme(brightness: Brightness.light),
+      darkTheme: buildKamusiTheme(brightness: Brightness.dark),
+      themeMode: themeMode,
       home: Builder(
         builder: (context) => DictionaryHomeScreen(
-          recent: const <SearchEntry>[],
           onOpenSearch: () => _openSearch(context),
           onSearchSubmitted: (q) => _openSearch(context, initialQuery: q),
         ),

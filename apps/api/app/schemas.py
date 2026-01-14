@@ -385,6 +385,10 @@ class SearchResult(BaseModel):
     text: str
     normalized: str
     popularity: int
+    lexeme_id: uuid.UUID
+    lemma: str
+    pos_code: str | None = None
+    match_kind: str | None = None  # "lemma" | "definition" | "example"
 
 
 class WordOfDayPublic(BaseModel):

@@ -6,6 +6,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/recent_searches_provider.dart';
 import '../widgets/filter_chips_row.dart';
 import '../widgets/kamusi_header.dart';
 import '../widgets/loading_skeleton.dart';
@@ -39,9 +40,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.text = widget.initialQuery;
-    if (widget.initialQuery.trim().isNotEmpty) {
-      _doSearch(widget.initialQuery.trim());
+    final initial = widget.initialQuery.trim();
+    _controller.text = initial;
+    if (initial.isNotEmpty) {
+      _recordRecent(initial);
+      _doSearch(initial);
     }
   }
 
@@ -87,6 +90,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _openEntry(SearchEntry entry) {
+    final query = _controller.text.trim();
+    if (query.isNotEmpty) {
+      _recordRecent(query);
+    }
     if (entry.targetType.toLowerCase() == 'lexeme') {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -101,6 +108,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
       );
     }
+  }
+
+  void _recordRecent(String query) {
+    ref.read(recentSearchesProvider.notifier).add(query);
   }
 
   @override
@@ -133,7 +144,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   },
                   onSubmitted: (q) {
                     final t = q.trim();
-                    if (t.isNotEmpty) _doSearch(t);
+                    if (t.isNotEmpty) {
+                      _recordRecent(t);
+                      _doSearch(t);
+                    }
                   },
                   onChanged: (q) {
                     setState(() {});

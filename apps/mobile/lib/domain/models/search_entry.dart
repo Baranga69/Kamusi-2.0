@@ -7,6 +7,10 @@ class SearchEntry {
     required this.text,
     required this.normalized,
     required this.popularity,
+    required this.lexemeId,
+    required this.lemma,
+    required this.posCode,
+    required this.matchKind,
   });
 
   final String id;
@@ -17,6 +21,12 @@ class SearchEntry {
   final String normalized;
   final int? popularity;
 
+  // NEW
+  final String lexemeId;
+  final String lemma;
+  final String? posCode;
+  final String? matchKind;
+
   factory SearchEntry.fromJson(Map<String, dynamic> json) {
     return SearchEntry(
       id: (json['id'] ?? '').toString(),
@@ -26,6 +36,10 @@ class SearchEntry {
       text: (json['text'] ?? '').toString(),
       normalized: (json['normalized'] ?? '').toString(),
       popularity: (json['popularity'] as num?)?.toInt(),
+      lexemeId: (json['lexeme_id'] ?? '').toString(),
+      lemma: (json['lemma'] ?? '').toString(),
+      posCode: json['pos_code'] as String?,
+      matchKind: json['match_kind'] as String?,
     );
   }
 }

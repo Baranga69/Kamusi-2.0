@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/models/search_entry.dart';
+import '../../providers/app_providers.dart';
+import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
 import '../widgets/kamusi_header.dart';
-import '../widgets/result_list_tile.dart';
+import '../widgets/recent_search_tile.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/word_of_day_card.dart';
 import 'lexeme_detail_screen.dart';
 
 class DictionaryHomeScreen extends ConsumerStatefulWidget {
-  final List<SearchEntry> recent;
   final ValueChanged<String> onSearchSubmitted;
   final VoidCallback? onOpenSearch;
 
   const DictionaryHomeScreen({
     super.key,
-    required this.recent,
     required this.onSearchSubmitted,
     this.onOpenSearch,
   });
@@ -42,6 +41,8 @@ class _DictionaryHomeScreenState
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final recents = ref.watch(recentSearchesProvider);
     final wordOfDaySection = ref.watch(wordOfDayProvider).when(
           data: (word) => WordOfDayCard(
             title: l10n.homeWordOfDayTitle,
@@ -78,12 +79,24 @@ class _DictionaryHomeScreenState
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+                const Spacer(),
+                if (recents.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      ref.read(recentSearchesProvider.notifier).clear();
+                    },
+                    style: TextButton.styleFrom(
+                      textStyle: textTheme.labelLarge,
+                      foregroundColor: colorScheme.primary,
+                    ),
+                    child: Text(l10n.homeRecentClear),
+                  ),
               ],
             ),
           ),
           const SizedBox(height: 8),
           const Divider(height: 1),
-          if (widget.recent.isEmpty)
+          if (recents.isEmpty)
             Padding(
               padding: EdgeInsets.all(14),
               child: Text(
@@ -94,12 +107,12 @@ class _DictionaryHomeScreenState
               ),
             )
           else
-            ...widget.recent.map(
-              (r) => Column(
+            ...recents.map(
+              (query) => Column(
                 children: [
-                  SearchResultTile(
-                    item: r,
-                    onTap: () => widget.onSearchSubmitted(r.text),
+                  RecentSearchTile(
+                    query: query,
+                    onTap: () => widget.onSearchSubmitted(query),
                   ),
                   const SizedBox(height: 4),
                 ],
@@ -120,6 +133,21 @@ class _DictionaryHomeScreenState
               splashRadius: 22,
             ),
             actions: [
+              IconButton(
+                icon: Icon(
+                  isDarkMode
+                      ? Icons.light_mode_outlined
+                      : Icons.dark_mode_outlined,
+                ),
+                onPressed: () {
+                  ref.read(themeModeProvider.notifier).state =
+                      isDarkMode ? ThemeMode.light : ThemeMode.dark;
+                },
+                tooltip: isDarkMode
+                    ? l10n.homeThemeToggleLight
+                    : l10n.homeThemeToggleDark,
+                splashRadius: 22,
+              ),
               IconButton(
                 icon: const Icon(Icons.mic_none),
                 onPressed: () {},

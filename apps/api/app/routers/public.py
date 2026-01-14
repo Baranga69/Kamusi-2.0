@@ -1,11 +1,11 @@
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, literal
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Expression, Lexeme, SearchEntry, Sense, SenseDefinition
+from app.models import Expression, Lexeme, SearchEntry, Sense, SenseDefinition, Example, ExampleText, PartOfSpeech
 from app.normalize import normalize_sw
 from app.schemas import ExpressionPublic, LexemePublic, SearchResult, WordOfDayPublic
 
@@ -16,7 +16,6 @@ router = APIRouter()
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
-
 @router.get("/search", response_model=list[SearchResult])
 def search(
     q: str = Query(..., min_length=1),
@@ -25,32 +24,106 @@ def search(
     db: Session = Depends(get_db),
 ) -> list[SearchResult]:
     normalized = normalize_sw(q)
+
     rank = case(
         (SearchEntry.normalized == normalized, 0),
         (SearchEntry.normalized.like(f"{normalized}%"), 1),
         (SearchEntry.normalized.like(f"%{normalized}%"), 2),
         else_=3,
     )
-    stmt = (
-        select(SearchEntry)
+
+    # ---- subqueries to resolve lexeme_id for non-lexeme hits ----
+    lexeme_id_for_definition = (
+        select(Sense.lexeme_id)
+        .join(SenseDefinition, SenseDefinition.sense_id == Sense.id)
+        .where(SenseDefinition.id == SearchEntry.target_id)
+        .scalar_subquery()
+    )
+
+    lexeme_id_for_example = (
+        select(Sense.lexeme_id)
+        .join(Example, Example.sense_id == Sense.id)
+        .join(ExampleText, ExampleText.example_id == Example.id)
+        .where(ExampleText.id == SearchEntry.target_id)
+        .scalar_subquery()
+    )
+
+    resolved_lexeme_id = case(
+        (SearchEntry.target_type == "lexeme", SearchEntry.target_id),
+        (SearchEntry.target_type == "definition", lexeme_id_for_definition),
+        (SearchEntry.target_type == "example", lexeme_id_for_example),
+        else_=None,
+    ).label("lexeme_id")
+
+    match_kind = case(
+        (SearchEntry.target_type == "lexeme", literal("lemma")),
+        (SearchEntry.target_type == "definition", literal("definition")),
+        (SearchEntry.target_type == "example", literal("example")),
+        else_=literal("unknown"),
+    ).label("match_kind")
+
+    # ---- build a subquery FIRST to remove join ambiguity ----
+    base = (
+        select(
+            SearchEntry.id.label("search_id"),
+            SearchEntry.target_type,
+            SearchEntry.target_id,
+            SearchEntry.lang_code,
+            SearchEntry.text,
+            SearchEntry.normalized,
+            SearchEntry.popularity,
+            resolved_lexeme_id,
+            match_kind,
+        )
+        .select_from(SearchEntry) 
         .where(SearchEntry.lang_code == lang)
         .where(SearchEntry.normalized.like(f"%{normalized}%"))
         .order_by(rank.asc(), SearchEntry.popularity.desc())
         .limit(limit)
+        .subquery()
     )
-    results = db.scalars(stmt).all()
-    return [
-        SearchResult(
-            id=row.id,
-            target_type=row.target_type,
-            target_id=row.target_id,
-            lang_code=row.lang_code,
-            text=row.text,
-            normalized=row.normalized,
-            popularity=row.popularity,
+
+    # ---- now join Lexeme using the subquery column (no ambiguity) ----
+    stmt = (
+        select(
+            base.c.search_id,
+            base.c.target_type,
+            base.c.target_id,
+            base.c.lang_code,
+            base.c.text,
+            base.c.normalized,
+            base.c.popularity,
+            base.c.lexeme_id,
+            Lexeme.lemma,
+            PartOfSpeech.code.label("pos_code"),
+            base.c.match_kind,
         )
-        for row in results
-    ]
+        .select_from(base)
+        .join(Lexeme, Lexeme.id == base.c.lexeme_id)
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .where(base.c.lexeme_id.isnot(None))
+    )
+
+    rows = db.execute(stmt).all()
+
+    out: list[SearchResult] = []
+    for r in rows:
+        out.append(
+            SearchResult(
+                id=r.search_id,
+                target_type=r.target_type,
+                target_id=r.target_id,
+                lang_code=r.lang_code,
+                text=r.text,
+                normalized=r.normalized,
+                popularity=r.popularity or 0,
+                lexeme_id=r.lexeme_id,
+                lemma=r.lemma,
+                pos_code=r.pos_code,
+                match_kind=r.match_kind,
+            )
+        )
+    return out
 
 
 def _pick_definition(lexeme: Lexeme, lang: str) -> str | None:
