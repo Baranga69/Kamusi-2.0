@@ -1,7 +1,4 @@
 {
-  "/login/page": "app/login/page.js",
-  "/licenses/page": "app/licenses/page.js",
-  "/tags/page": "app/tags/page.js",
-  "/lexemes/page": "app/lexemes/page.js",
-  "/expressions/page": "app/expressions/page.js"
+  "/api/review/queue/route": "app/api/review/queue/route.js",
+  "/api/review/item/[definition_id]/approve/route": "app/api/review/item/[definition_id]/approve/route.js"
 }

@@ -89,7 +89,7 @@ export interface ReviewQueueItem {
   sw_definition_preview: string;
   en_definition_preview?: string | null;
   created_at: string;
-  review_status?: string | null;
+  review_status: "unreviewed" | "approved" | "edited" | "rejected";
   is_ai_generated: boolean;
   morphology_like: boolean;
 }
@@ -141,7 +141,10 @@ export interface ListResponse<T> {
   items: T[];
 }
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const apiBaseUrl =
+  process.env.KAMUSI_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8000";
 
 const getItems = <T>(data: ListResponse<T> | T[]): T[] => {
   if (Array.isArray(data)) {
@@ -152,10 +155,7 @@ const getItems = <T>(data: ListResponse<T> | T[]): T[] => {
 
 export const createAdminClient = (apiKey: string) => {
   const client = axios.create({
-    baseURL: apiBaseUrl,
-    headers: {
-      "X-API-Key": apiKey,
-    },
+    baseURL: "/api",
   });
 
   return {
@@ -253,7 +253,7 @@ export const createAdminClient = (apiKey: string) => {
       await client.delete(`/admin/licenses/${id}`);
     },
     async listReviewQueue(params?: {
-      status?: ReviewStatus;
+      status?: string;
       q?: string;
       pos_code?: string;
       lexeme_status?: string;
@@ -261,38 +261,27 @@ export const createAdminClient = (apiKey: string) => {
       offset?: number;
       sort?: "oldest" | "newest" | "lemma";
     }) {
-      const response = await client.get<ReviewQueueItem[]>(\"/admin/review/queue\", { params });
+      const response = await client.get<ReviewQueueItem[]>("/review/queue", { params });
       return response.data;
     },
     async getReviewItem(id: string) {
-      const response = await client.get<ReviewDetail>(`/admin/review/item/${id}`);
+      const response = await client.get<ReviewDetail>(`/review/item/${id}`);
       return response.data;
     },
     async approveReviewItem(id: string, reviewer: string) {
-      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/approve`, {
-        reviewer,
-      });
-      return response.data;
+      return client.post(`/review/item/${id}/approve`, { reviewer });
     },
-    async editReviewItem(id: string, payload: { reviewer: string; definition: string; gloss?: string | null }) {
-      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/edit`, payload);
-      return response.data;
-    },
-    async rejectReviewItem(
-      id: string,
-      payload: { reviewer: string; reason: string; note?: string | null }
-    ) {
-      const response = await client.post<ReviewActionResponse>(`/admin/review/item/${id}/reject`, payload);
-      return response.data;
+    async rejectReviewItem(id: string, payload: { reviewer: string; reason: string; note?: string }) {
+      return client.post(`/review/item/${id}/reject`, payload);
     },
     async bulkReview(payload: {
       reviewer: string;
-      action: \"approve\" | \"reject\";
+      action: "approve" | "reject";
       ids: string[];
       reason?: string;
       note?: string | null;
     }) {
-      const response = await client.post<ReviewBulkResponse>(\"/admin/review/bulk\", payload);
+      const response = await client.post<ReviewBulkResponse>("/review/bulk", payload);
       return response.data;
     },
   };

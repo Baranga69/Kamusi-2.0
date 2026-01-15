@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -36,6 +37,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _lastQuery = "";
   String? _errorMessage;
   Timer? _debounce;
+  bool _hasLoggedInitialSearch = false;
 
   @override
   void initState() {
@@ -64,6 +66,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _doSearch(String q) async {
+    if (!_hasLoggedInitialSearch) {
+      _logInitialSearchEndpoint(q);
+      _hasLoggedInitialSearch = true;
+    }
     final l10n = AppLocalizations.of(context)!;
     setState(() {
       _loading = true;
@@ -112,6 +118,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _recordRecent(String query) {
     ref.read(recentSearchesProvider.notifier).add(query);
+  }
+
+  void _logInitialSearchEndpoint(String query) {
+    final baseUrl = ref.read(apiBaseUrlProvider);
+    final uri = Uri.parse(baseUrl).resolve('/search').replace(
+          queryParameters: {
+            'q': query,
+            'lang': 'sw',
+            'limit': '20',
+          },
+        );
+    debugPrint('[Kamusi] GET $uri (initial home search)');
   }
 
   @override

@@ -8,13 +8,16 @@ Internal admin console for managing lexemes, expressions, tags, sources, and lic
 
 ```bash
 cat <<EOF > .env.local
+KAMUSI_API_BASE_URL=http://localhost:8000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 EOF
 ```
 
 Required env vars:
 
-- `NEXT_PUBLIC_API_BASE_URL`: Base URL for the Kamusi API (admin routes use `X-API-Key`).
+- `KAMUSI_API_BASE_URL`: Base URL for the Kamusi API (admin routes use `X-API-Key`).
+- `NEXT_PUBLIC_API_BASE_URL`: Optional fallback if `KAMUSI_API_BASE_URL` is not set.
+- `ADMIN_API_KEY`: Server-side API key used by the `/api/review` proxy routes.
 
 2. Install dependencies from the repo root:
 

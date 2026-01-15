@@ -14,6 +14,16 @@ cd apps/api
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## CORS (Admin UI)
+
+If you access the API from the admin UI in the browser, set `CORS_ORIGINS` to allow that origin:
+
+```bash
+export CORS_ORIGINS="http://localhost:3000"
+```
+
+You can also provide a comma-separated list or a JSON array.
+
 ## Public API
 
 ```bash

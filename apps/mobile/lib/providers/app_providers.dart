@@ -16,7 +16,7 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) {
 final apiBaseUrlProvider = Provider<String>((ref) {
   return const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'https://kamusi-2-0.onrender.com/',
   );
 });
 

@@ -29,6 +29,8 @@ MORPHOLOGY_PREFIXES = (
     "Causative form of",
     "Passive form of",
 )
+LEXEME_STATUS_ALLOWED = {"core", "slang", "regional", "deprecated", "neologism"}
+
 
 
 def build_review_note(reason: str, note: str | None) -> str:
@@ -51,7 +53,6 @@ def get_review_queue(
     status: str = "unreviewed",
     q: str | None = None,
     pos_code: str | None = None,
-    lexeme_status: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     sort: str = "oldest",
@@ -75,7 +76,7 @@ def get_review_queue(
         )
         .join(Sense, sw_definition.sense_id == Sense.id)
         .join(Lexeme, Sense.lexeme_id == Lexeme.id)
-        .join(PartOfSpeech, Lexeme.pos_id == PartOfSpeech.id)
+        .outerjoin(PartOfSpeech, Lexeme.pos_id == PartOfSpeech.id)
         .outerjoin(
             en_definition,
             and_(en_definition.sense_id == Sense.id, en_definition.lang_code == "en"),
@@ -86,14 +87,10 @@ def get_review_queue(
     statuses = resolve_status_filter(status)
     if statuses:
         stmt = stmt.where(sw_definition.review_status.in_(statuses))
-
     if q:
         stmt = stmt.where(Lexeme.lemma.ilike(f"%{q}%"))
     if pos_code:
         stmt = stmt.where(PartOfSpeech.code == pos_code)
-    if lexeme_status:
-        stmt = stmt.where(Lexeme.status == lexeme_status)
-
     if sort == "oldest":
         stmt = stmt.order_by(sw_definition.created_at.asc())
     elif sort == "newest":
@@ -109,7 +106,8 @@ def get_review_queue(
     items: list[ReviewQueueItem] = []
     for row in rows:
         en_text = row.en_definition_preview or ""
-        fallback_text = row.en_definition_preview or row.sw_definition_preview
+        en_preview = row.en_definition_preview or ""
+        sw_preview = row.sw_definition_preview or ""
         morphology_like = any(en_text.startswith(prefix) for prefix in MORPHOLOGY_PREFIXES)
         items.append(
             ReviewQueueItem(
@@ -117,9 +115,9 @@ def get_review_queue(
                 sense_id=row.sense_id,
                 lexeme_id=row.lexeme_id,
                 lemma=row.lemma,
-                pos_code=row.pos_code,
-                sw_definition_preview=row.sw_definition_preview,
-                en_definition_preview=fallback_text,
+                pos_code=row.pos_code or "UNK",
+                sw_definition_preview=sw_preview,
+                en_definition_preview=en_preview,
                 created_at=row.created_at,
                 review_status=row.review_status,
                 is_ai_generated=row.is_ai_generated,
