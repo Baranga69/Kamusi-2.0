@@ -36,6 +36,7 @@ pnpm --filter @kamusi/admin dev
 - Visit `http://localhost:3000`.
 - Store your API key in the Login page. The app sends it in the `X-API-Key` header.
 - Use the left navigation to manage lexemes, expressions, tags, sources, and licenses.
+- Review queue supports approving, editing, and rejecting AI Swahili definitions.
 - Publishing enforces readiness checks (lemma length, POS, Swahili definitions per sense, reviewed workflow state).
 - The Publish action calls the backend `/admin/lexemes/{id}/publish` endpoint to update workflow status and search entries.
 

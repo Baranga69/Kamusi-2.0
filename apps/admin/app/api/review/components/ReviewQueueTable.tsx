@@ -8,6 +8,7 @@ interface ReviewQueueTableProps {
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onApprove: (id: string) => void;
+  onEdit: (item: ReviewQueueItem) => void;
   onReject: (id: string) => void;
 }
 
@@ -24,6 +25,7 @@ export default function ReviewQueueTable({
   selectedIds,
   onToggle,
   onApprove,
+  onEdit,
   onReject,
 }: ReviewQueueTableProps) {
   return (
@@ -68,6 +70,13 @@ export default function ReviewQueueTable({
               disabled={item.review_status && item.review_status !== "unreviewed"}
             >
               Approve
+            </button>
+            <button
+              className="ghost"
+              onClick={() => onEdit(item)}
+              disabled={item.review_status && item.review_status !== "unreviewed"}
+            >
+              Edit
             </button>
             <button
               className="ghost"

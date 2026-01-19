@@ -39,6 +39,10 @@ export default function ReviewQueuePage() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectSingle, setRejectSingle] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDefinition, setEditDefinition] = useState("");
+  const [editGloss, setEditGloss] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
 
@@ -55,6 +59,13 @@ export default function ReviewQueuePage() {
     setRejectReason("");
     setRejectNote("");
     setRejectSingle(false);
+  };
+
+  const resetEdit = () => {
+    setEditingId(null);
+    setEditDefinition("");
+    setEditGloss("");
+    setEditLoading(false);
   };
 
   const ensureReviewer = () => {
@@ -204,6 +215,56 @@ export default function ReviewQueuePage() {
     }
   };
 
+  const startEdit = async (item: ReviewQueueItem) => {
+    if (!client || !ensureReviewer()) {
+      return;
+    }
+    setEditingId(item.sense_definition_id);
+    setEditDefinition(item.sw_definition_preview);
+    setEditGloss("");
+    setEditLoading(true);
+    try {
+      const detail = await client.getReviewItem(item.sense_definition_id);
+      setEditDefinition(detail.sw_definition);
+      setEditGloss(detail.sw_gloss ?? "");
+    } catch (err) {
+      setToast("Failed to load definition details. Editing preview instead.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const submitEdit = async () => {
+    if (!client || !editingId) {
+      return;
+    }
+    if (!editDefinition.trim()) {
+      setToast("Definition is required.");
+      return;
+    }
+    setEditLoading(true);
+    try {
+      await client.editReviewItem(editingId, {
+        reviewer: reviewer.trim(),
+        definition: editDefinition.trim(),
+        gloss: editGloss.trim() ? editGloss.trim() : undefined,
+      });
+      setToast("Definition updated.");
+      resetEdit();
+      await fetchQueue();
+    } catch (err) {
+      if (hasConflict(err)) {
+        setToast("Already reviewed elsewhere. Refreshing queue.");
+        await fetchQueue();
+        resetEdit();
+        return;
+      }
+      setToast("Failed to update definition.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const selectedCount = selectedIds.size;
 
   return (
@@ -290,6 +351,7 @@ export default function ReviewQueuePage() {
           selectedIds={selectedIds}
           onToggle={toggleSelection}
           onApprove={handleApprove}
+          onEdit={startEdit}
           onReject={(id) => startReject([id], true)}
         />
       )}
@@ -327,6 +389,39 @@ export default function ReviewQueuePage() {
                   Confirm reject
                 </button>
                 <button className="ghost" onClick={resetReject}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {editingId && (
+        <div className="modal-backdrop">
+          <div className="modal card">
+            <h3>Edit definition</h3>
+            <div className="stack">
+              <label className="field">
+                <span>Swahili definition</span>
+                <textarea
+                  value={editDefinition}
+                  onChange={(event) => setEditDefinition(event.target.value)}
+                  disabled={editLoading}
+                />
+              </label>
+              <label className="field">
+                <span>Gloss (optional)</span>
+                <input
+                  value={editGloss}
+                  onChange={(event) => setEditGloss(event.target.value)}
+                  disabled={editLoading}
+                />
+              </label>
+              <div className="actions">
+                <button className="secondary" onClick={submitEdit} disabled={editLoading}>
+                  Confirm edit
+                </button>
+                <button className="ghost" onClick={resetEdit} disabled={editLoading}>
                   Cancel
                 </button>
               </div>

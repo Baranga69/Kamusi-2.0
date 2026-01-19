@@ -1,4 +1,5 @@
 {
-  "/api/review/queue/route": "app/api/review/queue/route.js",
-  "/api/review/item/[definition_id]/approve/route": "app/api/review/item/[definition_id]/approve/route.js"
+  "/lexemes/page": "app/lexemes/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/review/page": "app/review/page.js"
 }

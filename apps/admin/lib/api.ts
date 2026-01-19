@@ -155,7 +155,16 @@ const getItems = <T>(data: ListResponse<T> | T[]): T[] => {
 
 export const createAdminClient = (apiKey: string) => {
   const client = axios.create({
+    baseURL: apiBaseUrl,
+    headers: {
+      "X-API-Key": apiKey,
+    },
+  });
+  const reviewClient = axios.create({
     baseURL: "/api",
+    headers: {
+      "X-API-Key": apiKey,
+    },
   });
 
   return {
@@ -269,10 +278,13 @@ export const createAdminClient = (apiKey: string) => {
       return response.data;
     },
     async approveReviewItem(id: string, reviewer: string) {
-      return client.post(`/review/item/${id}/approve`, { reviewer });
+      return client.post(`/admin/review/item/${id}/approve`, { reviewer });
+    },
+    async editReviewItem(id: string, payload: { reviewer: string; definition: string; gloss?: string | null }) {
+      return client.post(`/admin/review/item/${id}/edit`, payload);
     },
     async rejectReviewItem(id: string, payload: { reviewer: string; reason: string; note?: string }) {
-      return client.post(`/review/item/${id}/reject`, payload);
+      return client.post(`/admin/review/item/${id}/reject`, payload);
     },
     async bulkReview(payload: {
       reviewer: string;
@@ -281,7 +293,7 @@ export const createAdminClient = (apiKey: string) => {
       reason?: string;
       note?: string | null;
     }) {
-      const response = await client.post<ReviewBulkResponse>("/review/bulk", payload);
+      const response = await client.post<ReviewBulkResponse>("/admin/review/bulk", payload);
       return response.data;
     },
   };
