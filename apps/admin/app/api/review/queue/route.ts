@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 
 const API_BASE = process.env.KAMUSI_API_BASE_URL!;
-const API_KEY = process.env.ADMIN_API_KEY!;
+const API_KEY = process.env.ADMIN_API_KEY ?? process.env.PROD_ADMIN_API_KEY ?? "";
 
 export async function GET(req: Request) {
+    if (!API_KEY) {
+        return NextResponse.json(
+            { error: "Missing admin API key", detail: "Set ADMIN_API_KEY or PROD_ADMIN_API_KEY for the admin app." },
+            { status: 500 }
+        );
+    }
     const url = new URL(req.url);
     const upstreamUrl = `${API_BASE}/admin/review/queue?${url.searchParams.toString()}`;
 

@@ -270,21 +270,21 @@ export const createAdminClient = (apiKey: string) => {
       offset?: number;
       sort?: "oldest" | "newest" | "lemma";
     }) {
-      const response = await client.get<ReviewQueueItem[]>("/review/queue", { params });
+      const response = await reviewClient.get<ReviewQueueItem[]>("/review/queue", { params });
       return response.data;
     },
     async getReviewItem(id: string) {
-      const response = await client.get<ReviewDetail>(`/review/item/${id}`);
+      const response = await reviewClient.get<ReviewDetail>(`/review/item/${id}`);
       return response.data;
     },
     async approveReviewItem(id: string, reviewer: string) {
-      return client.post(`/admin/review/item/${id}/approve`, { reviewer });
+      return reviewClient.post(`/review/item/${id}/approve`, { reviewer });
     },
     async editReviewItem(id: string, payload: { reviewer: string; definition: string; gloss?: string | null }) {
-      return client.post(`/admin/review/item/${id}/edit`, payload);
+      return reviewClient.post(`/review/item/${id}/edit`, payload);
     },
     async rejectReviewItem(id: string, payload: { reviewer: string; reason: string; note?: string }) {
-      return client.post(`/admin/review/item/${id}/reject`, payload);
+      return reviewClient.post(`/review/item/${id}/reject`, payload);
     },
     async bulkReview(payload: {
       reviewer: string;
@@ -293,7 +293,7 @@ export const createAdminClient = (apiKey: string) => {
       reason?: string;
       note?: string | null;
     }) {
-      const response = await client.post<ReviewBulkResponse>("/admin/review/bulk", payload);
+      const response = await reviewClient.post<ReviewBulkResponse>("/review/bulk", payload);
       return response.data;
     },
   };

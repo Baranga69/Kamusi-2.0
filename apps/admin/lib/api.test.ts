@@ -12,12 +12,16 @@ const mockedAxios = axios as unknown as { create: ReturnType<typeof vi.fn> };
 
 describe("admin review client", () => {
   it("calls review queue endpoint with params", async () => {
-    const get = vi.fn().mockResolvedValue({ data: [] });
-    mockedAxios.create = vi.fn().mockReturnValue({ get });
+    const apiGet = vi.fn().mockResolvedValue({ data: [] });
+    const reviewGet = vi.fn().mockResolvedValue({ data: [] });
+    mockedAxios.create = vi
+      .fn()
+      .mockReturnValueOnce({ get: apiGet })
+      .mockReturnValueOnce({ get: reviewGet });
 
     const client = createAdminClient("test-key");
     await client.listReviewQueue({ status: "unreviewed", q: "kula" });
 
-    expect(get).toHaveBeenCalledWith("/admin/review/queue", { params: { status: "unreviewed", q: "kula" } });
+    expect(reviewGet).toHaveBeenCalledWith("/review/queue", { params: { status: "unreviewed", q: "kula" } });
   });
 });

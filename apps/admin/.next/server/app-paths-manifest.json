@@ -1,5 +1,4 @@
 {
-  "/lexemes/page": "app/lexemes/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
+  "/api/review/queue/route": "app/api/review/queue/route.js",
   "/review/page": "app/review/page.js"
 }

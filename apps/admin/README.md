@@ -18,6 +18,7 @@ Required env vars:
 - `KAMUSI_API_BASE_URL`: Base URL for the Kamusi API (admin routes use `X-API-Key`).
 - `NEXT_PUBLIC_API_BASE_URL`: Optional fallback if `KAMUSI_API_BASE_URL` is not set.
 - `ADMIN_API_KEY`: Server-side API key used by the `/api/review` proxy routes.
+- `PROD_ADMIN_API_KEY`: Optional fallback if you want a separate Render key for the proxy routes.
 
 2. Install dependencies from the repo root:
 
