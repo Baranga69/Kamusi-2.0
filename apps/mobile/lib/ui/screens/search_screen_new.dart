@@ -19,10 +19,12 @@ import 'lexeme_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final String initialQuery;
+  final bool showBackButton;
 
   const SearchScreen({
     super.key,
     this.initialQuery = "",
+    this.showBackButton = true,
   });
 
   @override
@@ -55,6 +57,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _controller.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant SearchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextQuery = widget.initialQuery.trim();
+    if (nextQuery.isEmpty) {
+      return;
+    }
+    if (nextQuery != _controller.text.trim()) {
+      _controller.text = nextQuery;
+      _recordRecent(nextQuery);
+      _doSearch(nextQuery);
+    }
   }
 
   void _scheduleSearch(String q) {
@@ -93,6 +109,34 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  List<SearchEntry> _applyFilter(List<SearchEntry> items) {
+    if (_filter == SearchFilter.all) {
+      return items;
+    }
+    bool matchesKind(SearchEntry item, String kind) {
+      return (item.matchKind ?? '').toLowerCase() == kind;
+    }
+
+    bool matchesType(SearchEntry item, String type) {
+      return item.targetType.toLowerCase() == type;
+    }
+
+    return items.where((item) {
+      switch (_filter) {
+        case SearchFilter.lemma:
+          return matchesKind(item, 'lemma') || matchesType(item, 'lexeme');
+        case SearchFilter.definition:
+          return matchesKind(item, 'definition') ||
+              matchesType(item, 'definition') ||
+              matchesType(item, 'sense');
+        case SearchFilter.example:
+          return matchesKind(item, 'example') || matchesType(item, 'example');
+        case SearchFilter.all:
+          return true;
+      }
+    }).toList();
   }
 
   void _openEntry(SearchEntry entry) {
@@ -136,16 +180,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+    final filteredResults = _applyFilter(_results);
+    final hasQuery = _lastQuery.isNotEmpty;
+    final hasFilterResults = filteredResults.isNotEmpty;
+    final hasResults = _results.isNotEmpty;
     return Scaffold(
       body: Column(
         children: [
           KamusiHeader(
             title: l10n.searchHeaderTitle,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-              splashRadius: 22,
-            ),
+            leading: widget.showBackButton
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () => Navigator.pop(context),
+                    splashRadius: 22,
+                  )
+                : null,
             child: Column(
               children: [
                 KamusiSearchBar(
@@ -187,8 +237,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   selected: _filter,
                   onChanged: (f) {
                     setState(() => _filter = f);
-                    final q = _controller.text.trim();
-                    if (q.isNotEmpty) _doSearch(q);
                   },
                 ),
               ],
@@ -202,30 +250,40 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 borderRadius: BorderRadius.circular(16),
                 child: _loading
                     ? const LoadingSkeleton(lines: 8)
-                    : _results.isEmpty
-                        ? _errorMessage != null
-                            ? ErrorState(
-                                title: l10n.searchErrorFailed,
-                                message: _errorMessage!,
-                                onRetry: () => _doSearch(_lastQuery),
+                    : _errorMessage != null
+                        ? ErrorState(
+                            title: l10n.searchErrorFailed,
+                            message: _errorMessage!,
+                            onRetry: () => _doSearch(_lastQuery),
+                          )
+                        : !hasQuery
+                            ? EmptyState(
+                                title: l10n.searchStartPrompt,
+                                message: l10n.searchHint,
+                                icon: Icons.search,
                               )
-                            : EmptyState(
-                                title: _lastQuery.isEmpty
-                                    ? l10n.searchStartPrompt
-                                    : l10n.searchNoResults,
-                                message: _lastQuery.isEmpty
-                                    ? l10n.searchHint
-                                    : l10n.searchHint,
-                              )
-                        : ListView.separated(
-                            itemCount: _results.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 6),
-                            itemBuilder: (_, i) => SearchResultTile(
-                              item: _results[i],
-                              onTap: () => _openEntry(_results[i]),
-                            ),
-                          ),
+                            : hasResults && !hasFilterResults
+                                ? EmptyState(
+                                    title: l10n.searchNoResultsFilter,
+                                    message: l10n.searchHint,
+                                    icon: Icons.filter_alt_off,
+                                  )
+                                : !hasResults
+                                    ? EmptyState(
+                                        title: l10n.searchNoResults,
+                                        message: l10n.searchHint,
+                                        icon: Icons.search_off,
+                                      )
+                                    : ListView.separated(
+                                        itemCount: filteredResults.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 6),
+                                        itemBuilder: (_, i) => SearchResultTile(
+                                          item: filteredResults[i],
+                                          onTap: () =>
+                                              _openEntry(filteredResults[i]),
+                                        ),
+                                      ),
               ),
             ),
           ),

@@ -182,6 +182,9 @@ def get_review_item(sense_definition_id: str, db: Session = Depends(get_db)) -> 
         review_status=definition.review_status,
         is_ai_generated=definition.is_ai_generated,
         created_at=definition.created_at,
+        reviewed_by=definition.reviewed_by,
+        reviewed_at=definition.reviewed_at,
+        review_note=definition.review_note,
     )
 
 

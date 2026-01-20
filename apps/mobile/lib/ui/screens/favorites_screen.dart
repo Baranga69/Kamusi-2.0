@@ -11,7 +11,9 @@ import 'expression_detail_screen.dart';
 import 'lexeme_detail_screen.dart';
 
 class FavoritesScreen extends ConsumerWidget {
-  const FavoritesScreen({super.key});
+  const FavoritesScreen({super.key, this.onOpenSearch});
+
+  final VoidCallback? onOpenSearch;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,8 +43,8 @@ class FavoritesScreen extends ConsumerWidget {
 
             return TabBarView(
               children: [
-                _FavoritesList(items: lexemes),
-                _FavoritesList(items: expressions),
+                _FavoritesList(items: lexemes, onOpenSearch: onOpenSearch),
+                _FavoritesList(items: expressions, onOpenSearch: onOpenSearch),
               ],
             );
           },
@@ -59,9 +61,13 @@ class FavoritesScreen extends ConsumerWidget {
 }
 
 class _FavoritesList extends ConsumerWidget {
-  const _FavoritesList({required this.items});
+  const _FavoritesList({
+    required this.items,
+    this.onOpenSearch,
+  });
 
   final List<FavoriteItem> items;
+  final VoidCallback? onOpenSearch;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,6 +78,10 @@ class _FavoritesList extends ConsumerWidget {
       return EmptyState(
         title: l10n.favoritesEmptyTitle,
         message: l10n.favoritesEmptyMessage,
+        icon: Icons.star_border,
+        actionLabel:
+            onOpenSearch == null ? null : l10n.favoritesEmptyAction,
+        onAction: onOpenSearch,
       );
     }
 
@@ -79,38 +89,61 @@ class _FavoritesList extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       itemBuilder: (context, index) {
         final item = items[index];
-        return ListTile(
-          tileColor: colorScheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(item.title),
-          subtitle: item.subtitle.isEmpty
-              ? null
-              : Text(
-                  item.subtitle,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-          trailing: IconButton(
-            icon: Icon(Icons.star, color: colorScheme.secondary),
-            onPressed: () =>
-                ref.read(favoritesProvider.notifier).toggleFavorite(item),
+        final dismissBackground = Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(16),
           ),
-          onTap: () {
-            if (item.kind == FavoriteKind.expression) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ExpressionDetailScreen(expressionId: item.id),
-                ),
-              );
-            } else {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => LexemeDetailScreen(lexemeId: item.id),
-                ),
-              );
-            }
+          child: Icon(
+            Icons.delete,
+            color: colorScheme.onErrorContainer,
+          ),
+        );
+        return Dismissible(
+          key: ValueKey('${item.kind.name}-${item.id}'),
+          direction: DismissDirection.endToStart,
+          background: dismissBackground,
+          secondaryBackground: dismissBackground,
+          onDismissed: (_) {
+            ref.read(favoritesProvider.notifier).toggleFavorite(item);
           },
+          child: ListTile(
+            tileColor: colorScheme.surface,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(item.title),
+            subtitle: item.subtitle.isEmpty
+                ? null
+                : Text(
+                    item.subtitle,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+            trailing: IconButton(
+              icon: Icon(Icons.star, color: colorScheme.secondary),
+              onPressed: () =>
+                  ref.read(favoritesProvider.notifier).toggleFavorite(item),
+            ),
+            onTap: () {
+              if (item.kind == FavoriteKind.expression) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ExpressionDetailScreen(expressionId: item.id),
+                  ),
+                );
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => LexemeDetailScreen(lexemeId: item.id),
+                  ),
+                );
+              }
+            },
+          ),
         );
       },
       separatorBuilder: (_, __) => const SizedBox(height: 12),

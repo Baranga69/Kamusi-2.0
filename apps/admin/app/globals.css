@@ -428,8 +428,35 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.review-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.review-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-quick-filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .review-table .review-row {
   grid-template-columns: 40px 140px 90px minmax(160px, 1.4fr) minmax(160px, 1.4fr) 160px 160px 160px;
+}
+
+.review-row.selected {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
 }
 
 .preview {
@@ -501,6 +528,31 @@ button:disabled {
   display: grid;
   gap: 20px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.diff-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.diff-block {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.diff-token.added {
+  background: #dcfce7;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+
+.diff-token.removed {
+  background: #fee2e2;
+  border-radius: 6px;
+  padding: 2px 4px;
+  text-decoration: line-through;
 }
 
 .warning {

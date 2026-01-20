@@ -27,6 +27,8 @@ export default function ReviewQueuePage() {
   const [query, setQuery] = useState("");
   const [posCode, setPosCode] = useState("");
   const [lexemeStatus, setLexemeStatus] = useState("");
+  const [aiOnly, setAiOnly] = useState(false);
+  const [languageFilter, setLanguageFilter] = useState<"all" | "has_en" | "sw_only">("all");
   const [sort, setSort] = useState<"oldest" | "newest" | "lemma">("oldest");
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
@@ -45,6 +47,22 @@ export default function ReviewQueuePage() {
   const [editLoading, setEditLoading] = useState(false);
 
   const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (aiOnly && !item.is_ai_generated) {
+        return false;
+      }
+      const hasEnglish = Boolean(item.en_definition_preview?.trim());
+      if (languageFilter === "has_en" && !hasEnglish) {
+        return false;
+      }
+      if (languageFilter === "sw_only" && hasEnglish) {
+        return false;
+      }
+      return true;
+    });
+  }, [items, aiOnly, languageFilter]);
 
   useEffect(() => {
     if (!toast) {
@@ -109,18 +127,6 @@ export default function ReviewQueuePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, activeTab, query, posCode, lexemeStatus, sort, limit, offset]);
 
-  if (!loaded) {
-    return <p>Loading...</p>;
-  }
-
-  if (!apiKey) {
-    return (
-      <div className="card">
-        <p>API key missing. Add your API key to review AI definitions.</p>
-      </div>
-    );
-  }
-
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -155,7 +161,9 @@ export default function ReviewQueuePage() {
     if (!client || !ensureReviewer()) {
       return;
     }
-    const ids = Array.from(selectedIds);
+    const ids = filteredItems
+      .filter((item) => selectedIds.has(item.sense_definition_id))
+      .map((item) => item.sense_definition_id);
     if (ids.length === 0) {
       setToast("Select items to approve.");
       return;
@@ -265,91 +273,215 @@ export default function ReviewQueuePage() {
     }
   };
 
-  const selectedCount = selectedIds.size;
+  const visibleSelectedIds = filteredItems
+    .filter((item) => selectedIds.has(item.sense_definition_id))
+    .map((item) => item.sense_definition_id);
+  const visibleSelectedCount = visibleSelectedIds.length;
+  const allVisibleSelected = filteredItems.length > 0 && visibleSelectedCount === filteredItems.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+  const aiCount = items.filter((item) => item.is_ai_generated).length;
+
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filteredItems.forEach((item) => next.delete(item.sense_definition_id));
+        return next;
+      }
+      filteredItems.forEach((item) => next.add(item.sense_definition_id));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (rejectingIds || editingId) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable) {
+          return;
+        }
+      }
+      const key = event.key.toLowerCase();
+      if (!["a", "e", "r"].includes(key)) {
+        return;
+      }
+      event.preventDefault();
+      if (visibleSelectedIds.length === 0) {
+        setToast("Select items to use shortcuts.");
+        return;
+      }
+      if (key === "a") {
+        if (visibleSelectedIds.length === 1) {
+          const id = visibleSelectedIds[0];
+          void handleApprove(id);
+        } else {
+          void handleBulkApprove();
+        }
+        return;
+      }
+      if (key === "e") {
+        if (visibleSelectedIds.length !== 1) {
+          setToast("Select a single item to edit.");
+          return;
+        }
+        const id = visibleSelectedIds[0];
+        const item = items.find((entry) => entry.sense_definition_id === id);
+        if (!item) {
+          setToast("Selected item is not on this page.");
+          return;
+        }
+        void startEdit(item);
+        return;
+      }
+      if (key === "r") {
+        startReject(visibleSelectedIds, visibleSelectedIds.length === 1);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    visibleSelectedIds,
+    items,
+    rejectingIds,
+    editingId,
+    handleApprove,
+    handleBulkApprove,
+    startEdit,
+    startReject,
+  ]);
+
+  if (!loaded) {
+    return <p>Loading...</p>;
+  }
+
+  if (!apiKey) {
+    return (
+      <div className="card">
+        <p>API key missing. Add your API key to review AI definitions.</p>
+      </div>
+    );
+  }
 
   return (
     <section className="stack">
-      <div className="header-row">
-        <div>
-          <h1>AI Definition Review Queue</h1>
-          <p className="muted">Focus on Swahili AI drafts awaiting lexicography review.</p>
+      <div className="review-header">
+        <div className="header-row">
+          <div>
+            <h1>AI Definition Review Queue</h1>
+            <p className="muted">Focus on Swahili AI drafts awaiting lexicography review.</p>
+          </div>
+          <div className="review-counts">
+            <span className="chip">Loaded {items.length}</span>
+            <span className="chip">Visible {filteredItems.length}</span>
+          <span className="chip">Selected {visibleSelectedCount}</span>
+            <span className="chip">AI {aiCount}</span>
+          </div>
         </div>
-      </div>
-      <div className="review-toolbar">
-        <label className="field">
-          <span>Reviewer name</span>
-          <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Reviewer" />
-        </label>
-        <div className="tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              className={activeTab === tab.key ? "tab active" : "tab"}
-              onClick={() => {
-                setActiveTab(tab.key);
-                setOffset(0);
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="review-toolbar">
+          <label className="field">
+            <span>Reviewer name</span>
+            <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Reviewer" />
+          </label>
+          <div className="tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                className={activeTab === tab.key ? "tab active" : "tab"}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setOffset(0);
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="filters">
-        <label className="field">
-          <span>Search lemma</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. kula" />
-        </label>
-        <label className="field">
-          <span>POS code</span>
-          <input value={posCode} onChange={(event) => setPosCode(event.target.value)} placeholder="NOUN" />
-        </label>
-        <label className="field">
-          <span>Lexeme status</span>
-          <select value={lexemeStatus} onChange={(event) => setLexemeStatus(event.target.value)}>
-            <option value="">All</option>
-            {lexemeStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Sort</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
-            <option value="oldest">Oldest</option>
-            <option value="newest">Newest</option>
-            <option value="lemma">Lemma</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>Page size</span>
-          <select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>
-            {[10, 20, 50].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="actions">
-        <button className="primary" onClick={handleBulkApprove} disabled={selectedCount === 0}>
-          Bulk approve ({selectedCount})
-        </button>
-        <button className="secondary" onClick={() => startReject(Array.from(selectedIds), false)} disabled={selectedCount === 0}>
-          Bulk reject ({selectedCount})
-        </button>
+        <div className="filters">
+          <label className="field">
+            <span>Search lemma</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. kula" />
+          </label>
+          <label className="field">
+            <span>POS code</span>
+            <input value={posCode} onChange={(event) => setPosCode(event.target.value)} placeholder="NOUN" />
+          </label>
+          <label className="field">
+            <span>Lexeme status</span>
+            <select value={lexemeStatus} onChange={(event) => setLexemeStatus(event.target.value)}>
+              <option value="">All</option>
+              {lexemeStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Definition language</span>
+            <select value={languageFilter} onChange={(event) => setLanguageFilter(event.target.value as typeof languageFilter)}>
+              <option value="all">All</option>
+              <option value="has_en">Has English</option>
+              <option value="sw_only">Swahili only</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Sort</span>
+            <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
+              <option value="oldest">Oldest</option>
+              <option value="newest">Newest</option>
+              <option value="lemma">Lemma</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Page size</span>
+            <select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>
+              {[10, 20, 50].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="review-quick-filters">
+          <label className="checkbox">
+            <input type="checkbox" checked={aiOnly} onChange={(event) => setAiOnly(event.target.checked)} />
+            AI only
+          </label>
+          <span className="muted">Shortcuts: A approve, E edit, R reject</span>
+        </div>
+        <div className="actions">
+          <button className="primary" onClick={handleBulkApprove} disabled={visibleSelectedCount === 0}>
+            Bulk approve ({visibleSelectedCount})
+          </button>
+          <button
+            className="secondary"
+            onClick={() => startReject(visibleSelectedIds, false)}
+            disabled={visibleSelectedCount === 0}
+          >
+            Bulk reject ({visibleSelectedCount})
+          </button>
+        </div>
       </div>
       {toast && <div className="alert">{toast}</div>}
       {error && <p className="error">{error}</p>}
       {loading && <p>Loading queue...</p>}
       {!loading && (
         <ReviewQueueTable
-          items={items}
+          items={filteredItems}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
+          onToggleAll={toggleSelectAllVisible}
+          allSelected={allVisibleSelected}
+          someSelected={someVisibleSelected}
           onApprove={handleApprove}
           onEdit={startEdit}
           onReject={(id) => startReject([id], true)}
@@ -359,7 +491,7 @@ export default function ReviewQueuePage() {
         <button className="ghost" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0}>
           Previous
         </button>
-        <span className="muted">Showing {offset + 1} - {offset + items.length}</span>
+        <span className="muted">Showing {offset + 1} - {offset + items.length} ({filteredItems.length} visible)</span>
         <button className="ghost" onClick={() => setOffset(offset + limit)} disabled={items.length < limit}>
           Next
         </button>

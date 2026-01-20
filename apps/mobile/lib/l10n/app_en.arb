@@ -2,10 +2,19 @@
   "appTitle": "Kamusi",
   "headerTitle": "Kamusi",
   "homeRecentHeader": "Recent searches",
-  "homeRecentEmpty": "Swahili lexicon.",
+  "homeRecentEmpty": "Your recent searches will show up here.",
   "homeRecentClear": "Clear",
   "homeSearchHint": "Search for a word...",
   "homeWordOfDayTitle": "Word of the day",
+  "homeWordOfDayDateLabel": "Today · {date}",
+  "@homeWordOfDayDateLabel": {
+    "description": "Label shown under word of the day title.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "homeWordOfDayLoading": "Loading word of the day...",
   "homeWordOfDayError": "Unable to load today's word.",
   "homeThemeToggleLight": "Switch to light mode",
@@ -20,10 +29,11 @@
   "searchUnsupportedResultType": "Unsupported result type",
   "searchStartPrompt": "Start searching.",
   "searchNoResults": "No results found.",
+  "searchNoResultsFilter": "No results for this filter.",
   "filterAll": "All",
-  "filterWord": "Word",
-  "filterProverb": "Proverb",
-  "filterIdiom": "Idiom",
+  "filterLemma": "Lemma",
+  "filterDefinition": "Definition",
+  "filterExample": "Example",
   "relatedEmpty": "No related words.",
   "retry": "Retry",
   "lexemeTitle": "Lexeme",
@@ -47,6 +57,7 @@
   "favoritesUnableLoad": "Unable to load favorites",
   "favoritesEmptyTitle": "No favorites yet",
   "favoritesEmptyMessage": "Save a lexeme or expression to revisit it quickly.",
+  "favoritesEmptyAction": "Start searching",
   "expressionTitle": "Expression",
   "expressionMeanings": "Meanings",
   "expressionUnableLoad": "Unable to load expression",

@@ -1,4 +1,9 @@
 {
   "/api/review/queue/route": "app/api/review/queue/route.js",
-  "/review/page": "app/review/page.js"
+  "/review/page": "app/review/page.js",
+  "/lexemes/page": "app/lexemes/page.js",
+  "/expressions/page": "app/expressions/page.js",
+  "/tags/page": "app/tags/page.js",
+  "/sources/page": "app/sources/page.js",
+  "/licenses/page": "app/licenses/page.js"
 }

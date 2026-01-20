@@ -39,15 +39,15 @@ class FilterChipsRow extends StatelessWidget {
         children: [
           chip(l10n.filterAll, SearchFilter.all),
           const SizedBox(width: 10),
-          chip(l10n.filterWord, SearchFilter.word),
+          chip(l10n.filterLemma, SearchFilter.lemma),
           const SizedBox(width: 10),
-          chip(l10n.filterProverb, SearchFilter.proverb),
+          chip(l10n.filterDefinition, SearchFilter.definition),
           const SizedBox(width: 10),
-          chip(l10n.filterIdiom, SearchFilter.idiom),
+          chip(l10n.filterExample, SearchFilter.example),
         ],
       ),
     );
   }
 }
 
-enum SearchFilter { all, word, proverb, idiom }
+enum SearchFilter { all, lemma, definition, example }

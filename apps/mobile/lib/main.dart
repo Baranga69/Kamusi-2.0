@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:kamusi_mobile/ui/screens/dictionary_home_screen.dart';
-import 'package:kamusi_mobile/ui/screens/search_screen_new.dart';
 
 import 'providers/app_providers.dart';
+import 'ui/screens/dictionary_home_screen.dart';
+import 'ui/screens/search_screen_new.dart';
 import 'ui/theme/kamusi_theme.dart';
 
 void main() {
@@ -23,6 +23,7 @@ class KamusiApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       theme: buildKamusiTheme(brightness: Brightness.light),
       darkTheme: buildKamusiTheme(brightness: Brightness.dark),
+      debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       home: Builder(
         builder: (context) => DictionaryHomeScreen(

@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.title, required this.message});
+  const EmptyState({
+    super.key,
+    required this.title,
+    required this.message,
+    this.icon,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String title;
   final String message;
+  final IconData? icon;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +27,7 @@ class EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.search_off,
+              icon ?? Icons.search_off,
               size: 48,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -31,6 +41,14 @@ class EmptyState extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.search),
+                label: Text(actionLabel!),
+              ),
+            ],
           ],
         ),
       ),

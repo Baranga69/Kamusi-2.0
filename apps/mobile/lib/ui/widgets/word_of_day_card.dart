@@ -4,6 +4,7 @@ import '../theme/kamusi_typography.dart';
 
 class WordOfDayCard extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final String? lemma;
   final String? definition;
   final String? message;
@@ -13,6 +14,7 @@ class WordOfDayCard extends StatelessWidget {
   const WordOfDayCard({
     super.key,
     required this.title,
+    this.subtitle,
     this.lemma,
     this.definition,
     this.message,
@@ -70,6 +72,8 @@ class WordOfDayCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             definition ?? '',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -105,6 +109,15 @@ class WordOfDayCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               content,
             ],

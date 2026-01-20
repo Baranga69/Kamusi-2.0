@@ -1,14 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../providers/app_providers.dart';
 import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
-import '../widgets/kamusi_header.dart';
-import '../widgets/recent_search_tile.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/word_of_day_card.dart';
+import 'favorites_screen.dart';
 import 'lexeme_detail_screen.dart';
 
 class DictionaryHomeScreen extends ConsumerStatefulWidget {
@@ -27,13 +29,32 @@ class DictionaryHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _DictionaryHomeScreenState
-    extends ConsumerState<DictionaryHomeScreen> {
+    extends ConsumerState<DictionaryHomeScreen> with WidgetsBindingObserver {
   final _controller = TextEditingController();
+  Timer? _wordOfDayTimer;
+  DateTime _wordOfDayAnchor = DateTime.utc(1970, 1, 1);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _wordOfDayAnchor = _utcToday();
+    _scheduleWordOfDayRefresh();
+  }
 
   @override
   void dispose() {
+    _wordOfDayTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshWordOfDayIfNeeded();
+    }
   }
 
   @override
@@ -46,6 +67,7 @@ class _DictionaryHomeScreenState
     final wordOfDaySection = ref.watch(wordOfDayProvider).when(
           data: (word) => WordOfDayCard(
             title: l10n.homeWordOfDayTitle,
+            subtitle: _wordOfDaySubtitle(context, word.date),
             lemma: word.lemma,
             definition: word.definition,
             onTap: () => _openLexeme(word.lexemeId),
@@ -62,13 +84,12 @@ class _DictionaryHomeScreenState
         );
     final bodyCard = Card(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Icon(Icons.history,
                     size: 18, color: colorScheme.onSurfaceVariant),
@@ -93,67 +114,97 @@ class _DictionaryHomeScreenState
                   ),
               ],
             ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
-          if (recents.isEmpty)
-            Padding(
-              padding: EdgeInsets.all(14),
-              child: Text(
+            const SizedBox(height: 12),
+            if (recents.isEmpty)
+              Text(
                 l10n.homeRecentEmpty,
                 style: textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: recents
+                    .map(
+                      (query) => ActionChip(
+                        avatar: Icon(
+                          Icons.search,
+                          size: 16,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        label: Text(query),
+                        onPressed: () => widget.onSearchSubmitted(query),
+                      ),
+                    )
+                    .toList(),
               ),
-            )
-          else
-            ...recents.map(
-              (query) => Column(
-                children: [
-                  RecentSearchTile(
-                    query: query,
-                    onTap: () => widget.onSearchSubmitted(query),
-                  ),
-                  const SizedBox(height: 4),
-                ],
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
 
     return Scaffold(
-      body: Column(
-        children: [
-          KamusiHeader(
-            title: l10n.headerTitle,
-            leading: IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () {},
-              splashRadius: 22,
+      appBar: AppBar(
+        title: Text(l10n.headerTitle),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
             ),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  isDarkMode
-                      ? Icons.light_mode_outlined
-                      : Icons.dark_mode_outlined,
+            onPressed: () {
+              ref.read(themeModeProvider.notifier).state =
+                  isDarkMode ? ThemeMode.light : ThemeMode.dark;
+            },
+            tooltip:
+                isDarkMode ? l10n.homeThemeToggleLight : l10n.homeThemeToggleDark,
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(color: colorScheme.surfaceVariant),
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Text(
+                    l10n.headerTitle,
+                    style: textTheme.titleLarge?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-                onPressed: () {
-                  ref.read(themeModeProvider.notifier).state =
-                      isDarkMode ? ThemeMode.light : ThemeMode.dark;
-                },
-                tooltip: isDarkMode
-                    ? l10n.homeThemeToggleLight
-                    : l10n.homeThemeToggleDark,
-                splashRadius: 22,
               ),
-              IconButton(
-                icon: const Icon(Icons.mic_none),
-                onPressed: () {},
-                splashRadius: 22,
+              ListTile(
+                leading: const Icon(Icons.search),
+                title: Text(l10n.bottomNavSearch),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  widget.onOpenSearch?.call();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.star_border),
+                title: Text(l10n.bottomNavFavorites),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _openFavorites();
+                },
               ),
             ],
+          ),
+        ),
+      ),
+      body: ListView(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: KamusiSearchBar(
               hint: l10n.homeSearchHint,
               controller: _controller,
@@ -169,19 +220,10 @@ class _DictionaryHomeScreenState
               onChanged: (_) => setState(() {}),
             ),
           ),
-          Expanded(
-            child: ListView(
-              children: [
-                wordOfDaySection,
-                bodyCard,
-              ],
-            ),
-          ),
+          const SizedBox(height: 12),
+          wordOfDaySection,
+          bodyCard,
         ],
-      ),
-      bottomNavigationBar: _KamusiBottomNav(
-        currentIndex: 1,
-        onTap: (_) {},
       ),
     );
   }
@@ -193,34 +235,50 @@ class _DictionaryHomeScreenState
       ),
     );
   }
-}
 
-class _KamusiBottomNav extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  const _KamusiBottomNav({
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return NavigationBar(
-      selectedIndex: currentIndex,
-      onDestinationSelected: onTap,
-      destinations: [
-        NavigationDestination(
-            icon: const Icon(Icons.home_outlined), label: l10n.bottomNavHome),
-        NavigationDestination(
-            icon: const Icon(Icons.search), label: l10n.bottomNavSearch),
-        NavigationDestination(
-            icon: const Icon(Icons.star_border),
-            label: l10n.bottomNavFavorites),
-        NavigationDestination(
-            icon: const Icon(Icons.history), label: l10n.bottomNavProfile),
-      ],
+  void _openFavorites() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FavoritesScreen(
+          onOpenSearch: widget.onOpenSearch,
+        ),
+      ),
     );
+  }
+
+  String? _wordOfDaySubtitle(BuildContext context, String rawDate) {
+    if (rawDate.trim().isEmpty) {
+      return null;
+    }
+    final parsed = DateTime.tryParse(rawDate);
+    if (parsed == null) {
+      return AppLocalizations.of(context)!.homeWordOfDayDateLabel(rawDate);
+    }
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final formatted = DateFormat.MMMd(locale).format(parsed);
+    return AppLocalizations.of(context)!.homeWordOfDayDateLabel(formatted);
+  }
+
+  DateTime _utcToday() {
+    final now = DateTime.now().toUtc();
+    return DateTime.utc(now.year, now.month, now.day);
+  }
+
+  void _refreshWordOfDayIfNeeded() {
+    final today = _utcToday();
+    if (today != _wordOfDayAnchor) {
+      _wordOfDayAnchor = today;
+      ref.invalidate(wordOfDayProvider);
+    }
+    _scheduleWordOfDayRefresh();
+  }
+
+  void _scheduleWordOfDayRefresh() {
+    _wordOfDayTimer?.cancel();
+    final now = DateTime.now().toUtc();
+    final nextMidnight =
+        DateTime.utc(now.year, now.month, now.day).add(const Duration(days: 1));
+    final delay = nextMidnight.difference(now) + const Duration(seconds: 1);
+    _wordOfDayTimer = Timer(delay, _refreshWordOfDayIfNeeded);
   }
 }

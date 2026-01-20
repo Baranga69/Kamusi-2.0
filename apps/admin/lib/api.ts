@@ -123,6 +123,9 @@ export interface ReviewDetail {
   review_status?: string | null;
   is_ai_generated: boolean;
   created_at: string;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
 }
 
 export interface ReviewActionResponse {

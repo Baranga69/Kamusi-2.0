@@ -484,6 +484,9 @@ class ReviewDetail(BaseModel):
     review_status: str | None
     is_ai_generated: bool
     created_at: datetime
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    review_note: str | None = None
 
 
 class ReviewApproveRequest(BaseModel):

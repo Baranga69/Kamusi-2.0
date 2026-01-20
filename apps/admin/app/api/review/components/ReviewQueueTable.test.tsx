@@ -23,6 +23,9 @@ test("renders queue table rows", () => {
       items={sampleItems}
       selectedIds={new Set()}
       onToggle={() => undefined}
+      onToggleAll={() => undefined}
+      allSelected={false}
+      someSelected={false}
       onApprove={() => undefined}
       onEdit={() => undefined}
       onReject={() => undefined}

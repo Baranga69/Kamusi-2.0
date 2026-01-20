@@ -49,8 +49,12 @@ curl "http://localhost:8000/word-of-the-day?lang=sw"
 ## Features
 
 - Search suggestions with debounce
+- Search filters for lemma, definition, and example matches
 - Word of the day card on the home screen
+- Word of the day refreshes on UTC day change when the app returns to foreground
+- Top app bar with side drawer for Search and Favorites
 - Light/dark mode toggle on the home screen
 - Recent searches (last 10) with clear action
+- Swipe to remove favorites
 - Lexeme and expression detail views
 - Favorites with local persistence

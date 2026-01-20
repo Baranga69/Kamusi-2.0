@@ -2,10 +2,19 @@
   "appTitle": "Kamusi",
   "headerTitle": "Kamusi",
   "homeRecentHeader": "Utafutaji wa hivi karibuni",
-  "homeRecentEmpty": "Kamusi ya Kiswahili.",
+  "homeRecentEmpty": "Utafutaji wako wa hivi karibuni utaonekana hapa.",
   "homeRecentClear": "Futa",
   "homeSearchHint": "Tafuta neno...",
   "homeWordOfDayTitle": "Neno la siku",
+  "homeWordOfDayDateLabel": "Leo · {date}",
+  "@homeWordOfDayDateLabel": {
+    "description": "Lebo inayoonekana chini ya kichwa cha neno la siku.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "homeWordOfDayLoading": "Inapakia neno la siku...",
   "homeWordOfDayError": "Imeshindikana kupakia neno la leo.",
   "homeThemeToggleLight": "Badili kwenda mwanga",
@@ -20,10 +29,11 @@
   "searchUnsupportedResultType": "Aina ya matokeo hayatumiki.",
   "searchStartPrompt": "Anza kutafuta.",
   "searchNoResults": "Hakuna matokeo yaliyopatikana.",
+  "searchNoResultsFilter": "Hakuna matokeo kwa kichujio hiki.",
   "filterAll": "Zote",
-  "filterWord": "Neno",
-  "filterProverb": "Methali",
-  "filterIdiom": "Nahau",
+  "filterLemma": "Neno",
+  "filterDefinition": "Ufafanuzi",
+  "filterExample": "Mfano",
   "relatedEmpty": "Hakuna maneno yanayohusiana.",
   "retry": "Jaribu tena",
   "lexemeTitle": "Leksema",
@@ -47,6 +57,7 @@
   "favoritesUnableLoad": "Imeshindikana kupakia vipendwa",
   "favoritesEmptyTitle": "Bado hakuna vipendwa",
   "favoritesEmptyMessage": "Hifadhi leksema au semi ili uirudie haraka.",
+  "favoritesEmptyAction": "Anza kutafuta",
   "expressionTitle": "Semi",
   "expressionMeanings": "Maana",
   "expressionUnableLoad": "Imeshindikana kupakia semi",
