@@ -1,18 +1,24 @@
 import re
 import unicodedata
 
-DASH_VARIANTS = "\u2010\u2011\u2012\u2013\u2014\u2015\u2212\u2043"
-APOSTROPHE_VARIANTS = "\u2018\u2019\u201b\u2032\u2035"
+DASH_VARIANTS = "‐‑‒–—―−⁃"
+APOSTROPHE_VARIANTS = "‘’‛′‵"
 
 
 def normalize_sw(text: str) -> str:
+    """Fold a Swahili string into its search key.
+
+    Dashes and apostrophes are dropped rather than turned into spaces so that
+    ``ng'ombe`` and ``ngombe`` collapse to the same key, and so that a verb
+    root written ``-pika`` matches ``pika``. Every other punctuation mark
+    becomes a space.
+    """
     if text is None:
         return ""
     normalized = unicodedata.normalize("NFKC", text).lower()
     normalized = normalized.translate(str.maketrans({ch: "-" for ch in DASH_VARIANTS}))
     normalized = normalized.translate(str.maketrans({ch: "'" for ch in APOSTROPHE_VARIANTS}))
     normalized = re.sub(r"[^\w\s'\-]", " ", normalized, flags=re.UNICODE)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = normalized.replace("-", " ").replace("'", " ")
+    normalized = normalized.replace("-", "").replace("'", "")
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
