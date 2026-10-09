@@ -1,15 +1,30 @@
 .DS_Store
 .idea
 .vscode
+
+# Node
 node_modules
-pnpm-lock.yaml
+
+# Secrets — use the .env.example files as templates
 .env
 .env.local
+
+# Python
 __pycache__
 *.pyc
 .poetry
+.venv
+.venv-ingest
+venv
+
+# Flutter
 .flutter-plugins
 .flutter-plugins-dependencies
 .dart_tool
+
+# Build output
 build
 coverage
+.next
+*.tsbuildinfo
+next-env.d.ts
