@@ -14,12 +14,15 @@ python-dotenv = "^1.0.1"
 sqlalchemy = "^2.0.29"
 alembic = "^1.13.1"
 psycopg = {extras = ["binary"], version = "^3.3.2"}
-pydantic-settings = "^2.2.1"
+# NoDecode (used in app/core/config.py for CORS_ORIGINS) needs >= 2.3.0
+pydantic-settings = "^2.3.0"
 wiktextract = "^1.99.7"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 alembic = "^1.17.2"
+# scripts/export_openapi.py renders packages/contracts/openapi.yaml
+pyyaml = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.7.0"]

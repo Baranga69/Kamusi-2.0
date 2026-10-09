@@ -1,8 +1,8 @@
 import json
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -12,11 +12,19 @@ class Settings(BaseSettings):
     api_key: str = "dev-api-key"
     admin_api_key: Optional[str] = Field(default=None, alias="ADMIN_API_KEY")
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"], alias="CORS_ORIGINS")
+
+    # NoDecode stops pydantic-settings from JSON-decoding the env value before
+    # validation. Without it, CORS_ORIGINS="http://localhost:3000" raises a
+    # SettingsError at import time and the app never starts, because the
+    # validator below never gets to see the raw string.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"], alias="CORS_ORIGINS"
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: object) -> list[str]:
+        """Accept a JSON array, a comma-separated list, or a single origin."""
         if value is None:
             return []
         if isinstance(value, list):
