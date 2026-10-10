@@ -385,6 +385,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Meaning'**
   String get meaningLabel;
+
+  /// No description provided for @offlineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline — showing saved words.'**
+  String get offlineBanner;
 }
 
 class _AppLocalizationsDelegate

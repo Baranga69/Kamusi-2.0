@@ -156,4 +156,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meaningLabel => 'Meaning';
+
+  @override
+  String get offlineBanner => 'Offline — showing saved words.';
 }

@@ -197,6 +197,16 @@ Admin is the *gatekeeper* for public data quality.
 - Lexeme detail endpoint working (after schema fixes)
 - Real data rendering (not mocked)
 
+### Offline reading (2026-10-10)
+API responses are cached on disk (`lib/data/response_cache.dart`), LRU-bounded
+at 250 entries, backed by `shared_preferences`. A read that fails on
+connectivity, a timeout or a 5xx falls back to the saved copy and raises a
+banner; a 404 is never masked. Words already opened — including favourites and
+recent searches — therefore work with no connection. Searching for a *new* word
+offline still needs the network; true offline search means shipping or syncing
+the corpus with a local full-text index (sqflite + FTS), which is the next step
+if that is wanted.
+
 ### UX Direction (LOCKED)
 - Material 3
 - Calm, scholarly, reading-first
@@ -279,8 +289,9 @@ As of this document:
    `alembic upgrade head`, `backfill_ai_provenance.py`,
    `reindex_normalized.py`, `rebuild_search_index.py`; then create accounts
    with `create_user.py` and confirm the review queue is populated
-2. Offline-first mobile: search results and lexeme details are in-memory only,
-   which is the biggest user-visible gap for the intended market
+2. Full offline search: responses are now cached, so seen words work offline,
+   but finding a new word still needs the network (sqflite + FTS over a
+   shipped or synced corpus)
 3. Decide the lexeme/expression editor contract: aggregate write endpoints on
    the API, or sequence per-entity calls in the admin UI
 4. Feed real lookup counts into `search_entry.popularity`, which is in the

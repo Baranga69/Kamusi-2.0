@@ -6,6 +6,7 @@ import 'providers/app_providers.dart';
 import 'ui/screens/dictionary_home_screen.dart';
 import 'ui/screens/search_screen_new.dart';
 import 'ui/theme/kamusi_theme.dart';
+import 'ui/widgets/offline_banner.dart';
 
 void main() {
   runApp(const ProviderScope(child: KamusiApp()));
@@ -25,6 +26,9 @@ class KamusiApp extends ConsumerWidget {
       darkTheme: buildKamusiTheme(brightness: Brightness.dark),
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
+      // Wrapping here rather than per screen means pushed routes are covered
+      // too, and there is one place that decides how offline is presented.
+      builder: (context, child) => OfflineBanner(child: child ?? const SizedBox.shrink()),
       home: Builder(
         builder: (context) => DictionaryHomeScreen(
           onOpenSearch: () => _openSearch(context),

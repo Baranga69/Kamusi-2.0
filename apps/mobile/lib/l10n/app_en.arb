@@ -62,5 +62,6 @@
   "expressionTitle": "Expression",
   "expressionMeanings": "Meanings",
   "expressionUnableLoad": "Unable to load expression",
-  "meaningLabel": "Meaning"
+  "meaningLabel": "Meaning",
+  "offlineBanner": "Offline — showing saved words."
 }

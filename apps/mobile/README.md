@@ -26,6 +26,26 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
 Release builds must pass the deployed URL explicitly; there is no production
 default baked into the app.
 
+## Offline reading
+
+Responses are cached on disk, so a word opened once stays readable without a
+connection — which matters when data is intermittent or expensive. The exact
+JSON the API returned is stored, keyed by request, with a least-recently-used
+bound of 250 entries.
+
+When a read fails for a reason a cached copy can stand in for — no connection,
+a timeout, a 5xx — the saved copy is served and a calm banner says so. A 404 is
+a real answer and is never masked: if an entry was removed upstream, showing
+the old copy would be a lie.
+
+This covers words already seen (so favourites and recent searches work on a
+plane). Searching for something *new* offline still needs the network — true
+offline search would mean shipping or syncing the corpus with a local full-text
+index, which is a larger piece of work than this.
+
+`shared_preferences` backs the cache, so there is no new dependency; a full
+offline corpus would want `sqflite` with FTS instead.
+
 ## Draft content
 
 The app requests published content only. Drafts are unpublished and unreviewed,
@@ -62,6 +82,7 @@ package; they are imported by relative path.)
 
 ```bash
 flutter analyze
+flutter test
 flutter build web --dart-define=API_BASE_URL=http://localhost:8000
 ```
 

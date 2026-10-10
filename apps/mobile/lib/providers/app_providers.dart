@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api_client.dart';
+import '../data/response_cache.dart';
 import '../data/kamusi_api_repository.dart';
 import '../data/local_favorites_repository.dart';
 import '../data/local_recent_searches_repository.dart';
@@ -38,10 +39,26 @@ final includeDraftsProvider = Provider<bool>((ref) {
   return const bool.fromEnvironment('INCLUDE_DRAFTS', defaultValue: false);
 });
 
+/// On-disk cache of API responses, so a word opened once stays readable
+/// without a connection.
+final responseCacheProvider = Provider<ResponseCache>((ref) {
+  return ResponseCache();
+});
+
 final apiClientProvider = Provider<ApiClient>((ref) {
   final baseUrl = ref.watch(apiBaseUrlProvider);
   final includeDrafts = ref.watch(includeDraftsProvider);
-  return ApiClient(baseUrl: baseUrl, includeDrafts: includeDrafts);
+  return ApiClient(
+    baseUrl: baseUrl,
+    includeDrafts: includeDrafts,
+    cache: ref.watch(responseCacheProvider),
+  );
+});
+
+/// True while the app is showing saved copies because the network is
+/// unreachable. Drives the offline banner.
+final servingCachedDataProvider = Provider<ValueNotifier<bool>>((ref) {
+  return ref.watch(apiClientProvider).servingCachedData;
 });
 
 final kamusiRepositoryProvider = Provider<KamusiRepository>((ref) {

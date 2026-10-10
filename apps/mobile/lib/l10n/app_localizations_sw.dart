@@ -158,4 +158,8 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get meaningLabel => 'Maana';
+
+  @override
+  String get offlineBanner =>
+      'Nje ya mtandao — tunaonyesha maneno yaliyohifadhiwa.';
 }
