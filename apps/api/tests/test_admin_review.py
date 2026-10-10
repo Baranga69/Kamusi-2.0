@@ -95,3 +95,52 @@ def test_review_queue_filters(client, db_session):
     )
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_review_queue_lexeme_status_filter(client, db_session):
+    language_sw = Language(code="sw", name="Swahili")
+    pos = PartOfSpeech(code="NOUN", label="NOUN")
+    db_session.add_all([language_sw, pos])
+    db_session.commit()
+
+    lexeme = Lexeme(
+        lemma="Kito",
+        normalized_lemma="kito",
+        pos_id=pos.id,
+        status="slang",
+        default_language_code="sw",
+        workflow="draft",
+    )
+    db_session.add(lexeme)
+    db_session.commit()
+
+    sense = Sense(lexeme_id=lexeme.id, sense_number=1, workflow="draft")
+    db_session.add(sense)
+    db_session.commit()
+
+    db_session.add(
+        SenseDefinition(
+            sense_id=sense.id,
+            lang_code="sw",
+            definition="kito kidogo",
+            is_primary=True,
+            is_ai_generated=True,
+            review_status="unreviewed",
+            created_at=datetime.utcnow(),
+        )
+    )
+    db_session.commit()
+
+    headers = {"X-API-Key": "dev-api-key"}
+
+    resp = client.get("/admin/review/queue", headers=headers, params={"lexeme_status": "slang"})
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+    # The filter is honoured rather than silently ignored.
+    resp = client.get("/admin/review/queue", headers=headers, params={"lexeme_status": "core"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+    resp = client.get("/admin/review/queue", headers=headers, params={"lexeme_status": "bogus"})
+    assert resp.status_code == 400

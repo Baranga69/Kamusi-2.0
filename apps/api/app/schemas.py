@@ -552,3 +552,55 @@ class ExpressionPublic(BaseModel):
     region_id: uuid.UUID | None
     meanings: list[ExpressionMeaningPublic]
     examples: list[ExpressionExamplePublic]
+
+
+class LexemeListItem(BaseModel):
+    """Flat projection for the admin lexeme browser.
+
+    Deliberately not the full nested aggregate: the list view only needs enough
+    to render a row and link to the editor.
+    """
+
+    id: uuid.UUID
+    lemma: str
+    normalized_lemma: str
+    pos_id: uuid.UUID
+    pos_code: str | None = None
+    status: str
+    workflow: str
+    default_language_code: str
+    sense_count: int
+    sw_definition_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExpressionListItem(BaseModel):
+    id: uuid.UUID
+    text: str
+    normalized_text: str
+    expression_type_id: uuid.UUID
+    expression_type_code: str | None = None
+    region_id: uuid.UUID | None = None
+    workflow: str
+    meaning_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class LookupOption(BaseModel):
+    id: uuid.UUID
+    code: str
+    label: str
+
+
+class LookupBundle(BaseModel):
+    """Every seeded vocabulary the admin UI needs to populate its selects."""
+
+    languages: list[LanguageRead]
+    parts_of_speech: list[LookupOption]
+    registers: list[LookupOption]
+    domains: list[LookupOption]
+    regions: list[LookupOption]
+    expression_types: list[LookupOption]
+    tag_types: list[LookupOption]

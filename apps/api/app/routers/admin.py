@@ -1,25 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_api_key
 from app.models import (
+    Domain,
     Example,
+    ExpressionType,
     ExampleText,
     Expression,
     ExpressionExample,
     ExpressionExampleText,
     ExpressionLink,
     ExpressionMeaning,
+    Language,
     Lexeme,
     LexemeTag,
     License,
+    Region,
+    Register,
+    PartOfSpeech,
     Sense,
     SenseDefinition,
     SenseTag,
     Source,
     Tag,
+    TagType,
     Wordform,
 )
 from app.normalize import normalize_sw
@@ -43,9 +50,12 @@ from app.schemas import (
     ExpressionMeaningCreate,
     ExpressionMeaningRead,
     ExpressionMeaningUpdate,
+    ExpressionListItem,
     ExpressionRead,
     ExpressionUpdate,
+    LanguageRead,
     LexemeCreate,
+    LexemeListItem,
     LexemeRead,
     LexemeTagCreate,
     LexemeTagRead,
@@ -54,6 +64,8 @@ from app.schemas import (
     LicenseCreate,
     LicenseRead,
     LicenseUpdate,
+    LookupBundle,
+    LookupOption,
     SenseCreate,
     SenseDefinitionCreate,
     SenseDefinitionRead,
@@ -83,6 +95,190 @@ def get_or_404(db: Session, model, object_id):
     if not obj:
         raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
     return obj
+
+
+def lookup_options(db: Session, model) -> list[LookupOption]:
+    rows = db.scalars(select(model).order_by(model.code.asc())).all()
+    return [LookupOption(id=row.id, code=row.code, label=row.label) for row in rows]
+
+
+@router.get("/lookups", response_model=LookupBundle)
+def get_lookups(db: Session = Depends(get_db)) -> LookupBundle:
+    """Seeded vocabularies, so the admin UI never has to hardcode an id."""
+    languages = db.scalars(select(Language).order_by(Language.code.asc())).all()
+    return LookupBundle(
+        languages=[LanguageRead(code=row.code, name=row.name) for row in languages],
+        parts_of_speech=lookup_options(db, PartOfSpeech),
+        registers=lookup_options(db, Register),
+        domains=lookup_options(db, Domain),
+        regions=lookup_options(db, Region),
+        expression_types=lookup_options(db, ExpressionType),
+        tag_types=lookup_options(db, TagType),
+    )
+
+
+WORKFLOW_STATUSES = {"draft", "reviewed", "published", "archived"}
+
+
+def validate_workflow(status: str | None) -> str | None:
+    if status is not None and status not in WORKFLOW_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid workflow status")
+    return status
+
+
+@router.get("/lexemes", response_model=list[LexemeListItem])
+def list_lexemes(
+    query: str | None = None,
+    status: str | None = None,
+    pos_code: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[LexemeListItem]:
+    validate_workflow(status)
+
+    sense_count = (
+        select(func.count(Sense.id))
+        .where(Sense.lexeme_id == Lexeme.id)
+        .correlate(Lexeme)
+        .scalar_subquery()
+    )
+    sw_definition_count = (
+        select(func.count(SenseDefinition.id))
+        .join(Sense, SenseDefinition.sense_id == Sense.id)
+        .where(Sense.lexeme_id == Lexeme.id, SenseDefinition.lang_code == "sw")
+        .correlate(Lexeme)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Lexeme,
+            PartOfSpeech.code.label("pos_code"),
+            sense_count.label("sense_count"),
+            sw_definition_count.label("sw_definition_count"),
+        )
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .order_by(Lexeme.normalized_lemma.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if query:
+        stmt = stmt.where(Lexeme.normalized_lemma.like(f"%{normalize_sw(query)}%"))
+    if status:
+        stmt = stmt.where(Lexeme.workflow == status)
+    if pos_code:
+        stmt = stmt.where(PartOfSpeech.code == pos_code)
+
+    return [
+        LexemeListItem(
+            id=row.Lexeme.id,
+            lemma=row.Lexeme.lemma,
+            normalized_lemma=row.Lexeme.normalized_lemma,
+            pos_id=row.Lexeme.pos_id,
+            pos_code=row.pos_code,
+            status=row.Lexeme.status,
+            workflow=row.Lexeme.workflow,
+            default_language_code=row.Lexeme.default_language_code,
+            sense_count=row.sense_count or 0,
+            sw_definition_count=row.sw_definition_count or 0,
+            created_at=row.Lexeme.created_at,
+            updated_at=row.Lexeme.updated_at,
+        )
+        for row in db.execute(stmt).all()
+    ]
+
+
+@router.get("/expressions", response_model=list[ExpressionListItem])
+def list_expressions(
+    query: str | None = None,
+    status: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[ExpressionListItem]:
+    validate_workflow(status)
+
+    meaning_count = (
+        select(func.count(ExpressionMeaning.id))
+        .where(ExpressionMeaning.expression_id == Expression.id)
+        .correlate(Expression)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Expression,
+            ExpressionType.code.label("expression_type_code"),
+            meaning_count.label("meaning_count"),
+        )
+        .outerjoin(ExpressionType, ExpressionType.id == Expression.expression_type_id)
+        .order_by(Expression.normalized_text.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if query:
+        stmt = stmt.where(Expression.normalized_text.like(f"%{normalize_sw(query)}%"))
+    if status:
+        stmt = stmt.where(Expression.workflow == status)
+
+    return [
+        ExpressionListItem(
+            id=row.Expression.id,
+            text=row.Expression.text,
+            normalized_text=row.Expression.normalized_text,
+            expression_type_id=row.Expression.expression_type_id,
+            expression_type_code=row.expression_type_code,
+            region_id=row.Expression.region_id,
+            workflow=row.Expression.workflow,
+            meaning_count=row.meaning_count or 0,
+            created_at=row.Expression.created_at,
+            updated_at=row.Expression.updated_at,
+        )
+        for row in db.execute(stmt).all()
+    ]
+
+
+@router.get("/tags", response_model=list[TagRead])
+def list_tags(
+    query: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[TagRead]:
+    stmt = select(Tag).order_by(Tag.name.asc()).limit(limit).offset(offset)
+    if query:
+        stmt = stmt.where(Tag.name.ilike(f"%{query}%"))
+    return [TagRead.model_validate(tag, from_attributes=True) for tag in db.scalars(stmt).all()]
+
+
+@router.get("/sources", response_model=list[SourceRead])
+def list_sources(
+    query: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[SourceRead]:
+    stmt = select(Source).order_by(Source.title.asc()).limit(limit).offset(offset)
+    if query:
+        stmt = stmt.where(Source.title.ilike(f"%{query}%"))
+    return [
+        SourceRead.model_validate(source, from_attributes=True)
+        for source in db.scalars(stmt).all()
+    ]
+
+
+@router.get("/licenses", response_model=list[LicenseRead])
+def list_licenses(
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[LicenseRead]:
+    stmt = select(License).order_by(License.name.asc()).limit(limit).offset(offset)
+    return [
+        LicenseRead.model_validate(license_, from_attributes=True)
+        for license_ in db.scalars(stmt).all()
+    ]
 
 
 @router.post("/licenses", response_model=LicenseRead)

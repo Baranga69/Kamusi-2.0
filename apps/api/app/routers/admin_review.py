@@ -53,6 +53,7 @@ def get_review_queue(
     status: str = "unreviewed",
     q: str | None = None,
     pos_code: str | None = None,
+    lexeme_status: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     sort: str = "oldest",
@@ -91,6 +92,10 @@ def get_review_queue(
         stmt = stmt.where(Lexeme.lemma.ilike(f"%{q}%"))
     if pos_code:
         stmt = stmt.where(PartOfSpeech.code == pos_code)
+    if lexeme_status:
+        if lexeme_status not in LEXEME_STATUS_ALLOWED:
+            raise HTTPException(status_code=400, detail="Invalid lexeme status")
+        stmt = stmt.where(Lexeme.status == lexeme_status)
     if sort == "oldest":
         stmt = stmt.order_by(sw_definition.created_at.asc())
     elif sort == "newest":
