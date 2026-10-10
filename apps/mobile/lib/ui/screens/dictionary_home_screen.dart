@@ -9,8 +9,8 @@ import '../../providers/app_providers.dart';
 import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
 import '../widgets/search_bar.dart';
+import '../widgets/language_picker.dart';
 import '../widgets/word_of_day_card.dart';
-import 'favorites_screen.dart';
 import 'lexeme_detail_screen.dart';
 
 class DictionaryHomeScreen extends ConsumerStatefulWidget {
@@ -181,22 +181,9 @@ class _DictionaryHomeScreenState
                   ),
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.search),
-                title: Text(l10n.bottomNavSearch),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  widget.onOpenSearch?.call();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.star_border),
-                title: Text(l10n.bottomNavFavorites),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _openFavorites();
-                },
-              ),
+              // Search and Favourites moved to the bottom bar, so the drawer
+              // is where preferences live now.
+              const LanguagePicker(),
             ],
           ),
         ),
@@ -232,16 +219,6 @@ class _DictionaryHomeScreenState
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => LexemeDetailScreen(lexemeId: lexemeId),
-      ),
-    );
-  }
-
-  void _openFavorites() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FavoritesScreen(
-          onOpenSearch: widget.onOpenSearch,
-        ),
       ),
     );
   }

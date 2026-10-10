@@ -286,4 +286,16 @@ class AppLocalizationsSw extends AppLocalizations {
   String learnAccuracy(int percent) {
     return 'Usahihi wa $percent%';
   }
+
+  @override
+  String get settingsLanguage => 'Lugha';
+
+  @override
+  String get languageSwahili => 'Kiswahili';
+
+  @override
+  String get languageEnglish => 'Kiingereza';
+
+  @override
+  String get languageSystem => 'Fuata mipangilio ya simu';
 }

@@ -148,5 +148,9 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsLanguage": "Language",
+  "languageSwahili": "Kiswahili",
+  "languageEnglish": "English",
+  "languageSystem": "Follow device"
 }

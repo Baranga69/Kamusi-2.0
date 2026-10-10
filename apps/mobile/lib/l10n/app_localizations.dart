@@ -613,6 +613,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{percent}% accurate overall'**
   String learnAccuracy(int percent);
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsLanguage;
+
+  /// No description provided for @languageSwahili.
+  ///
+  /// In en, this message translates to:
+  /// **'Kiswahili'**
+  String get languageSwahili;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
+
+  /// No description provided for @languageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow device'**
+  String get languageSystem;
 }
 
 class _AppLocalizationsDelegate

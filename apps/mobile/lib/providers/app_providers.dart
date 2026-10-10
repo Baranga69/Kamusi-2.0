@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api_client.dart';
+import '../data/language_store.dart';
 import '../data/response_cache.dart';
 import '../data/kamusi_api_repository.dart';
 import '../data/local_favorites_repository.dart';
@@ -12,6 +13,24 @@ import '../domain/repositories/recent_searches_repository.dart';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) {
   return ThemeMode.light;
+});
+
+final languageStoreProvider = Provider<LanguageStore>((ref) => LanguageStore());
+
+/// The chosen interface language.
+///
+/// Overridden at startup with the stored preference so the first frame is
+/// already in the right language. Swahili is the default: this is a
+/// Swahili-first dictionary, and the phone's language is a poor proxy for
+/// what someone would rather read.
+final appLanguageProvider = StateProvider<AppLanguage>((ref) {
+  return AppLanguage.swahili;
+});
+
+/// Null means "follow the device", which `localeResolutionCallback` then
+/// resolves — to Swahili when the device language is not one we speak.
+final localeProvider = Provider<Locale?>((ref) {
+  return ref.watch(appLanguageProvider).locale;
 });
 
 /// Base URL of the Kamusi API.

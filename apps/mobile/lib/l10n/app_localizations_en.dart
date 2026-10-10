@@ -283,4 +283,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String learnAccuracy(int percent) {
     return '$percent% accurate overall';
   }
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get languageSwahili => 'Kiswahili';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageSystem => 'Follow device';
 }

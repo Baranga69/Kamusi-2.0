@@ -148,5 +148,9 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsLanguage": "Lugha",
+  "languageSwahili": "Kiswahili",
+  "languageEnglish": "Kiingereza",
+  "languageSystem": "Fuata mipangilio ya simu"
 }
