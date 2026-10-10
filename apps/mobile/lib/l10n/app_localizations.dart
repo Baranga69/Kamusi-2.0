@@ -391,6 +391,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Offline — showing saved words.'**
   String get offlineBanner;
+
+  /// No description provided for @navDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictionary'**
+  String get navDictionary;
+
+  /// No description provided for @navLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn'**
+  String get navLearn;
+
+  /// No description provided for @navFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favourites'**
+  String get navFavorites;
+
+  /// No description provided for @learnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn'**
+  String get learnTitle;
+
+  /// No description provided for @learnDailyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s challenge'**
+  String get learnDailyTitle;
+
+  /// No description provided for @learnDailyStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get learnDailyStart;
+
+  /// No description provided for @learnDailyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done for today'**
+  String get learnDailyDone;
+
+  /// No description provided for @learnDailyAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Play again'**
+  String get learnDailyAgain;
+
+  /// No description provided for @learnStreakNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Start your streak'**
+  String get learnStreakNone;
+
+  /// No description provided for @learnPracticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice'**
+  String get learnPracticeTitle;
+
+  /// No description provided for @learnKindDefinition.
+  ///
+  /// In en, this message translates to:
+  /// **'Word to meaning'**
+  String get learnKindDefinition;
+
+  /// No description provided for @learnKindMeaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Meaning to word'**
+  String get learnKindMeaning;
+
+  /// No description provided for @learnKindMethali.
+  ///
+  /// In en, this message translates to:
+  /// **'Proverbs'**
+  String get learnKindMethali;
+
+  /// No description provided for @learnKindMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'A bit of everything'**
+  String get learnKindMixed;
+
+  /// No description provided for @learnAskDefinition.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this word mean?'**
+  String get learnAskDefinition;
+
+  /// No description provided for @learnAskMeaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Which word means this?'**
+  String get learnAskMeaning;
+
+  /// No description provided for @learnAskMethali.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete the proverb'**
+  String get learnAskMethali;
+
+  /// No description provided for @learnCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct'**
+  String get learnCorrect;
+
+  /// No description provided for @learnIncorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Not quite'**
+  String get learnIncorrect;
+
+  /// No description provided for @learnContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get learnContinue;
+
+  /// No description provided for @learnFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish'**
+  String get learnFinish;
+
+  /// No description provided for @learnOpenEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the entry'**
+  String get learnOpenEntry;
+
+  /// No description provided for @learnResultPerfect.
+  ///
+  /// In en, this message translates to:
+  /// **'Every one right'**
+  String get learnResultPerfect;
+
+  /// No description provided for @learnResultGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Nicely done'**
+  String get learnResultGood;
+
+  /// No description provided for @learnResultKeepGoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep going'**
+  String get learnResultKeepGoing;
+
+  /// No description provided for @learnPlayAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Play again'**
+  String get learnPlayAgain;
+
+  /// No description provided for @learnBackToLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Learn'**
+  String get learnBackToLearn;
+
+  /// No description provided for @learnEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No questions yet'**
+  String get learnEmptyTitle;
+
+  /// No description provided for @learnEmptyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'More published words are needed before a round can be built.'**
+  String get learnEmptyBody;
+
+  /// No description provided for @learnErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load a round'**
+  String get learnErrorTitle;
+
+  /// No description provided for @learnLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your round...'**
+  String get learnLoading;
+
+  /// No description provided for @learnStreakDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}-day streak'**
+  String learnStreakDays(int count);
+
+  /// No description provided for @learnBestStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Best: {count} days'**
+  String learnBestStreak(int count);
+
+  /// No description provided for @learnQuestionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} questions'**
+  String learnQuestionCount(int count);
+
+  /// No description provided for @learnProgressOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String learnProgressOf(int current, int total);
+
+  /// No description provided for @learnScore.
+  ///
+  /// In en, this message translates to:
+  /// **'{correct} of {total} correct'**
+  String learnScore(int correct, int total);
+
+  /// No description provided for @learnAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% accurate overall'**
+  String learnAccuracy(int percent);
 }
 
 class _AppLocalizationsDelegate

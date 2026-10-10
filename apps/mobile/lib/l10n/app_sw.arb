@@ -63,5 +63,90 @@
   "expressionMeanings": "Maana",
   "expressionUnableLoad": "Imeshindikana kupakia semi",
   "meaningLabel": "Maana",
-  "offlineBanner": "Nje ya mtandao — tunaonyesha maneno yaliyohifadhiwa."
+  "offlineBanner": "Nje ya mtandao — tunaonyesha maneno yaliyohifadhiwa.",
+  "navDictionary": "Kamusi",
+  "navLearn": "Jifunze",
+  "navFavorites": "Vipendwa",
+  "learnTitle": "Jifunze",
+  "learnDailyTitle": "Changamoto ya leo",
+  "learnDailyStart": "Anza",
+  "learnDailyDone": "Umekamilisha leo",
+  "learnDailyAgain": "Jaribu tena",
+  "learnStreakNone": "Anza mfululizo wako",
+  "learnPracticeTitle": "Mazoezi",
+  "learnKindDefinition": "Neno kwa maana",
+  "learnKindMeaning": "Maana kwa neno",
+  "learnKindMethali": "Methali",
+  "learnKindMixed": "Mchanganyiko",
+  "learnAskDefinition": "Neno hili lina maana gani?",
+  "learnAskMeaning": "Neno gani lina maana hii?",
+  "learnAskMethali": "Kamilisha methali",
+  "learnCorrect": "Sawa",
+  "learnIncorrect": "Bado kidogo",
+  "learnContinue": "Endelea",
+  "learnFinish": "Maliza",
+  "learnOpenEntry": "Soma neno",
+  "learnResultPerfect": "Zote sawa",
+  "learnResultGood": "Vizuri",
+  "learnResultKeepGoing": "Endelea kujifunza",
+  "learnPlayAgain": "Jaribu tena",
+  "learnBackToLearn": "Rudi Jifunze",
+  "learnEmptyTitle": "Hakuna maswali bado",
+  "learnEmptyBody": "Maneno zaidi yaliyochapishwa yanahitajika kuunda duru.",
+  "learnErrorTitle": "Imeshindikana kupakia duru",
+  "learnLoading": "Tunatayarisha duru yako...",
+  "learnStreakDays": "Siku {count} mfululizo",
+  "@learnStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnBestStreak": "Bora: siku {count}",
+  "@learnBestStreak": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnQuestionCount": "Maswali {count}",
+  "@learnQuestionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnProgressOf": "{current} kati ya {total}",
+  "@learnProgressOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnScore": "{correct} kati ya {total} sahihi",
+  "@learnScore": {
+    "placeholders": {
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnAccuracy": "Usahihi wa {percent}%",
+  "@learnAccuracy": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  }
 }

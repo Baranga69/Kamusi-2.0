@@ -159,4 +159,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineBanner => 'Offline — showing saved words.';
+
+  @override
+  String get navDictionary => 'Dictionary';
+
+  @override
+  String get navLearn => 'Learn';
+
+  @override
+  String get navFavorites => 'Favourites';
+
+  @override
+  String get learnTitle => 'Learn';
+
+  @override
+  String get learnDailyTitle => 'Today\'s challenge';
+
+  @override
+  String get learnDailyStart => 'Start';
+
+  @override
+  String get learnDailyDone => 'Done for today';
+
+  @override
+  String get learnDailyAgain => 'Play again';
+
+  @override
+  String get learnStreakNone => 'Start your streak';
+
+  @override
+  String get learnPracticeTitle => 'Practice';
+
+  @override
+  String get learnKindDefinition => 'Word to meaning';
+
+  @override
+  String get learnKindMeaning => 'Meaning to word';
+
+  @override
+  String get learnKindMethali => 'Proverbs';
+
+  @override
+  String get learnKindMixed => 'A bit of everything';
+
+  @override
+  String get learnAskDefinition => 'What does this word mean?';
+
+  @override
+  String get learnAskMeaning => 'Which word means this?';
+
+  @override
+  String get learnAskMethali => 'Complete the proverb';
+
+  @override
+  String get learnCorrect => 'Correct';
+
+  @override
+  String get learnIncorrect => 'Not quite';
+
+  @override
+  String get learnContinue => 'Continue';
+
+  @override
+  String get learnFinish => 'Finish';
+
+  @override
+  String get learnOpenEntry => 'Read the entry';
+
+  @override
+  String get learnResultPerfect => 'Every one right';
+
+  @override
+  String get learnResultGood => 'Nicely done';
+
+  @override
+  String get learnResultKeepGoing => 'Keep going';
+
+  @override
+  String get learnPlayAgain => 'Play again';
+
+  @override
+  String get learnBackToLearn => 'Back to Learn';
+
+  @override
+  String get learnEmptyTitle => 'No questions yet';
+
+  @override
+  String get learnEmptyBody =>
+      'More published words are needed before a round can be built.';
+
+  @override
+  String get learnErrorTitle => 'Could not load a round';
+
+  @override
+  String get learnLoading => 'Preparing your round...';
+
+  @override
+  String learnStreakDays(int count) {
+    return '$count-day streak';
+  }
+
+  @override
+  String learnBestStreak(int count) {
+    return 'Best: $count days';
+  }
+
+  @override
+  String learnQuestionCount(int count) {
+    return '$count questions';
+  }
+
+  @override
+  String learnProgressOf(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String learnScore(int correct, int total) {
+    return '$correct of $total correct';
+  }
+
+  @override
+  String learnAccuracy(int percent) {
+    return '$percent% accurate overall';
+  }
 }

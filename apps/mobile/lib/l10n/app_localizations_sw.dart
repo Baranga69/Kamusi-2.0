@@ -162,4 +162,128 @@ class AppLocalizationsSw extends AppLocalizations {
   @override
   String get offlineBanner =>
       'Nje ya mtandao — tunaonyesha maneno yaliyohifadhiwa.';
+
+  @override
+  String get navDictionary => 'Kamusi';
+
+  @override
+  String get navLearn => 'Jifunze';
+
+  @override
+  String get navFavorites => 'Vipendwa';
+
+  @override
+  String get learnTitle => 'Jifunze';
+
+  @override
+  String get learnDailyTitle => 'Changamoto ya leo';
+
+  @override
+  String get learnDailyStart => 'Anza';
+
+  @override
+  String get learnDailyDone => 'Umekamilisha leo';
+
+  @override
+  String get learnDailyAgain => 'Jaribu tena';
+
+  @override
+  String get learnStreakNone => 'Anza mfululizo wako';
+
+  @override
+  String get learnPracticeTitle => 'Mazoezi';
+
+  @override
+  String get learnKindDefinition => 'Neno kwa maana';
+
+  @override
+  String get learnKindMeaning => 'Maana kwa neno';
+
+  @override
+  String get learnKindMethali => 'Methali';
+
+  @override
+  String get learnKindMixed => 'Mchanganyiko';
+
+  @override
+  String get learnAskDefinition => 'Neno hili lina maana gani?';
+
+  @override
+  String get learnAskMeaning => 'Neno gani lina maana hii?';
+
+  @override
+  String get learnAskMethali => 'Kamilisha methali';
+
+  @override
+  String get learnCorrect => 'Sawa';
+
+  @override
+  String get learnIncorrect => 'Bado kidogo';
+
+  @override
+  String get learnContinue => 'Endelea';
+
+  @override
+  String get learnFinish => 'Maliza';
+
+  @override
+  String get learnOpenEntry => 'Soma neno';
+
+  @override
+  String get learnResultPerfect => 'Zote sawa';
+
+  @override
+  String get learnResultGood => 'Vizuri';
+
+  @override
+  String get learnResultKeepGoing => 'Endelea kujifunza';
+
+  @override
+  String get learnPlayAgain => 'Jaribu tena';
+
+  @override
+  String get learnBackToLearn => 'Rudi Jifunze';
+
+  @override
+  String get learnEmptyTitle => 'Hakuna maswali bado';
+
+  @override
+  String get learnEmptyBody =>
+      'Maneno zaidi yaliyochapishwa yanahitajika kuunda duru.';
+
+  @override
+  String get learnErrorTitle => 'Imeshindikana kupakia duru';
+
+  @override
+  String get learnLoading => 'Tunatayarisha duru yako...';
+
+  @override
+  String learnStreakDays(int count) {
+    return 'Siku $count mfululizo';
+  }
+
+  @override
+  String learnBestStreak(int count) {
+    return 'Bora: siku $count';
+  }
+
+  @override
+  String learnQuestionCount(int count) {
+    return 'Maswali $count';
+  }
+
+  @override
+  String learnProgressOf(int current, int total) {
+    return '$current kati ya $total';
+  }
+
+  @override
+  String learnScore(int correct, int total) {
+    return '$correct kati ya $total sahihi';
+  }
+
+  @override
+  String learnAccuracy(int percent) {
+    return 'Usahihi wa $percent%';
+  }
 }

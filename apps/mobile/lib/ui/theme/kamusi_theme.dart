@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'kamusi_learn_colors.dart';
 import 'kamusi_typography.dart';
 
 class KamusiPalette {
@@ -85,6 +86,11 @@ ThemeData buildKamusiTheme({Brightness brightness = Brightness.light}) {
       titleTextStyle: textTheme.titleLarge,
       iconTheme: IconThemeData(color: colorScheme.onSurface),
     ),
+    extensions: <ThemeExtension<dynamic>>[
+      brightness == Brightness.dark
+          ? KamusiLearnColors.dark
+          : KamusiLearnColors.light,
+    ],
     cardTheme: CardThemeData(
       color: colorScheme.surface,
       elevation: 0,

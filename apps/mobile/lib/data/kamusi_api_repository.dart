@@ -1,4 +1,5 @@
 import '../domain/models/expression_detail.dart';
+import '../domain/models/learn_round.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
@@ -33,6 +34,16 @@ class KamusiApiRepository implements KamusiRepository {
   @override
   Future<WordOfDay> fetchWordOfDay() async {
     return client.getWordOfDay();
+  }
+
+  @override
+  Future<LearnRound> fetchDailyRound() async {
+    return client.getDailyRound();
+  }
+
+  @override
+  Future<LearnRound> fetchPracticeRound(String kind) async {
+    return client.getPracticeRound(kind: kind);
   }
 
 }

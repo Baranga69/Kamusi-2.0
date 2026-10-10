@@ -63,5 +63,90 @@
   "expressionMeanings": "Meanings",
   "expressionUnableLoad": "Unable to load expression",
   "meaningLabel": "Meaning",
-  "offlineBanner": "Offline — showing saved words."
+  "offlineBanner": "Offline — showing saved words.",
+  "navDictionary": "Dictionary",
+  "navLearn": "Learn",
+  "navFavorites": "Favourites",
+  "learnTitle": "Learn",
+  "learnDailyTitle": "Today's challenge",
+  "learnDailyStart": "Start",
+  "learnDailyDone": "Done for today",
+  "learnDailyAgain": "Play again",
+  "learnStreakNone": "Start your streak",
+  "learnPracticeTitle": "Practice",
+  "learnKindDefinition": "Word to meaning",
+  "learnKindMeaning": "Meaning to word",
+  "learnKindMethali": "Proverbs",
+  "learnKindMixed": "A bit of everything",
+  "learnAskDefinition": "What does this word mean?",
+  "learnAskMeaning": "Which word means this?",
+  "learnAskMethali": "Complete the proverb",
+  "learnCorrect": "Correct",
+  "learnIncorrect": "Not quite",
+  "learnContinue": "Continue",
+  "learnFinish": "Finish",
+  "learnOpenEntry": "Read the entry",
+  "learnResultPerfect": "Every one right",
+  "learnResultGood": "Nicely done",
+  "learnResultKeepGoing": "Keep going",
+  "learnPlayAgain": "Play again",
+  "learnBackToLearn": "Back to Learn",
+  "learnEmptyTitle": "No questions yet",
+  "learnEmptyBody": "More published words are needed before a round can be built.",
+  "learnErrorTitle": "Could not load a round",
+  "learnLoading": "Preparing your round...",
+  "learnStreakDays": "{count}-day streak",
+  "@learnStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnBestStreak": "Best: {count} days",
+  "@learnBestStreak": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnQuestionCount": "{count} questions",
+  "@learnQuestionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnProgressOf": "{current} of {total}",
+  "@learnProgressOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnScore": "{correct} of {total} correct",
+  "@learnScore": {
+    "placeholders": {
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnAccuracy": "{percent}% accurate overall",
+  "@learnAccuracy": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  }
 }

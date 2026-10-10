@@ -107,6 +107,23 @@ curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw"
 curl "http://localhost:8000/word-of-the-day?lang=sw"
 ```
 
+## Jifunze (Learn)
+
+A second surface alongside the dictionary, reached from the bottom bar. The
+dictionary stays calm; this is where the app is allowed motion and colour —
+see `DESIGN_SYSTEM.md` §0 and §9 for what that licence does and does not
+cover.
+
+- **Today's challenge** — five questions, fixed for the day by the API, with a
+  streak for turning up. Finishing the same day twice does not inflate it; a
+  missed day restarts at one rather than zero.
+- **Practice** — word→meaning, meaning→word, methali completion, or a mix.
+  Fresh every time.
+- A round cannot be failed: a wrong answer reveals the right one and moves on.
+- Every question links to the entry it came from, so a round ends in the
+  dictionary.
+- Streak and accuracy live on the device, in UTC. No account required.
+
 ## Features
 
 - Search suggestions with debounce

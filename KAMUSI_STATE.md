@@ -207,14 +207,20 @@ offline still needs the network; true offline search means shipping or syncing
 the corpus with a local full-text index (sqflite + FTS), which is the next step
 if that is wanted.
 
-### UX Direction (LOCKED)
+### UX Direction
+Two surfaces, two sets of rules — see `DESIGN_SYSTEM.md` §0 and §9.
+
+**Dictionary** (search, detail, home) — unchanged and still locked:
 - Material 3
 - Calm, scholarly, reading-first
 - No loud colors, no heavy borders
 - Soft surfaces, generous spacing
 - Serif typography for definitions
 
-Visual identity details live in `DESIGN_SYSTEM.md`.
+**Jifunze / Learn** (2026-10-10) — allowed motion, semantic colour, haptics
+and one gradient, because a learning tool nobody enjoys returning to teaches
+nobody. Still no punishment (no lives, timers or streak-loss warnings), no
+reward-loop noise, and no leaking into the reading surface.
 
 ---
 
@@ -257,6 +263,24 @@ The admin console has real accounts (`app_user`), not a shared key:
 Bootstrap the first account with `apps/api/scripts/create_user.py`. There is no
 open sign-up. `SESSION_SECRET` must be set for any deployment — the app logs a
 warning while the development default is in use.
+
+## 8c. Jifunze: learning games (2026-10-10)
+
+A third surface alongside search and favourites, reached from the bottom bar.
+
+- `GET /learn/daily` — today's five questions, seeded by UTC date so the day's
+  challenge is identical for everyone and does not reshuffle on reopen. A
+  streak means nothing otherwise.
+- `GET /learn/round?kind=definition|meaning|methali|mixed` — fresh practice.
+- Question kinds: word→meaning, meaning→word, and completing a methali.
+- Published content only, and an AI Swahili definition must have cleared
+  review before it can be quizzed.
+- Distractors prefer the same part of speech, options are de-duplicated, and a
+  thin corpus yields a short round rather than an error.
+- Every question carries the entry it came from, so a round ends in the
+  dictionary. That is the point of the games.
+- Streak and accuracy are stored on the device (`LearnProgressStore`), in UTC
+  so a time-zone change cannot game them. No account needed to start learning.
 
 ## 9. AI Usage Policy
 

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../domain/models/expression_detail.dart';
+import '../domain/models/learn_round.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
@@ -161,6 +162,45 @@ class ApiClient {
       );
     }
     return LexemePublic.fromJson(data);
+  }
+
+  /// Today's challenge. Cached by day, so finishing it on the bus works and
+  /// yesterday's round is never shown as today's.
+  Future<LearnRound> getDailyRound({String lang = 'sw', int count = 5}) async {
+    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+    final data = await _read(
+      '/learn/daily',
+      cacheKey: 'learn-daily:$lang:$count:$today',
+      queryParameters: {'lang': lang, 'count': count},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/learn/daily'),
+        error: 'Unexpected daily round response',
+      );
+    }
+    return LearnRound.fromJson(data);
+  }
+
+  /// A practice round. Cached per kind as a fallback, so going offline leaves
+  /// you with the last round of that kind rather than nothing.
+  Future<LearnRound> getPracticeRound({
+    String kind = 'mixed',
+    String lang = 'sw',
+    int count = 5,
+  }) async {
+    final data = await _read(
+      '/learn/round',
+      cacheKey: 'learn-round:$lang:$kind:$count',
+      queryParameters: {'kind': kind, 'lang': lang, 'count': count},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/learn/round'),
+        error: 'Unexpected practice round response',
+      );
+    }
+    return LearnRound.fromJson(data);
   }
 
   Future<ExpressionDetail> getExpression(String id, {String lang = 'sw'}) async {

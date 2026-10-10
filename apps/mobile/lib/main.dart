@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
 
 import 'providers/app_providers.dart';
-import 'ui/screens/dictionary_home_screen.dart';
-import 'ui/screens/search_screen_new.dart';
+import 'ui/screens/root_shell.dart';
 import 'ui/theme/kamusi_theme.dart';
 import 'ui/widgets/offline_banner.dart';
 
@@ -29,20 +28,7 @@ class KamusiApp extends ConsumerWidget {
       // Wrapping here rather than per screen means pushed routes are covered
       // too, and there is one place that decides how offline is presented.
       builder: (context, child) => OfflineBanner(child: child ?? const SizedBox.shrink()),
-      home: Builder(
-        builder: (context) => DictionaryHomeScreen(
-          onOpenSearch: () => _openSearch(context),
-          onSearchSubmitted: (q) => _openSearch(context, initialQuery: q),
-        ),
-      ),
-    );
-  }
-
-  void _openSearch(BuildContext context, {String initialQuery = ''}) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SearchScreen(initialQuery: initialQuery),
-      ),
+      home: const RootShell(),
     );
   }
 }
