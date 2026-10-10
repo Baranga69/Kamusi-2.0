@@ -163,6 +163,10 @@ curl -H "X-API-Key: $KEY" \
   "http://localhost:8000/admin/review/queue?status=unreviewed&pos_code=VERB&lexeme_status=slang&sort=oldest"
 ```
 
+Review actions take no `reviewer` field: who acted is read from the session
+and recorded server-side, so a client cannot choose whose name is logged. An
+older client still sending one keeps working — the value is ignored.
+
 `status` accepts `unreviewed`, `approved`, `edited`, `rejected`, or `reviewed`
 (which means approved + edited). Approve / edit / reject act only on rows that
 are still `unreviewed` and return 409 otherwise, so two reviewers cannot
@@ -191,6 +195,26 @@ types, tag types). The admin portal's selects are empty until this runs:
 cd apps/api
 poetry run python scripts/seed.py
 ```
+
+### Demo content
+
+`seed.py` leaves the dictionary itself empty, which gives you a search box that
+finds nothing, no word of the day, an empty review queue and a Jifunze tab that
+correctly reports it has nothing to quiz. To get a usable app:
+
+```bash
+cd apps/api
+poetry run python scripts/seed_demo.py
+```
+
+That adds published Swahili words with definitions and examples, published
+methali with their meanings, and a handful of **unreviewed** AI Swahili
+definitions. The last group is the interesting part: they are hidden from
+readers and waiting in the admin review queue, so you can approve one and watch
+it appear in `/lexemes` and in search. Pass `--skip-review-queue` to leave them
+out.
+
+Idempotent — re-running adds nothing.
 
 ## Tests
 

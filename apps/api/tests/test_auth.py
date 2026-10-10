@@ -285,3 +285,54 @@ def test_admin_reset_revokes_the_users_sessions(client, db_session):
 
 def test_api_key_is_not_an_account(client, db_session):
     assert client.get("/auth/me", headers=API_KEY_HEADER).status_code == 403
+
+
+def test_review_actions_accept_a_body_with_no_reviewer(client, db_session):
+    """What the admin console actually sends.
+
+    The server derives the reviewer from the session, so the client sends no
+    name. Requiring the field made every approve 422 while the tests still
+    passed, because they all sent one to prove it was ignored.
+    """
+    from tests.test_admin_review import seed_single_unreviewed_definition
+
+    reviewer = make_user(db_session, "ada@example.com", role="reviewer")
+    headers = bearer(reviewer)
+
+    definition_id = seed_single_unreviewed_definition(db_session)
+    approve = client.post(
+        f"/admin/review/item/{definition_id}/approve", headers=headers, json={}
+    )
+    assert approve.status_code == 200, approve.text
+    assert approve.json()["reviewed_by"] == "ada@example.com"
+
+
+def test_edit_and_reject_need_no_reviewer_either(client, db_session):
+    from tests.test_admin_review import seed_single_unreviewed_definition
+
+    reviewer = make_user(db_session, "ada@example.com", role="reviewer")
+    headers = bearer(reviewer)
+
+    edit_id = seed_single_unreviewed_definition(db_session)
+    edited = client.post(
+        f"/admin/review/item/{edit_id}/edit",
+        headers=headers,
+        json={"definition": "maelezo yaliyohaririwa"},
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["reviewed_by"] == "ada@example.com"
+
+
+def test_bulk_review_needs_no_reviewer(client, db_session):
+    from tests.test_admin_review import seed_single_unreviewed_definition
+
+    reviewer = make_user(db_session, "ada@example.com", role="reviewer")
+    definition_id = seed_single_unreviewed_definition(db_session)
+
+    response = client.post(
+        "/admin/review/bulk",
+        headers=bearer(reviewer),
+        json={"action": "approve", "ids": [definition_id]},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["updated_count"] == 1

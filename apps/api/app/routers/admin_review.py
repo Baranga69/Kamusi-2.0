@@ -322,8 +322,11 @@ def bulk_review_action(
         .values(**values)
     )
 
-    with db.begin():
-        result = db.execute(stmt)
+    # Not `with db.begin()`: the session already has a transaction open by the
+    # time this runs — resolving the caller queries app_user — and opening a
+    # second one raises. The single-item path commits the same way.
+    result = db.execute(stmt)
+    db.commit()
 
     updated = result.rowcount or 0
     skipped = len(payload.ids) - updated

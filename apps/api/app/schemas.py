@@ -513,24 +513,27 @@ class ReviewDetail(BaseModel):
     review_note: str | None = None
 
 
+# None of these carry a `reviewer`. Who acted is read from the session and
+# recorded server-side, so accepting it here would be at best redundant and at
+# worst a way to forge an audit trail. Pydantic ignores unknown fields, so a
+# client still sending one keeps working — the value is simply not used.
+
+
 class ReviewApproveRequest(BaseModel):
-    reviewer: str
+    pass
 
 
 class ReviewEditRequest(BaseModel):
-    reviewer: str
     definition: str
     gloss: str | None = None
 
 
 class ReviewRejectRequest(BaseModel):
-    reviewer: str
     reason: str
     note: str | None = None
 
 
 class ReviewBulkRequest(BaseModel):
-    reviewer: str
     action: str
     ids: list[uuid.UUID]
     reason: str | None = None

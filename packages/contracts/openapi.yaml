@@ -5499,19 +5499,11 @@ components:
       - reviewed_at
       title: ReviewActionResponse
     ReviewApproveRequest:
-      properties:
-        reviewer:
-          type: string
-          title: Reviewer
+      properties: {}
       type: object
-      required:
-      - reviewer
       title: ReviewApproveRequest
     ReviewBulkRequest:
       properties:
-        reviewer:
-          type: string
-          title: Reviewer
         action:
           type: string
           title: Action
@@ -5533,7 +5525,6 @@ components:
           title: Note
       type: object
       required:
-      - reviewer
       - action
       - ids
       title: ReviewBulkRequest
@@ -5659,9 +5650,6 @@ components:
       title: ReviewDetail
     ReviewEditRequest:
       properties:
-        reviewer:
-          type: string
-          title: Reviewer
         definition:
           type: string
           title: Definition
@@ -5672,7 +5660,6 @@ components:
           title: Gloss
       type: object
       required:
-      - reviewer
       - definition
       title: ReviewEditRequest
     ReviewQueueItem:
@@ -5734,9 +5721,6 @@ components:
       title: ReviewQueueItem
     ReviewRejectRequest:
       properties:
-        reviewer:
-          type: string
-          title: Reviewer
         reason:
           type: string
           title: Reason
@@ -5747,7 +5731,6 @@ components:
           title: Note
       type: object
       required:
-      - reviewer
       - reason
       title: ReviewRejectRequest
     ReviewSourceInfo:
