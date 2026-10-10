@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: API (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        run: pipx install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Tests
+        run: poetry run pytest -q
+      - name: OpenAPI spec is up to date
+        run: poetry run python scripts/export_openapi.py --check
+
+  admin:
+    name: Admin (vitest + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter @kamusi/admin exec tsc --noEmit
+      - name: Tests
+        run: pnpm --filter @kamusi/admin test
+      - name: Build
+        run: pnpm --filter @kamusi/admin build
+        env:
+          KAMUSI_API_BASE_URL: http://localhost:8000
+          ADMIN_API_KEY: ci-placeholder
+
+  mobile:
+    name: Mobile (analyze)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Regenerate localizations
+        run: flutter gen-l10n
+      - name: Fail if generated localizations drifted from the .arb files
+        run: git diff --exit-code lib/l10n
+      # Errors and warnings fail the build. The remaining items are Material 3
+      # colour-role deprecations (background/surfaceVariant), which need a
+      # DESIGN_SYSTEM.md decision rather than a mechanical rename, so infos
+      # are not fatal yet.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos

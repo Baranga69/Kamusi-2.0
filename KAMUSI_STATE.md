@@ -4,7 +4,7 @@
 > Any AI agent, contributor, or future self should read this first
 > before making changes.
 
-Last updated: 2026-01-12
+Last updated: 2026-10-09
 
 ---
 
@@ -89,14 +89,42 @@ Important:
 
 **search_entry**
 - Powers `/search`
-- Must be populated explicitly
-- Drafts only appear if explicitly allowed
+- Written on publish (`services/publish.py`); never populated by ingestion
+- Five target types, each keyed on the row whose text it holds:
+  `lexeme`, `definition` (sense_definition.id), `example` (example_text.id),
+  `expression`, `expression_meaning` (expression_meaning.id)
+- `/search` resolves every hit back to the lexeme or expression a reader can
+  open, and reports which kind matched via `match_kind`
+- Unreviewed AI Swahili definitions are not indexed, so their text cannot leak
+  through `/search`
+- Derived state: reconcile with `tools/maintenance/rebuild_search_index.py`
 
 ### Invariants (DO NOT BREAK)
 - Visibility depends on `workflow`
-- AI Swahili definitions are hidden unless approved/edited
+- AI Swahili definitions are hidden unless approved/edited — enforced in both
+  the read path (`routers/public.py`) and the index path (`services/publish.py`)
 - English definitions act as fallback
 - Search never queries lexeme table directly
+- `normalize_sw` drops dashes and apostrophes, so `ng'ombe` and `ngombe` share
+  one key. Changing it invalidates every stored key; rerun
+  `tools/maintenance/reindex_normalized.py`
+
+### Visibility in search (fixed 2026-10-09)
+`/search` enforces visibility at read time rather than trusting the index:
+an entry is dropped unless its owning lexeme, sense or expression is
+`published` (override with `include_drafts=true`), its owning record still
+exists, and it is not an unreviewed AI Swahili definition. Filtering runs
+before the limit, and results are ordered deterministically by match rank,
+then popularity.
+
+The index itself is still append-only on publish, so rows linger after an
+archive. That is now cosmetic rather than a leak; `rebuild_search_index.py`
+reconciles it.
+
+### Known gaps (not yet invariant)
+- Search matching is `LIKE '%term%'` over a normalized column. It cannot rank
+  by relevance beyond exact / prefix / substring, and has no typo tolerance or
+  stemming. See the scaling note in `apps/api/README.md`.
 
 ---
 
@@ -111,17 +139,24 @@ Important:
   - POS distribution heavily verb-weighted (expected)
 
 ### AI Swahili Definitions
-- ~500+ Swahili definitions generated offline
+- 531 Swahili definitions generated offline (`ai_defs.jsonl`)
 - Generated via OpenAI API
 - Stored as:
   - `is_ai_generated = true`
-  - `review_status = pending`
-- Hidden from public UI unless approved
+  - `review_status = 'unreviewed'`
+- Hidden from public UI unless `review_status` is `approved` or `edited`
 
 Known issues:
 - Morphology-only senses exist
 - Some AI definitions are generic placeholders
 - Admin review pipeline is required
+
+> **Action required on any database populated before 2026-10-09.**
+> `import_ai_defs.py` previously inserted these rows without the provenance
+> columns, so they landed `is_ai_generated = false`, `review_status = NULL`.
+> That silently disabled the public AI guard *and* hid the rows from the review
+> queue. The importer is fixed; existing rows need the one-off repair:
+> `apps/api/tools/ai_defs/backfill_ai_provenance.py` (dry run by default).
 
 ---
 
@@ -133,9 +168,11 @@ Purpose:
 - Control workflow status (draft → published)
 
 Status:
-- Scaffold exists
-- APIs connected
-- Review UX improvements in progress
+- Review pipeline works end to end (queue, detail, approve/edit/reject, bulk)
+- List views and the tag/source/license CRUD pages work against the API
+- The lexeme and expression **editor** pages still assume a single nested
+  aggregate payload the API does not expose, so saving from them does not
+  round-trip. See the "Known gap" section of `apps/admin/README.md`.
 
 Admin is the *gatekeeper* for public data quality.
 
@@ -208,10 +245,15 @@ As of this document:
 
 ## 11. Next Priorities (Ordered)
 
-1. Admin review UX (approve/edit/reject)
-2. Improve AI definition quality + flags
-3. Mobile UI/UX polish (Material 3, typography)
-4. Expand corpus (methali, semi, regional variants)
+1. Run `backfill_ai_provenance.py` and `reindex_normalized.py` against the
+   working database, then confirm the review queue is populated
+2. Decide the lexeme/expression editor contract: aggregate write endpoints on
+   the API, or sequence per-entity calls in the admin UI
+3. Improve AI definition quality + flags
+4. Mobile UI/UX polish — including the Material 3 colour-role migration
+   (`background`, `surfaceVariant`), which needs a `DESIGN_SYSTEM.md` decision
+5. Expand corpus (methali, semi, regional variants) — `/search` now resolves
+   expression and meaning hits, so the surface is ready for the content
 
 ---
 

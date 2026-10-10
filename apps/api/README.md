@@ -4,6 +4,7 @@
 
 ```bash
 cd apps/api
+cp .env.example .env   # then fill in
 poetry install
 ```
 
@@ -28,9 +29,76 @@ You can also provide a comma-separated list or a JSON array.
 
 ```bash
 curl "http://localhost:8000/search?q=agua&lang=sw&limit=20"
-curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw&include_drafts=true"
+curl "http://localhost:8000/search?q=baraka&lang=sw"          # methali / semi
+curl "http://localhost:8000/search?q=mti&lang=sw&include_drafts=true"
+curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw"
+curl "http://localhost:8000/lookup/lemma?lemma=ng'ombe&lang=sw"
 curl "http://localhost:8000/word-of-the-day?lang=sw"
 ```
+
+Visibility rules are enforced server-side:
+
+- unpublished content is excluded unless `include_drafts=true`
+- an AI-generated Swahili definition is hidden unless its `review_status` is
+  `approved` or `edited`
+- `/search` reads `search_entry`, never the `lexeme` table directly
+
+### How /search resolves a hit
+
+`search_entry` holds one row per searchable string. Every hit is resolved back
+to the record a reader can open, and `match_kind` says what matched:
+
+| `target_type` | `match_kind` | resolves to |
+| --- | --- | --- |
+| `lexeme` | `lemma` | that lexeme |
+| `definition` | `definition` | the definition's lexeme |
+| `example` | `example` | the example's lexeme |
+| `expression` | `expression` | that expression |
+| `expression_meaning` | `meaning` | the meaning's expression |
+
+A result carries either `lexeme_id`/`lemma` or `expression_id`/`expression_text`,
+never both. Filtering happens before the limit is applied, so a request for 20
+results returns the 20 best *visible* matches rather than whatever survives from
+the first 20 rows. Entries are excluded when the owning lexeme, sense or
+expression is not `published` (unless `include_drafts=true`), when the owning
+record has been deleted, or when the hit is an unreviewed AI Swahili
+definition.
+
+## Admin API
+
+All `/admin/*` routes require the `X-API-Key` header (`ADMIN_API_KEY`, falling
+back to `API_KEY`).
+
+```bash
+export KEY=dev-api-key
+
+# Browse (list projections, for the admin portal's list views)
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/lexemes?query=mti&status=published&pos_code=NOUN"
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/expressions?status=draft"
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/tags?query=chakula"
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/sources"
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/licenses"
+
+# Seeded vocabularies, so clients never hardcode a lookup id
+curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/lookups"
+
+# Per-entity CRUD lives at /admin/{collection} and /admin/{collection}/{id}
+# Workflow transitions:
+curl -X POST -H "X-API-Key: $KEY" "http://localhost:8000/admin/lexemes/<ID>/review"
+curl -X POST -H "X-API-Key: $KEY" "http://localhost:8000/admin/lexemes/<ID>/publish"
+```
+
+### Review queue
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  "http://localhost:8000/admin/review/queue?status=unreviewed&pos_code=VERB&lexeme_status=slang&sort=oldest"
+```
+
+`status` accepts `unreviewed`, `approved`, `edited`, `rejected`, or `reviewed`
+(which means approved + edited). Approve / edit / reject act only on rows that
+are still `unreviewed` and return 409 otherwise, so two reviewers cannot
+overwrite each other.
 
 ## Database
 
@@ -47,7 +115,8 @@ cd apps/api
 poetry run alembic upgrade head
 ```
 
-Seed lookup tables:
+Seed lookup tables (languages, parts of speech, registers, domains, expression
+types, tag types). The admin portal's selects are empty until this runs:
 
 ```bash
 cd apps/api
@@ -60,3 +129,79 @@ poetry run python scripts/seed.py
 cd apps/api
 poetry run pytest
 ```
+
+## Contracts
+
+`packages/contracts/openapi.yaml` is generated from the running app, never
+hand-edited. Regenerate it in the same commit as any route or schema change:
+
+```bash
+cd apps/api
+poetry run python scripts/export_openapi.py
+poetry run python scripts/export_openapi.py --check   # what CI runs
+```
+
+## Maintenance tools
+
+### Repair AI provenance (one-off)
+
+Swahili definitions imported before `import_ai_defs.py` set the provenance
+columns are invisible to the review queue and served to readers as though a
+human wrote them. Dry run first:
+
+```bash
+cd apps/api
+export KAMUSI_DB_URL="postgresql://kamusi:kamusi123@localhost:5433/kamusi"
+export AI_SOURCE_ID="<source uuid used at import time>"
+
+poetry run python tools/ai_defs/backfill_ai_provenance.py
+poetry run python tools/ai_defs/backfill_ai_provenance.py --apply \
+  --jsonl ../../ai_defs.jsonl --prune-search-index
+```
+
+### Reconcile the search index
+
+`search_entry` is derived, but publishing only ever adds to it — nothing
+removed rows when an entry was archived, and older publishes never indexed
+example texts or expression meanings at all. `/search` filters on visibility at
+read time so nothing leaks, but the table still drifts. This reconciles it with
+published content (and is a no-op on a clean index):
+
+```bash
+cd apps/api
+poetry run python tools/maintenance/rebuild_search_index.py            # report
+poetry run python tools/maintenance/rebuild_search_index.py --apply    # commit
+```
+
+Worth running after a bulk archive, after this upgrade, and on a schedule.
+
+### Rebuild normalization keys (after a `normalize_sw` change)
+
+`normalize_sw` now drops dashes and apostrophes instead of turning them into
+spaces, so `ng'ombe` and `ngombe` share one key. Stored keys predating that
+change are stale and must be recomputed:
+
+```bash
+cd apps/api
+poetry run python tools/maintenance/reindex_normalized.py            # report
+poetry run python tools/maintenance/reindex_normalized.py --apply    # commit
+```
+
+Lexeme rewrites that would collide on `(normalized_lemma, pos_id)` are reported
+and skipped — those pairs are duplicates under the new key and need an
+editorial decision about which entry survives.
+
+## Ingestion
+
+Offline only; never run from a request path. See `tools/ingest/wiktionary` and
+`tools/ai_defs`. The AI pipeline is:
+
+```
+export_candidates.py  ->  candidates.jsonl
+generate_ai_defs.py   ->  ai_defs.jsonl        (OpenAI, offline)
+import_ai_defs.py     ->  sense_definition rows, is_ai_generated=true,
+                          review_status='unreviewed'
+```
+
+Imported definitions stay hidden from readers until a reviewer approves or
+edits them in the admin portal.

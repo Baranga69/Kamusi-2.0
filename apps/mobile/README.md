@@ -7,20 +7,35 @@
 
 ## Configure the API base URL
 
-The app reads the base URL from a Dart define named `API_BASE_URL`.
+The app reads the base URL from a Dart define named `API_BASE_URL`. It defaults
+to `http://localhost:8000`, which works for the iOS simulator, desktop and web.
+Android emulators need the flag, because `localhost` there is the emulator
+itself:
+
+| Target | Value |
+| --- | --- |
+| iOS simulator, desktop, web | `http://localhost:8000` (default) |
+| Android emulator | `http://10.0.2.2:8000` |
+| Physical device | `http://<your-LAN-IP>:8000` |
+| Deployed API | the deployed base URL |
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
 ```
 
-If you omit the flag, it defaults to the Android emulator-friendly
-`http://10.0.2.2:8000`.
+Release builds must pass the deployed URL explicitly; there is no production
+default baked into the app.
 
-Suggested values:
+## Draft content
 
-- Android emulator: `http://10.0.2.2:8000` (default)
-- iOS simulator: `http://localhost:8000`
-- Physical device: `http://<LAN-IP>:8000`
+The app requests published content only. Drafts are unpublished and unreviewed,
+so viewing them is an explicit local opt-in:
+
+```bash
+flutter run --dart-define=INCLUDE_DRAFTS=true
+```
+
+Never set this for a release build.
 
 ## Run the app
 
@@ -29,6 +44,31 @@ cd apps/mobile
 flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
 ```
+
+## Localizations
+
+UI strings live in `lib/l10n/app_en.arb` and `lib/l10n/app_sw.arb`. The
+`AppLocalizations` classes beside them are generated and committed so a fresh
+clone analyzes cleanly. Regenerate after editing an `.arb` file:
+
+```bash
+flutter gen-l10n
+```
+
+(Flutter no longer exposes these through the `package:flutter_gen` synthetic
+package; they are imported by relative path.)
+
+## Checks
+
+```bash
+flutter analyze
+flutter build web --dart-define=API_BASE_URL=http://localhost:8000
+```
+
+`flutter analyze` is clean of errors and warnings. It still reports Material 3
+colour-role deprecations (`background`, `surfaceVariant`); resolving those means
+deciding how the two distinct Kamusi neutrals map onto the current
+`ColorScheme`, which is a `DESIGN_SYSTEM.md` change rather than a rename.
 
 ## Run the API
 
@@ -42,7 +82,7 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```bash
 curl "http://localhost:8000/search?q=agua&lang=sw&limit=20"
-curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw&include_drafts=true"
+curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw"
 curl "http://localhost:8000/word-of-the-day?lang=sw"
 ```
 
