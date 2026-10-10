@@ -13,16 +13,35 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) {
   return ThemeMode.light;
 });
 
+/// Base URL of the Kamusi API.
+///
+/// Override per build, never per file:
+///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000   (Android emulator)
+///   flutter run --dart-define=API_BASE_URL=http://localhost:8000  (iOS sim, desktop, web)
+///   flutter build --dart-define=API_BASE_URL=https://api.example.com
+///
+/// The default targets a local API so a fresh checkout works against
+/// `make api`. Release builds must pass the deployed URL explicitly.
 final apiBaseUrlProvider = Provider<String>((ref) {
   return const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://kamusi-2-0.onrender.com/',
+    defaultValue: 'http://localhost:8000',
   );
+});
+
+/// Whether to ask the API for draft content.
+///
+/// Draft entries are unpublished and unreviewed, so this stays off unless a
+/// developer opts in for a local session:
+///   flutter run --dart-define=INCLUDE_DRAFTS=true
+final includeDraftsProvider = Provider<bool>((ref) {
+  return const bool.fromEnvironment('INCLUDE_DRAFTS', defaultValue: false);
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final baseUrl = ref.watch(apiBaseUrlProvider);
-  return ApiClient(baseUrl: baseUrl);
+  final includeDrafts = ref.watch(includeDraftsProvider);
+  return ApiClient(baseUrl: baseUrl, includeDrafts: includeDrafts);
 });
 
 final kamusiRepositoryProvider = Provider<KamusiRepository>((ref) {

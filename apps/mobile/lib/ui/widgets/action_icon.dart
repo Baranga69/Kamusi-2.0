@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class _ActionIcon extends StatelessWidget {
+class ActionIcon extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _ActionIcon({
+  const ActionIcon({
     required this.icon,
     required this.label,
     required this.onTap,

@@ -85,7 +85,7 @@ ThemeData buildKamusiTheme({Brightness brightness = Brightness.light}) {
       titleTextStyle: textTheme.titleLarge,
       iconTheme: IconThemeData(color: colorScheme.onSurface),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: colorScheme.surface,
       elevation: 0,
       margin: EdgeInsets.zero,

@@ -11,7 +11,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  intl: ^0.19.0
+  # Pinned by flutter_localizations in the Flutter SDK; only DateFormat is used.
+  intl: ^0.20.2
   flutter_riverpod: ^2.5.1
   dio: ^5.5.0
   shared_preferences: ^2.2.3

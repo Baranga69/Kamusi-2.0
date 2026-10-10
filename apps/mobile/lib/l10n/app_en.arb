@@ -34,6 +34,7 @@
   "filterLemma": "Lemma",
   "filterDefinition": "Definition",
   "filterExample": "Example",
+  "filterExpression": "Expression",
   "relatedEmpty": "No related words.",
   "retry": "Retry",
   "lexemeTitle": "Lexeme",

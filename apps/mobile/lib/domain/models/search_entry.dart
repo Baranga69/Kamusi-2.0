@@ -10,6 +10,8 @@ class SearchEntry {
     required this.lexemeId,
     required this.lemma,
     required this.posCode,
+    required this.expressionId,
+    required this.expressionText,
     required this.matchKind,
   });
 
@@ -21,11 +23,28 @@ class SearchEntry {
   final String normalized;
   final int? popularity;
 
-  // NEW
+  /// Set when the hit resolves to a lexeme; empty for expression hits.
   final String lexemeId;
   final String lemma;
   final String? posCode;
+
+  /// Set when the hit resolves to an expression (methali, semi, nahau).
+  final String expressionId;
+  final String expressionText;
+
+  /// lemma | definition | example | expression | meaning
   final String? matchKind;
+
+  bool get isExpression => expressionId.isNotEmpty;
+
+  bool get isLexeme => lexemeId.isNotEmpty;
+
+  /// What to show as the result's headline.
+  String get title {
+    if (lemma.isNotEmpty) return lemma;
+    if (expressionText.isNotEmpty) return expressionText;
+    return text;
+  }
 
   factory SearchEntry.fromJson(Map<String, dynamic> json) {
     return SearchEntry(
@@ -39,6 +58,8 @@ class SearchEntry {
       lexemeId: (json['lexeme_id'] ?? '').toString(),
       lemma: (json['lemma'] ?? '').toString(),
       posCode: json['pos_code'] as String?,
+      expressionId: (json['expression_id'] ?? '').toString(),
+      expressionText: (json['expression_text'] ?? '').toString(),
       matchKind: json['match_kind'] as String?,
     );
   }

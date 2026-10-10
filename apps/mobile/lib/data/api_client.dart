@@ -5,7 +5,7 @@ import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
 
 class ApiClient {
-  ApiClient({required this.baseUrl}) {
+  ApiClient({required this.baseUrl, this.includeDrafts = false}) {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
@@ -16,6 +16,11 @@ class ApiClient {
   }
 
   final String baseUrl;
+
+  /// Whether to request unpublished content. Off outside local development;
+  /// see `includeDraftsProvider`.
+  final bool includeDrafts;
+
   late final Dio _dio;
 
   Future<Response<dynamic>> get(
@@ -29,11 +34,9 @@ class ApiClient {
     String q, {
     String lang = 'sw',
     int limit = 20,
-    bool includeDrafts = false,
   }) async {
-    if (includeDrafts) {
-      // /search does not support drafts yet; reserved for future use.
-    }
+    // /search has no draft switch: it reads search_entry, which is only
+    // written when an entry is published.
     final response = await get(
       '/search',
       queryParameters: {
@@ -52,13 +55,13 @@ class ApiClient {
   Future<LexemePublic> getLexeme(
     String id, {
     String lang = 'sw',
-    bool includeDrafts = true,
+    bool? includeDrafts,
   }) async {
     final response = await get(
       '/lexemes/${Uri.encodeComponent(id)}',
       queryParameters: {
         'lang': lang,
-        if (includeDrafts) 'include_drafts': true, // Local dev only.
+        if (includeDrafts ?? this.includeDrafts) 'include_drafts': true,
       },
     );
     final data = response.data;
@@ -74,14 +77,14 @@ class ApiClient {
   Future<LexemePublic> lookupLemma(
     String lemma, {
     String lang = 'sw',
-    bool includeDrafts = true,
+    bool? includeDrafts,
   }) async {
     final response = await get(
       '/lookup/lemma',
       queryParameters: {
         'lemma': lemma,
         'lang': lang,
-        if (includeDrafts) 'include_drafts': true, // Local dev only.
+        if (includeDrafts ?? this.includeDrafts) 'include_drafts': true,
       },
     );
     final data = response.data;
