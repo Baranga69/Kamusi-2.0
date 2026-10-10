@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""Import generated Swahili definitions into sense_definition.
+
+Every row written here is AI-generated and therefore untrusted until a human
+reviews it. That stance only holds if the provenance columns are populated on
+insert: the public API hides a Swahili definition when
+``is_ai_generated = true AND review_status NOT IN ('approved','edited')``, and
+the admin review queue selects on exactly the same two columns. A row imported
+without them is both invisible to reviewers and served to readers as though a
+lexicographer had written it.
+"""
 import json
 import os
 import sys
@@ -23,6 +33,23 @@ IN_PATH = Path(env("IN_PATH", "ai_defs.jsonl"))
 # Insert behavior
 ON_CONFLICT = env("ON_CONFLICT", "skip")  # "skip" or "update"
 IS_PRIMARY = env("IS_PRIMARY", "true").lower() == "true"
+
+# Provenance defaults, used when a JSONL row predates these fields.
+DEFAULT_MODEL = env("AI_MODEL", "unknown")
+DEFAULT_PROMPT_VERSION = env("AI_PROMPT_VERSION", "unknown")
+
+# Imported definitions always land unreviewed; the admin queue promotes them.
+INITIAL_REVIEW_STATUS = "unreviewed"
+
+INSERT_COLUMNS = """
+  id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
+  is_ai_generated, review_status, ai_model, ai_prompt_version
+"""
+
+INSERT_VALUES = """
+  %s, %s, 'sw', %s, %s, %s, %s, now(),
+  true, %s, %s, %s
+"""
 
 
 def is_uuid(s: str) -> bool:
@@ -49,6 +76,10 @@ def main() -> None:
         print('   export IN_PATH="apps/api/tools/ai_defs/ai_defs.jsonl"')
         sys.exit(1)
 
+    if ON_CONFLICT not in {"skip", "update"}:
+        print(f"❌ ON_CONFLICT must be 'skip' or 'update', got: {ON_CONFLICT}")
+        sys.exit(1)
+
     inserted = 0
     skipped_conflict = 0
     updated = 0
@@ -57,28 +88,29 @@ def main() -> None:
 
     # Build SQL depending on conflict strategy
     if ON_CONFLICT == "update":
-        upsert_sql = """
-        INSERT INTO sense_definition (
-          id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at
-        )
-        VALUES (
-          %s, %s, 'sw', %s, %s, %s, %s, now()
-        )
+        # An existing row is replaced wholesale, which resets review state:
+        # the text changed, so an earlier approval no longer applies to it.
+        upsert_sql = f"""
+        INSERT INTO sense_definition ({INSERT_COLUMNS})
+        VALUES ({INSERT_VALUES})
         ON CONFLICT (sense_id, lang_code)
         DO UPDATE SET
           definition = EXCLUDED.definition,
           gloss = EXCLUDED.gloss,
           is_primary = EXCLUDED.is_primary,
-          source_id = EXCLUDED.source_id
+          source_id = EXCLUDED.source_id,
+          is_ai_generated = EXCLUDED.is_ai_generated,
+          review_status = EXCLUDED.review_status,
+          ai_model = EXCLUDED.ai_model,
+          ai_prompt_version = EXCLUDED.ai_prompt_version,
+          reviewed_by = NULL,
+          reviewed_at = NULL,
+          review_note = NULL
         """
     else:
-        upsert_sql = """
-        INSERT INTO sense_definition (
-          id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at
-        )
-        VALUES (
-          %s, %s, 'sw', %s, %s, %s, %s, now()
-        )
+        upsert_sql = f"""
+        INSERT INTO sense_definition ({INSERT_COLUMNS})
+        VALUES ({INSERT_VALUES})
         ON CONFLICT (sense_id, lang_code)
         DO NOTHING
         """
@@ -104,19 +136,29 @@ def main() -> None:
 
                     # sense_id might be string UUID; keep it as string for psycopg
                     gloss_sw = obj.get("gloss_sw", None)
+                    ai_model = obj.get("model") or DEFAULT_MODEL
+                    prompt_version = obj.get("prompt_version") or DEFAULT_PROMPT_VERSION
 
                     new_id = str(uuid.uuid4())
                     cur.execute(
                         upsert_sql,
-                        (new_id, sense_id, definition_sw, gloss_sw, IS_PRIMARY, AI_SOURCE_ID),
+                        (
+                            new_id,
+                            sense_id,
+                            definition_sw,
+                            gloss_sw,
+                            IS_PRIMARY,
+                            AI_SOURCE_ID,
+                            INITIAL_REVIEW_STATUS,
+                            ai_model,
+                            prompt_version,
+                        ),
                     )
 
                     # rowcount meaning differs between DO NOTHING vs DO UPDATE
                     if ON_CONFLICT == "update":
-                        # rowcount will usually be 1 whether insert or update
-                        # We'll infer "insert vs update" by checking if the row already existed:
-                        # (cheap approach: try insert-only first would be two queries, so we keep simple)
-                        # We'll just count rowcount as "written".
+                        # rowcount is 1 for both insert and update paths here, so
+                        # this counts rows written rather than rows created.
                         updated += 1
                     else:
                         if cur.rowcount == 1:
@@ -135,6 +177,9 @@ def main() -> None:
     print(f"AI_SOURCE_ID:              {AI_SOURCE_ID}")
     print(f"IN_PATH:                   {IN_PATH.resolve()}")
     print(f"DB_URL:                    {DB_URL}")
+    print()
+    print("Imported rows are is_ai_generated=true, review_status='unreviewed':")
+    print("hidden from the public API until approved in the admin review queue.")
 
 
 if __name__ == "__main__":
