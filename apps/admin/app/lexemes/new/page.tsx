@@ -969,7 +969,7 @@ export default function LexemeWizardPage() {
                                   <option value="">Select source</option>
                                   {sources.map((source) => (
                                     <option key={source.id} value={source.id}>
-                                      {source.name}
+                                      {source.title}
                                     </option>
                                   ))}
                                 </select>
@@ -1041,7 +1041,7 @@ export default function LexemeWizardPage() {
                                   <option value="">Select source</option>
                                   {sources.map((source) => (
                                     <option key={source.id} value={source.id}>
-                                      {source.name}
+                                      {source.title}
                                     </option>
                                   ))}
                                 </select>
@@ -1128,8 +1128,10 @@ export default function LexemeWizardPage() {
                   <div className="stack">
                     {sources.slice(0, 5).map((source) => (
                       <div key={source.id} className="row">
-                        <strong>{source.name}</strong>
-                        <span className="muted">{source.description ?? ""}</span>
+                        <strong>{source.title}</strong>
+                        <span className="muted">
+                          {[source.author, source.year].filter(Boolean).join(" · ")}
+                        </span>
                       </div>
                     ))}
                     {sources.length > 5 && <p className="muted">{sources.length - 5} more sources available.</p>}

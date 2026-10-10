@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-import ReviewQueueTable from "../api/review/components/ReviewQueueTable";
+import ReviewQueueTable from "../components/ReviewQueueTable";
 import { createAdminClient, type ReviewQueueItem, type ReviewStatus } from "../../lib/api";
 import { useApiKey, useReviewerName } from "../../lib/storage";
 

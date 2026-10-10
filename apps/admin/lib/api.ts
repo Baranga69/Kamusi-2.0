@@ -62,22 +62,71 @@ export interface ExpressionInput {
   };
 }
 
+// The types below mirror apps/api/app/schemas.py. The API is the source of
+// truth for data shapes; keep them in step when a schema changes.
+
 export interface Tag {
   id: string;
   name: string;
-  description?: string;
+  tag_type_id: string;
+  description?: string | null;
 }
+
+export type TagPayload = Omit<Tag, "id">;
 
 export interface Source {
   id: string;
-  name: string;
-  description?: string;
+  title: string;
+  author?: string | null;
+  publisher?: string | null;
+  year?: number | null;
+  source_type: string;
+  license_id: string;
+  url?: string | null;
+  notes?: string | null;
 }
+
+export type SourcePayload = Omit<Source, "id">;
 
 export interface License {
   id: string;
   name: string;
-  url?: string;
+  summary?: string | null;
+  can_display: boolean;
+  can_modify: boolean;
+  can_commercialize: boolean;
+}
+
+export type LicensePayload = Omit<License, "id">;
+
+/** Flat row returned by GET /admin/lexemes. */
+export interface LexemeListItem {
+  id: string;
+  lemma: string;
+  normalized_lemma: string;
+  pos_id: string;
+  pos_code?: string | null;
+  status: string;
+  workflow: WorkflowStatus;
+  default_language_code: LanguageCode;
+  sense_count: number;
+  sw_definition_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Flat row returned by GET /admin/expressions. */
+export interface ExpressionListItem {
+  id: string;
+  text: string;
+  normalized_text: string;
+  expression_type_id: string;
+  expression_type_code?: string | null;
+  region_id?: string | null;
+  workflow: WorkflowStatus;
+  meaning_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ReviewQueueItem {
@@ -140,6 +189,22 @@ export interface ReviewBulkResponse {
   skipped_count: number;
 }
 
+export interface LookupOption {
+  id: string;
+  code: string;
+  label: string;
+}
+
+export interface LookupBundle {
+  languages: { code: string; name: string }[];
+  parts_of_speech: LookupOption[];
+  registers: LookupOption[];
+  domains: LookupOption[];
+  regions: LookupOption[];
+  expression_types: LookupOption[];
+  tag_types: LookupOption[];
+}
+
 export interface ListResponse<T> {
   items: T[];
 }
@@ -171,9 +236,9 @@ export const createAdminClient = (apiKey: string) => {
   });
 
   return {
-    async listLexemes(query?: string, status?: WorkflowStatus) {
-      const response = await client.get<ListResponse<LexemeInput> | LexemeInput[]>("/admin/lexemes", {
-        params: { query, status },
+    async listLexemes(query?: string, status?: WorkflowStatus, posCode?: string) {
+      const response = await client.get<ListResponse<LexemeListItem> | LexemeListItem[]>("/admin/lexemes", {
+        params: { query, status, pos_code: posCode },
       });
       return getItems(response.data);
     },
@@ -198,9 +263,10 @@ export const createAdminClient = (apiKey: string) => {
       return response.data;
     },
     async listExpressions(query?: string, status?: WorkflowStatus) {
-      const response = await client.get<ListResponse<ExpressionInput> | ExpressionInput[]>("/admin/expressions", {
-        params: { query, status },
-      });
+      const response = await client.get<ListResponse<ExpressionListItem> | ExpressionListItem[]>(
+        "/admin/expressions",
+        { params: { query, status } }
+      );
       return getItems(response.data);
     },
     async getExpression(id: string) {
@@ -219,30 +285,38 @@ export const createAdminClient = (apiKey: string) => {
       const response = await client.post<ExpressionInput>(`/admin/expressions/${id}/publish`);
       return response.data;
     },
-    async listTags() {
-      const response = await client.get<ListResponse<Tag> | Tag[]>("/admin/tags");
+    async getLookups() {
+      const response = await client.get<LookupBundle>("/admin/lookups");
+      return response.data;
+    },
+    async listTags(query?: string) {
+      const response = await client.get<ListResponse<Tag> | Tag[]>("/admin/tags", {
+        params: { query },
+      });
       return getItems(response.data);
     },
-    async createTag(payload: Omit<Tag, "id">) {
+    async createTag(payload: TagPayload) {
       const response = await client.post<Tag>("/admin/tags", payload);
       return response.data;
     },
-    async updateTag(id: string, payload: Omit<Tag, "id">) {
+    async updateTag(id: string, payload: Partial<TagPayload>) {
       const response = await client.put<Tag>(`/admin/tags/${id}`, payload);
       return response.data;
     },
     async deleteTag(id: string) {
       await client.delete(`/admin/tags/${id}`);
     },
-    async listSources() {
-      const response = await client.get<ListResponse<Source> | Source[]>("/admin/sources");
+    async listSources(query?: string) {
+      const response = await client.get<ListResponse<Source> | Source[]>("/admin/sources", {
+        params: { query },
+      });
       return getItems(response.data);
     },
-    async createSource(payload: Omit<Source, "id">) {
+    async createSource(payload: SourcePayload) {
       const response = await client.post<Source>("/admin/sources", payload);
       return response.data;
     },
-    async updateSource(id: string, payload: Omit<Source, "id">) {
+    async updateSource(id: string, payload: Partial<SourcePayload>) {
       const response = await client.put<Source>(`/admin/sources/${id}`, payload);
       return response.data;
     },
@@ -253,11 +327,11 @@ export const createAdminClient = (apiKey: string) => {
       const response = await client.get<ListResponse<License> | License[]>("/admin/licenses");
       return getItems(response.data);
     },
-    async createLicense(payload: Omit<License, "id">) {
+    async createLicense(payload: LicensePayload) {
       const response = await client.post<License>("/admin/licenses", payload);
       return response.data;
     },
-    async updateLicense(id: string, payload: Omit<License, "id">) {
+    async updateLicense(id: string, payload: Partial<LicensePayload>) {
       const response = await client.put<License>(`/admin/licenses/${id}`, payload);
       return response.data;
     },

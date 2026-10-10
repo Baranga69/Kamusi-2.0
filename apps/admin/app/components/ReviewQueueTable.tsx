@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import type { ReviewQueueItem } from "../../../../lib/api";
+import type { ReviewQueueItem } from "../../lib/api";
 
 interface ReviewQueueTableProps {
   items: ReviewQueueItem[];

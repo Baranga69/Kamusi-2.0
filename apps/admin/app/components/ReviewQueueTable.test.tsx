@@ -1,7 +1,9 @@
+import { expect, test } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReviewQueueItem } from "../../lib/api";
 import ReviewQueueTable from "./ReviewQueueTable";
 
-const sampleItems = [
+const sampleItems: ReviewQueueItem[] = [
   {
     sense_definition_id: "def-1",
     sense_id: "sense-1",

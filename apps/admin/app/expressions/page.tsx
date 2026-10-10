@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createAdminClient,
   workflowStatuses,
-  type ExpressionInput,
+  type ExpressionListItem,
   type WorkflowStatus,
 } from "../../lib/api";
 import { useApiKey } from "../../lib/storage";
@@ -14,7 +14,7 @@ export default function ExpressionListPage() {
   const { apiKey, loaded } = useApiKey();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<WorkflowStatus | "">("");
-  const [items, setItems] = useState<ExpressionInput[]>([]);
+  const [items, setItems] = useState<ExpressionListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,14 +97,16 @@ export default function ExpressionListPage() {
         <div className="table-row table-head">
           <span>Text</span>
           <span>Type</span>
-          <span>Status</span>
+          <span>Workflow</span>
+          <span>Meanings</span>
           <span></span>
         </div>
         {items.map((expression) => (
-          <div key={expression.id ?? expression.text} className="table-row">
+          <div key={expression.id} className="table-row">
             <span>{expression.text}</span>
-            <span>{expression.expression_type || "-"}</span>
-            <span className={`status ${expression.status}`}>{expression.status}</span>
+            <span>{expression.expression_type_code || "-"}</span>
+            <span className={`status ${expression.workflow}`}>{expression.workflow}</span>
+            <span>{expression.meaning_count}</span>
             <span>
               <Link href={`/expressions/${expression.id}`}>Edit</Link>
             </span>
