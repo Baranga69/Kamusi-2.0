@@ -283,3 +283,50 @@ def test_published_examples_are_indexed_and_searchable(client, db_session):
     assert [r["match_kind"] for r in results] == ["example"]
     assert results[0]["lexeme_id"] == str(lexeme.id)
     assert results[0]["lemma"] == "mti"
+
+
+def test_one_result_per_entry_preferring_the_headword(client, db_session):
+    """A word matching on its lemma, definition and example is listed once."""
+    from app.models import Example, ExampleText
+
+    pos = seed_lookups(db_session)
+    lexeme = make_lexeme(db_session, pos, "mti", workflow="draft")
+    sense = Sense(lexeme_id=lexeme.id, sense_number=1, workflow="draft")
+    db_session.add(sense)
+    db_session.commit()
+    db_session.add(
+        SenseDefinition(
+            sense_id=sense.id,
+            lang_code="sw",
+            definition="mti ni mmea mkubwa",
+            is_primary=True,
+        )
+    )
+    example = Example(sense_id=sense.id, is_attested=True)
+    db_session.add(example)
+    db_session.commit()
+    db_session.add(
+        ExampleText(example_id=example.id, lang_code="sw", text="Mti huu ni mrefu", is_primary=True)
+    )
+    db_session.commit()
+
+    publish_lexeme(db_session, lexeme.id)
+
+    # All three index rows contain "mti".
+    assert db_session.query(SearchEntry).count() == 3
+
+    results = client.get("/search", params={"q": "mti", "lang": "sw"}).json()
+    assert len(results) == 1
+    assert results[0]["match_kind"] == "lemma"
+    assert results[0]["lexeme_id"] == str(lexeme.id)
+
+
+def test_distinct_entries_are_all_returned(client, db_session):
+    """Collapsing per entry must not collapse across entries."""
+    pos = seed_lookups(db_session)
+    for lemma in ["mti", "mtima", "mtimu"]:
+        lexeme = make_lexeme(db_session, pos, lemma)
+        index(db_session, target_type="lexeme", target_id=lexeme.id, text=lemma)
+
+    results = client.get("/search", params={"q": "mti", "lang": "sw"}).json()
+    assert sorted(r["lemma"] for r in results) == ["mti", "mtima", "mtimu"]

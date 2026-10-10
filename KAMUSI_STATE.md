@@ -121,10 +121,21 @@ The index itself is still append-only on publish, so rows linger after an
 archive. That is now cosmetic rather than a leak; `rebuild_search_index.py`
 reconciles it.
 
+### Search relevance (2026-10-10)
+- Matching is still `LIKE '%term%'` over the normalized column, but migration
+  0003 adds `pg_trgm` GIN indexes, so the planner has an index path for it
+  instead of always scanning.
+- A trigram pass tops up thin result sets with near spellings, flagged
+  `is_fuzzy` and always sorted after literal matches. Postgres only.
+- Results are collapsed to one hit per lexeme or expression, preferring the
+  headword over a definition over an example.
+
 ### Known gaps (not yet invariant)
-- Search matching is `LIKE '%term%'` over a normalized column. It cannot rank
-  by relevance beyond exact / prefix / substring, and has no typo tolerance or
-  stemming. See the scaling note in `apps/api/README.md`.
+- No stemming or Swahili morphological awareness in search: a user searching
+  an inflected form only finds the lemma if the strings happen to overlap.
+- `search_entry.popularity` participates in ranking but is never written, so
+  it is always 0. Feeding real lookup counts into it is the next meaningful
+  relevance win.
 
 ---
 

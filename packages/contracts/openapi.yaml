@@ -22,16 +22,18 @@ paths:
   /search:
     get:
       summary: Search
-      description: 'Full-text-ish lookup over the search_entry index.
+      description: 'Lookup over the search_entry index.
 
 
-        Every hit is resolved back to the lexeme or expression a reader can open,
+        Runs a strict pass first (exact, then prefix, then substring). If that
 
-        and anything the reader is not allowed to see is filtered out *before* the
+        leaves room under `limit` and the backend is Postgres, a second pass tops
 
-        limit is applied — otherwise asking for 20 results could return 3, with
+        the list up with trigram-similar spellings, flagged `is_fuzzy` so a client
 
-        good matches silently dropped outside the window.'
+        can present them as "did you mean". Fuzzy hits always sort after strict
+
+        ones, so adding them never reorders a good match.'
       operationId: search_search_get
       parameters:
       - name: q
@@ -64,6 +66,15 @@ paths:
           type: boolean
           default: false
           title: Include Drafts
+      - name: fuzzy
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: top up thin results with near spellings
+          default: true
+          title: Fuzzy
+        description: top up thin results with near spellings
       responses:
         '200':
           description: Successful Response
@@ -4649,6 +4660,10 @@ components:
           - type: string
           - type: 'null'
           title: Match Kind
+        is_fuzzy:
+          type: boolean
+          title: Is Fuzzy
+          default: false
       type: object
       required:
       - id

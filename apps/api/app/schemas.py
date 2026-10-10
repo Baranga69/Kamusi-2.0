@@ -406,6 +406,10 @@ class SearchResult(BaseModel):
     # "lemma" | "definition" | "example" | "expression" | "meaning"
     match_kind: str | None = None
 
+    # True when the hit came from the trigram "did you mean" pass rather than
+    # a literal match, so a client can present it differently.
+    is_fuzzy: bool = False
+
 
 class WordOfDayPublic(BaseModel):
     date: date

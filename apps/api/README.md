@@ -30,7 +30,9 @@ You can also provide a comma-separated list or a JSON array.
 ```bash
 curl "http://localhost:8000/search?q=agua&lang=sw&limit=20"
 curl "http://localhost:8000/search?q=baraka&lang=sw"          # methali / semi
+curl "http://localhost:8000/search?q=ngombee&lang=sw"         # typo -> ng'ombe
 curl "http://localhost:8000/search?q=mti&lang=sw&include_drafts=true"
+curl "http://localhost:8000/search?q=mti&lang=sw&fuzzy=false"
 curl "http://localhost:8000/lexemes/<LEXEME_ID>?lang=sw"
 curl "http://localhost:8000/lookup/lemma?lemma=ng'ombe&lang=sw"
 curl "http://localhost:8000/word-of-the-day?lang=sw"
@@ -63,6 +65,23 @@ the first 20 rows. Entries are excluded when the owning lexeme, sense or
 expression is not `published` (unless `include_drafts=true`), when the owning
 record has been deleted, or when the hit is an unreviewed AI Swahili
 definition.
+
+A word that matches on its headword, one of its definitions and one of its
+examples is three index rows but one dictionary entry, so results are collapsed
+to the strongest hit per entry — headword first, then meaning, then example.
+
+### Typo tolerance
+
+Search runs a strict pass (exact, then prefix, then substring). If that leaves
+room under `limit`, a second pass tops the list up with trigram-similar
+spellings, so "ngombee" still finds "ng'ombe". Those results carry
+`is_fuzzy: true` and always sort after every literal match, so a client can
+present them as "did you mean" and adding them never reorders a good match.
+
+This needs `pg_trgm` (migration 0003) and is skipped on any other backend.
+`fuzzy=false` turns it off per request; `SEARCH_FUZZY_THRESHOLD` (default 0.3,
+the pg_trgm default) sets how close a spelling has to be — lower widens the
+net, higher demands a closer match.
 
 ## Admin API
 
@@ -129,6 +148,20 @@ poetry run python scripts/seed.py
 cd apps/api
 poetry run pytest
 ```
+
+That runs against in-memory SQLite, so it needs no services. SQLite cannot
+exercise the migrations, the native enums or the trigram search, so point the
+suite at a real Postgres to cover those — CI runs both:
+
+```bash
+createdb kamusi_test
+TEST_DATABASE_URL=postgresql+psycopg://kamusi:kamusi123@localhost:5433/kamusi_test \
+  poetry run pytest
+```
+
+On Postgres the schema is built by running the Alembic migrations, so a broken
+migration fails the suite. Tests marked `@pytest.mark.postgres` skip on
+SQLite.
 
 ## Contracts
 

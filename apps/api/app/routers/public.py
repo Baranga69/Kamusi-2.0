@@ -1,9 +1,10 @@
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, case, func, or_, select, literal
+from sqlalchemy import and_, case, func, or_, select, literal, text
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db import get_db
 from app.models import (
     Example,
@@ -21,38 +22,25 @@ from app.schemas import ExpressionPublic, LexemePublic, SearchResult, WordOfDayP
 
 router = APIRouter()
 
+# Rank floor for trigram matches. Strict ranks are 0-3, and a fuzzy hit scores
+# FUZZY_RANK + (1 - similarity), so it lands in [10, 11] — always after every
+# strict hit, and a closer spelling ahead of a looser one within the tier.
+# `is_fuzzy` is then just `rank >= FUZZY_RANK`.
+FUZZY_RANK = 10
+
 
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
-@router.get("/search", response_model=list[SearchResult])
-def search(
-    q: str = Query(..., min_length=1),
-    lang: str = "sw",
-    limit: int = Query(20, ge=1, le=100),
-    include_drafts: bool = Query(False),
-    db: Session = Depends(get_db),
-) -> list[SearchResult]:
-    """Full-text-ish lookup over the search_entry index.
+def _resolved_entries(normalized: str, lang: str, match_clause, rank_expr):
+    """Subquery resolving each matching index row to the record that owns it.
 
-    Every hit is resolved back to the lexeme or expression a reader can open,
-    and anything the reader is not allowed to see is filtered out *before* the
-    limit is applied — otherwise asking for 20 results could return 3, with
-    good matches silently dropped outside the window.
+    `search_entry` stores one row per searchable string; the reader needs the
+    lexeme or expression behind it. No limit is applied here — filtering has to
+    happen before the window, or a request for N results silently returns
+    fewer.
     """
-    normalized = normalize_sw(q)
-    if not normalized:
-        return []
-
-    rank = case(
-        (SearchEntry.normalized == normalized, 0),
-        (SearchEntry.normalized.like(f"{normalized}%"), 1),
-        (SearchEntry.normalized.like(f"%{normalized}%"), 2),
-        else_=3,
-    )
-
-    # ---- correlated subqueries resolving a hit to its owning rows ----
     sense_id_for_definition = (
         select(SenseDefinition.sense_id)
         .where(SenseDefinition.id == SearchEntry.target_id)
@@ -106,6 +94,17 @@ def search(
         else_=None,
     ).label("sense_id")
 
+    # Preference between hits on the *same* record: the headword itself, then
+    # its meaning, then a usage example.
+    kind_rank = case(
+        (SearchEntry.target_type == "lexeme", 0),
+        (SearchEntry.target_type == "expression", 0),
+        (SearchEntry.target_type == "definition", 1),
+        (SearchEntry.target_type == "expression_meaning", 1),
+        (SearchEntry.target_type == "example", 2),
+        else_=3,
+    ).label("kind_rank")
+
     match_kind = case(
         (SearchEntry.target_type == "lexeme", literal("lemma")),
         (SearchEntry.target_type == "definition", literal("definition")),
@@ -115,8 +114,7 @@ def search(
         else_=literal("unknown"),
     ).label("match_kind")
 
-    # Resolve first, with no limit: the window is applied after filtering.
-    base = (
+    return (
         select(
             SearchEntry.id.label("search_id"),
             SearchEntry.target_type,
@@ -129,14 +127,18 @@ def search(
             resolved_expression_id,
             resolved_sense_id,
             match_kind,
-            rank.label("rank"),
+            kind_rank,
+            rank_expr.label("rank"),
         )
         .select_from(SearchEntry)
         .where(SearchEntry.lang_code == lang)
-        .where(SearchEntry.normalized.like(f"%{normalized}%"))
+        .where(match_clause)
         .subquery()
     )
 
+
+def _visible_hits(base, include_drafts: bool):
+    """Join each resolved hit to its owner and drop what must not be shown."""
     stmt = (
         select(
             base.c.search_id,
@@ -149,6 +151,8 @@ def search(
             base.c.lexeme_id,
             base.c.expression_id,
             base.c.match_kind,
+            base.c.kind_rank,
+            base.c.rank,
             Lexeme.lemma,
             PartOfSpeech.code.label("pos_code"),
             Expression.text.label("expression_text"),
@@ -190,7 +194,7 @@ def search(
 
     # Mirrors the AI guard in the read path. Written as a positive allow-list
     # so that NULL columns on non-definition hits cannot make it NULL.
-    stmt = stmt.where(
+    return stmt.where(
         or_(
             base.c.target_type != "definition",
             SenseDefinition.lang_code != "sw",
@@ -199,35 +203,129 @@ def search(
         )
     )
 
-    stmt = stmt.order_by(
-        base.c.rank.asc(),
-        base.c.popularity.desc(),
-        base.c.normalized.asc(),
-        base.c.search_id.asc(),
-    ).limit(limit)
 
-    rows = db.execute(stmt).all()
+def _best_per_record(stmt):
+    """Collapse to one hit per lexeme or expression.
 
-    out: list[SearchResult] = []
-    for r in rows:
-        out.append(
-            SearchResult(
-                id=r.search_id,
-                target_type=r.target_type,
-                target_id=r.target_id,
-                lang_code=r.lang_code,
-                text=r.text,
-                normalized=r.normalized,
-                popularity=r.popularity or 0,
-                lexeme_id=r.lexeme_id,
-                lemma=r.lemma,
-                pos_code=r.pos_code,
-                expression_id=r.expression_id,
-                expression_text=r.expression_text,
-                match_kind=r.match_kind,
-            )
+    A query can match a headword, one of its definitions and one of its
+    examples, which are three index rows for a single dictionary entry. A
+    reader wants the entry listed once, represented by its strongest match.
+    """
+    hits = stmt.subquery()
+    owner = func.coalesce(hits.c.lexeme_id, hits.c.expression_id)
+    best = (
+        func.row_number()
+        .over(partition_by=owner, order_by=_ordering(hits))
+        .label("row_number")
+    )
+    ranked = select(hits, best).subquery()
+    return select(ranked).where(ranked.c.row_number == 1)
+
+
+def _ordering(columns):
+    """Result order: match strength, then which part matched, then popularity."""
+    return (
+        columns.c.rank.asc(),
+        columns.c.kind_rank.asc(),
+        columns.c.popularity.desc(),
+        columns.c.normalized.asc(),
+        columns.c.search_id.asc(),
+    )
+
+
+def _to_result(row) -> SearchResult:
+    return SearchResult(
+        id=row.search_id,
+        target_type=row.target_type,
+        target_id=row.target_id,
+        lang_code=row.lang_code,
+        text=row.text,
+        normalized=row.normalized,
+        popularity=row.popularity or 0,
+        lexeme_id=row.lexeme_id,
+        lemma=row.lemma,
+        pos_code=row.pos_code,
+        expression_id=row.expression_id,
+        expression_text=row.expression_text,
+        match_kind=row.match_kind,
+        is_fuzzy=row.rank >= FUZZY_RANK,
+    )
+
+
+@router.get("/search", response_model=list[SearchResult])
+def search(
+    q: str = Query(..., min_length=1),
+    lang: str = "sw",
+    limit: int = Query(20, ge=1, le=100),
+    include_drafts: bool = Query(False),
+    fuzzy: bool = Query(True, description="top up thin results with near spellings"),
+    db: Session = Depends(get_db),
+) -> list[SearchResult]:
+    """Lookup over the search_entry index.
+
+    Runs a strict pass first (exact, then prefix, then substring). If that
+    leaves room under `limit` and the backend is Postgres, a second pass tops
+    the list up with trigram-similar spellings, flagged `is_fuzzy` so a client
+    can present them as "did you mean". Fuzzy hits always sort after strict
+    ones, so adding them never reorders a good match.
+    """
+    normalized = normalize_sw(q)
+    if not normalized:
+        return []
+
+    strict_rank = case(
+        (SearchEntry.normalized == normalized, 0),
+        (SearchEntry.normalized.like(f"{normalized}%"), 1),
+        (SearchEntry.normalized.like(f"%{normalized}%"), 2),
+        else_=3,
+    )
+    base = _resolved_entries(
+        normalized, lang, SearchEntry.normalized.like(f"%{normalized}%"), strict_rank
+    )
+    strict = _best_per_record(_visible_hits(base, include_drafts)).subquery()
+    rows = db.execute(
+        select(strict).order_by(*_ordering(strict)).limit(limit)
+    ).all()
+
+    results = [_to_result(row) for row in rows]
+    remaining = limit - len(results)
+    if not fuzzy or remaining <= 0 or db.bind.dialect.name != "postgresql":
+        return results
+
+    # pg_trgm's `%` operator is index-backed; `similarity() >= x` is not, so
+    # the threshold is set on the transaction rather than written into the
+    # predicate.
+    # set_config(..., is_local => true) is the parameterizable form of
+    # SET LOCAL, which is a utility statement and takes no bind parameters.
+    db.execute(
+        text("SELECT set_config('pg_trgm.similarity_threshold', :threshold, true)"),
+        {"threshold": str(settings.search_fuzzy_threshold)},
+    )
+    similarity = func.similarity(SearchEntry.normalized, normalized)
+    fuzzy_base = _resolved_entries(
+        normalized,
+        lang,
+        and_(
+            SearchEntry.normalized.op("%")(normalized),
+            SearchEntry.normalized.notlike(f"%{normalized}%"),
+        ),
+        literal(float(FUZZY_RANK)) + (literal(1.0) - similarity),
+    )
+    # Exclude records already listed, so the fuzzy pass tops the list up with
+    # new entries rather than repeating one under a looser spelling.
+    seen = {result.lexeme_id for result in results if result.lexeme_id}
+    seen |= {result.expression_id for result in results if result.expression_id}
+    fuzzy_stmt = _visible_hits(fuzzy_base, include_drafts)
+    if seen:
+        fuzzy_stmt = fuzzy_stmt.where(
+            func.coalesce(fuzzy_base.c.lexeme_id, fuzzy_base.c.expression_id).notin_(seen)
         )
-    return out
+    fuzzy = _best_per_record(fuzzy_stmt).subquery()
+    fuzzy_rows = db.execute(
+        select(fuzzy).order_by(*_ordering(fuzzy)).limit(remaining)
+    ).all()
+
+    return results + [_to_result(row) for row in fuzzy_rows]
 
 
 def _pick_definition(lexeme: Lexeme, lang: str) -> str | None:

@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     admin_api_key: Optional[str] = Field(default=None, alias="ADMIN_API_KEY")
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
 
+    # Trigram similarity floor for the "did you mean" pass in /search.
+    # 0.3 is the pg_trgm default: lower widens the net, higher demands a
+    # closer spelling. Postgres only; ignored on other backends.
+    search_fuzzy_threshold: float = 0.3
+
     # NoDecode stops pydantic-settings from JSON-decoding the env value before
     # validation. Without it, CORS_ORIGINS="http://localhost:3000" raises a
     # SettingsError at import time and the app never starts, because the
