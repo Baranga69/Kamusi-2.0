@@ -3,6 +3,10 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
+# A field called `date` with a default shadows the `date` type for annotations
+# in that class body, so the type needs a second name.
+DateOnly = date
+
 
 class LanguageCreate(BaseModel):
     code: str
@@ -678,3 +682,38 @@ class PasswordReset(BaseModel):
     """An admin setting another account's password."""
 
     new_password: str
+
+
+# --- learning rounds ------------------------------------------------------
+
+
+class LearnQuestion(BaseModel):
+    """One question in a round.
+
+    `answer_index` is sent to the client on purpose. Nothing is at stake here —
+    no score is submitted back, no leaderboard — and a round has to be fully
+    playable offline from the cache, which rules out asking the server to mark
+    it. Keeping it client-side also means instant feedback, which matters more
+    for learning than it would for a test.
+    """
+
+    kind: str  # "definition" | "meaning" | "methali"
+    prompt: str
+    prompt_detail: str | None = None
+    options: list[str]
+    answer_index: int
+
+    # Where to send a reader who wants the full entry afterwards. This is the
+    # point of the games: they end in the dictionary.
+    lexeme_id: uuid.UUID | None = None
+    expression_id: uuid.UUID | None = None
+
+
+class LearnRound(BaseModel):
+    kind: str
+    lang_code: str
+    questions: list[LearnQuestion]
+
+    # Set on the daily round: the UTC date it belongs to, so a client can tell
+    # a cached round apart from today's.
+    date: DateOnly | None = None

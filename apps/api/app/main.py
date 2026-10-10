@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.core.config import settings, warn_on_insecure_defaults
-from app.routers import admin, admin_review, auth, public
+from app.routers import admin, admin_review, auth, learn, public
 
 app = FastAPI(title="Kamusi API")
 
@@ -24,6 +24,7 @@ if settings.cors_origins:
     )
 
 app.include_router(public.router)
+app.include_router(learn.router)
 app.include_router(auth.router)
 app.include_router(auth.users_router)
 app.include_router(admin.router)

@@ -223,6 +223,94 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /learn/daily:
+    get:
+      tags:
+      - learn
+      summary: Daily Round
+      description: 'Today''s round — the same questions for everyone, all day.
+
+
+        A streak only means something if the day''s challenge is fixed: reshuffling
+
+        on every open would turn it into endless practice, which is a different
+
+        thing. Seeded by the UTC date, so it is reproducible and cacheable.'
+      operationId: daily_round_learn_daily_get
+      parameters:
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          default: sw
+          title: Lang
+      - name: count
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 5
+          title: Count
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnRound'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /learn/round:
+    get:
+      tags:
+      - learn
+      summary: Practice Round
+      description: A fresh practice round. Unlike /daily, different every time.
+      operationId: practice_round_learn_round_get
+      parameters:
+      - name: kind
+        in: query
+        required: false
+        schema:
+          type: string
+          default: mixed
+          title: Kind
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          default: sw
+          title: Lang
+      - name: count
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 5
+          title: Count
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnRound'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/login:
     post:
       tags:
@@ -4818,6 +4906,84 @@ components:
       - code
       - name
       title: LanguageRead
+    LearnQuestion:
+      properties:
+        kind:
+          type: string
+          title: Kind
+        prompt:
+          type: string
+          title: Prompt
+        prompt_detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt Detail
+        options:
+          items:
+            type: string
+          type: array
+          title: Options
+        answer_index:
+          type: integer
+          title: Answer Index
+        lexeme_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Lexeme Id
+        expression_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Expression Id
+      type: object
+      required:
+      - kind
+      - prompt
+      - options
+      - answer_index
+      title: LearnQuestion
+      description: 'One question in a round.
+
+
+        `answer_index` is sent to the client on purpose. Nothing is at stake here
+        —
+
+        no score is submitted back, no leaderboard — and a round has to be fully
+
+        playable offline from the cache, which rules out asking the server to mark
+
+        it. Keeping it client-side also means instant feedback, which matters more
+
+        for learning than it would for a test.'
+    LearnRound:
+      properties:
+        kind:
+          type: string
+          title: Kind
+        lang_code:
+          type: string
+          title: Lang Code
+        questions:
+          items:
+            $ref: '#/components/schemas/LearnQuestion'
+          type: array
+          title: Questions
+        date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Date
+      type: object
+      required:
+      - kind
+      - lang_code
+      - questions
+      title: LearnRound
     LexemeCreate:
       properties:
         lemma:
