@@ -378,6 +378,14 @@ class WordformRead(WordformCreate):
 
 
 class SearchResult(BaseModel):
+    """One search hit, resolved back to the entry a reader can open.
+
+    A hit resolves to either a lexeme or an expression, never both. The
+    lexeme fields stay populated for every hit that previously existed
+    (`lemma`, `definition`, `example`); they are null only on the expression
+    hits, which `/search` could not return at all before.
+    """
+
     id: uuid.UUID
     target_type: str
     target_id: uuid.UUID
@@ -385,10 +393,18 @@ class SearchResult(BaseModel):
     text: str
     normalized: str
     popularity: int
-    lexeme_id: uuid.UUID
-    lemma: str
+
+    # Populated when the hit resolves to a lexeme.
+    lexeme_id: uuid.UUID | None = None
+    lemma: str | None = None
     pos_code: str | None = None
-    match_kind: str | None = None  # "lemma" | "definition" | "example"
+
+    # Populated when the hit resolves to an expression (methali, semi, nahau).
+    expression_id: uuid.UUID | None = None
+    expression_text: str | None = None
+
+    # "lemma" | "definition" | "example" | "expression" | "meaning"
+    match_kind: str | None = None
 
 
 class WordOfDayPublic(BaseModel):

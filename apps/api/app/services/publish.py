@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import Expression, ExpressionMeaning, Lexeme, SearchEntry
+from app.models import Expression, ExpressionMeaning, Lexeme, SearchEntry, SenseDefinition
 from app.normalize import normalize_sw
 
 
@@ -26,6 +26,20 @@ def upsert_search_entry(db: Session, *, target_type: str, target_id, lang_code: 
     db.execute(stmt)
 
 
+def is_publicly_visible(definition: SenseDefinition) -> bool:
+    """Mirror the public read filter in routers/public.py.
+
+    An AI-generated Swahili definition stays out of the search index until a
+    reviewer approves or edits it, otherwise its text would leak through
+    /search even though /lexemes/{id} hides it.
+    """
+    if definition.lang_code != "sw":
+        return True
+    if not definition.is_ai_generated:
+        return True
+    return definition.review_status in {"approved", "edited"}
+
+
 def publish_lexeme(db: Session, lexeme_id) -> Lexeme:
     lexeme = db.scalar(select(Lexeme).where(Lexeme.id == lexeme_id))
     if not lexeme:
@@ -45,13 +59,31 @@ def publish_lexeme(db: Session, lexeme_id) -> Lexeme:
 
     for sense in lexeme.senses:
         for definition in sense.definitions:
+            if not is_publicly_visible(definition):
+                continue
+            # /search resolves a definition hit back to its lexeme via
+            # sense_definition.id, so the entry must be keyed on the
+            # definition, not the sense.
             upsert_search_entry(
                 db,
-                target_type="sense",
-                target_id=definition.sense_id,
+                target_type="definition",
+                target_id=definition.id,
                 lang_code=definition.lang_code,
                 text=definition.definition,
             )
+
+        # /search resolves an example hit through example_text.id, and the
+        # mobile app offers an "example" filter, so usage examples belong in
+        # the index too.
+        for example in sense.examples:
+            for text in example.texts:
+                upsert_search_entry(
+                    db,
+                    target_type="example",
+                    target_id=text.id,
+                    lang_code=text.lang_code,
+                    text=text.text,
+                )
 
     db.commit()
     db.refresh(lexeme)
@@ -87,10 +119,14 @@ def publish_expression(db: Session, expression_id) -> Expression:
         select(ExpressionMeaning).where(ExpressionMeaning.expression_id == expression.id)
     ).all()
     for meaning in meanings:
+        # Keyed on the meaning, under its own target_type. Writing these as
+        # ("expression", expression.id) would collide with the entry above on
+        # (target_type, target_id, lang_code) and overwrite the expression's
+        # own text, making the proverb unsearchable in that language.
         upsert_search_entry(
             db,
-            target_type="expression",
-            target_id=expression.id,
+            target_type="expression_meaning",
+            target_id=meaning.id,
             lang_code=meaning.lang_code,
             text=meaning.meaning,
         )
