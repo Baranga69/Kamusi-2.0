@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  createAdminClient,
+  adminClient,
   workflowStatuses,
   type LexemeListItem,
   type WorkflowStatus,
 } from "../../lib/api";
-import { useApiKey } from "../../lib/storage";
+import { useSession } from "../../lib/session";
 
 /**
  * Publication readiness, judged from the list projection alone.
@@ -34,7 +34,7 @@ const readinessIssue = (lexeme: LexemeListItem): string | null => {
 };
 
 export default function LexemeListPage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<WorkflowStatus | "">("");
   const [partOfSpeech, setPartOfSpeech] = useState("");
@@ -43,7 +43,7 @@ export default function LexemeListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   useEffect(() => {
     if (!client) {
@@ -89,15 +89,15 @@ export default function LexemeListPage() {
     [items, hasIssues]
   );
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
-          API key missing. <Link href="/login">Add your API key</Link> to manage lexemes.
+          Not signed in. <Link href="/login">Sign in</Link> to manage lexemes.
         </p>
       </div>
     );

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import LanguageTabs from "../../components/LanguageTabs";
 import {
-  createAdminClient,
+  adminClient,
   workflowStatuses,
   type DefinitionInput,
   type LanguageCode,
@@ -14,7 +14,7 @@ import {
   type Tag,
   type WorkflowStatus,
 } from "../../../lib/api";
-import { useApiKey } from "../../../lib/storage";
+import { useSession } from "../../../lib/session";
 
 const emptyLexeme: LexemeInput = {
   lemma: "",
@@ -38,7 +38,7 @@ const newExample = (language: LanguageCode) => ({
 export default function LexemeEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [lexeme, setLexeme] = useState<LexemeInput>(emptyLexeme);
   const [activeLang, setActiveLang] = useState<LanguageCode>("sw");
   const [activeExampleLang, setActiveExampleLang] = useState<LanguageCode>("sw");
@@ -47,7 +47,7 @@ export default function LexemeEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [validation, setValidation] = useState<string | null>(null);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
   const lexemeId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
 
   useEffect(() => {
@@ -187,11 +187,11 @@ export default function LexemeEditorPage() {
     }
   };
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>

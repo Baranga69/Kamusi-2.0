@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createAdminClient, type License, type Source } from "../../lib/api";
-import { useApiKey } from "../../lib/storage";
+import { adminClient, type License, type Source } from "../../lib/api";
+import { useSession } from "../../lib/session";
 
 const sourceTypes = ["dictionary", "dump", "corpus", "book", "web", "ai", "other"] as const;
 
 export default function SourcesPage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [items, setItems] = useState<Source[]>([]);
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function SourcesPage() {
   const [newLicenseId, setNewLicenseId] = useState("");
   const [newUrl, setNewUrl] = useState("");
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   const loadSources = useCallback(async () => {
     if (!client) {
@@ -69,15 +69,15 @@ export default function SourcesPage() {
 
   const licenseName = (id: string) => licenses.find((license) => license.id === id)?.name ?? id;
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
-          API key missing. <Link href="/login">Add your API key</Link> to manage sources.
+          Not signed in. <Link href="/login">Sign in</Link> to manage sources.
         </p>
       </div>
     );
@@ -225,8 +225,8 @@ function SourceRow({
   onRefresh: () => Promise<void>;
   onError: (message: string | null) => void;
 }) {
-  const { apiKey } = useApiKey();
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const { user } = useSession();
+  const client = adminClient;
   const [title, setTitle] = useState(source.title);
   const [author, setAuthor] = useState(source.author ?? "");
   const [sourceType, setSourceType] = useState(source.source_type);

@@ -223,12 +223,339 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login
+      operationId: login_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/me:
+    get:
+      tags:
+      - auth
+      summary: Me
+      operationId: me_auth_me_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/password:
+    post:
+      tags:
+      - auth
+      summary: Change Own Password
+      operationId: change_own_password_auth_password_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/users:
+    get:
+      tags:
+      - users
+      summary: List Users
+      operationId: list_users_admin_users_get
+      parameters:
+      - name: include_inactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Include Inactive
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPublic'
+                title: Response List Users Admin Users Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - users
+      summary: Create User
+      operationId: create_user_admin_users_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/users/{user_id}:
+    get:
+      tags:
+      - users
+      summary: Get User
+      operationId: get_user_admin_users__user_id__get
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - users
+      summary: Update User
+      operationId: update_user_admin_users__user_id__put
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/users/{user_id}/password:
+    post:
+      tags:
+      - users
+      summary: Reset User Password
+      operationId: reset_user_password_admin_users__user_id__password_post
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - name: x-api-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordReset'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/lookups:
     get:
       summary: Get Lookups
       description: Seeded vocabularies, so the admin UI never has to hardcode an id.
       operationId: get_lookups_admin_lookups_get
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -296,6 +623,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -324,6 +659,14 @@ paths:
       summary: Create Lexeme
       operationId: create_lexeme_admin_lexemes_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -389,6 +732,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -417,6 +768,14 @@ paths:
       summary: Create Expression
       operationId: create_expression_admin_expressions_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -474,6 +833,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -502,6 +869,14 @@ paths:
       summary: Create Tag
       operationId: create_tag_admin_tags_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -559,6 +934,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -587,6 +970,14 @@ paths:
       summary: Create Source
       operationId: create_source_admin_sources_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -636,6 +1027,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -664,6 +1063,14 @@ paths:
       summary: Create License
       operationId: create_license_admin_licenses_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -702,6 +1109,14 @@ paths:
         schema:
           type: string
           title: License Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -733,6 +1148,14 @@ paths:
         schema:
           type: string
           title: License Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -770,6 +1193,14 @@ paths:
         schema:
           type: string
           title: License Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -805,6 +1236,14 @@ paths:
         schema:
           type: string
           title: Source Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -836,6 +1275,14 @@ paths:
         schema:
           type: string
           title: Source Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -873,6 +1320,14 @@ paths:
         schema:
           type: string
           title: Source Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -908,6 +1363,14 @@ paths:
         schema:
           type: string
           title: Lexeme Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -939,6 +1402,14 @@ paths:
         schema:
           type: string
           title: Lexeme Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -976,6 +1447,14 @@ paths:
         schema:
           type: string
           title: Lexeme Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1011,6 +1490,14 @@ paths:
         schema:
           type: string
           title: Lexeme Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1043,6 +1530,14 @@ paths:
         schema:
           type: string
           title: Lexeme Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1069,6 +1564,14 @@ paths:
       summary: Create Sense
       operationId: create_sense_admin_senses_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1107,6 +1610,14 @@ paths:
         schema:
           type: string
           title: Sense Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1138,6 +1649,14 @@ paths:
         schema:
           type: string
           title: Sense Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1175,6 +1694,14 @@ paths:
         schema:
           type: string
           title: Sense Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1204,6 +1731,14 @@ paths:
       summary: Create Sense Definition
       operationId: create_sense_definition_admin_sense_definitions_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1242,6 +1777,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1273,6 +1816,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1310,6 +1861,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1340,6 +1899,14 @@ paths:
       summary: Create Example
       operationId: create_example_admin_examples_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1378,6 +1945,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1409,6 +1984,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1446,6 +2029,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1475,6 +2066,14 @@ paths:
       summary: Create Example Text
       operationId: create_example_text_admin_example_texts_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1513,6 +2112,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1544,6 +2151,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1581,6 +2196,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1617,6 +2240,14 @@ paths:
         schema:
           type: string
           title: Expression Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1648,6 +2279,14 @@ paths:
         schema:
           type: string
           title: Expression Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1685,6 +2324,14 @@ paths:
         schema:
           type: string
           title: Expression Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1720,6 +2367,14 @@ paths:
         schema:
           type: string
           title: Expression Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1752,6 +2407,14 @@ paths:
         schema:
           type: string
           title: Expression Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1778,6 +2441,14 @@ paths:
       summary: Create Expression Meaning
       operationId: create_expression_meaning_admin_expression_meanings_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1816,6 +2487,14 @@ paths:
         schema:
           type: string
           title: Meaning Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1847,6 +2526,14 @@ paths:
         schema:
           type: string
           title: Meaning Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1884,6 +2571,14 @@ paths:
         schema:
           type: string
           title: Meaning Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1914,6 +2609,14 @@ paths:
       summary: Create Expression Example
       operationId: create_expression_example_admin_expression_examples_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1952,6 +2655,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -1983,6 +2694,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2020,6 +2739,14 @@ paths:
         schema:
           type: string
           title: Example Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2050,6 +2777,14 @@ paths:
       summary: Create Expression Example Text
       operationId: create_expression_example_text_admin_expression_example_texts_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2088,6 +2823,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2119,6 +2862,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2156,6 +2907,14 @@ paths:
         schema:
           type: string
           title: Example Text Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2186,6 +2945,14 @@ paths:
       summary: Create Expression Link
       operationId: create_expression_link_admin_expression_links_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2224,6 +2991,14 @@ paths:
         schema:
           type: string
           title: Link Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2255,6 +3030,14 @@ paths:
         schema:
           type: string
           title: Link Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2292,6 +3075,14 @@ paths:
         schema:
           type: string
           title: Link Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2328,6 +3119,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2359,6 +3158,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2396,6 +3203,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2425,6 +3240,14 @@ paths:
       summary: Create Lexeme Tag
       operationId: create_lexeme_tag_admin_lexeme_tags_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2469,6 +3292,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2506,6 +3337,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2549,6 +3388,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2579,6 +3426,14 @@ paths:
       summary: Create Sense Tag
       operationId: create_sense_tag_admin_sense_tags_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2623,6 +3478,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2660,6 +3523,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2703,6 +3574,14 @@ paths:
         schema:
           type: string
           title: Tag Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2733,6 +3612,14 @@ paths:
       summary: Create Wordform
       operationId: create_wordform_admin_wordforms_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2771,6 +3658,14 @@ paths:
         schema:
           type: string
           title: Wordform Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2802,6 +3697,14 @@ paths:
         schema:
           type: string
           title: Wordform Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2839,6 +3742,14 @@ paths:
         schema:
           type: string
           title: Wordform Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2923,6 +3834,14 @@ paths:
           type: string
           default: oldest
           title: Sort
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2958,6 +3877,14 @@ paths:
         schema:
           type: string
           title: Sense Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -2990,6 +3917,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -3028,6 +3963,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -3066,6 +4009,14 @@ paths:
         schema:
           type: string
           title: Definition Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -3098,6 +4049,14 @@ paths:
       summary: Bulk Review Action
       operationId: bulk_review_action_admin_review_bulk_post
       parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       - name: x-api-key
         in: header
         required: false
@@ -4226,6 +5185,41 @@ components:
           title: Can Commercialize
       type: object
       title: LicenseUpdate
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          title: Email
+        password:
+          type: string
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    LoginResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        expires_in_seconds:
+          type: integer
+          title: Expires In Seconds
+        user:
+          $ref: '#/components/schemas/UserPublic'
+      type: object
+      required:
+      - token
+      - expires_in_seconds
+      - user
+      title: LoginResponse
+      description: 'A session token plus who it belongs to.
+
+
+        The token goes in `Authorization: Bearer`. The admin console keeps it in
+
+        an httpOnly cookie on its own origin so it never reaches page scripts.'
     LookupBundle:
       properties:
         languages:
@@ -4292,6 +5286,29 @@ components:
       - code
       - label
       title: LookupOption
+    PasswordChange:
+      properties:
+        current_password:
+          type: string
+          title: Current Password
+        new_password:
+          type: string
+          title: New Password
+      type: object
+      required:
+      - current_password
+      - new_password
+      title: PasswordChange
+    PasswordReset:
+      properties:
+        new_password:
+          type: string
+          title: New Password
+      type: object
+      required:
+      - new_password
+      title: PasswordReset
+      description: An admin setting another account's password.
     ReviewActionResponse:
       properties:
         sense_definition_id:
@@ -5303,6 +6320,83 @@ components:
           title: Description
       type: object
       title: TagUpdate
+    UserCreate:
+      properties:
+        email:
+          type: string
+          title: Email
+        display_name:
+          type: string
+          title: Display Name
+        password:
+          type: string
+          title: Password
+        role:
+          type: string
+          title: Role
+          default: reviewer
+      type: object
+      required:
+      - email
+      - display_name
+      - password
+      title: UserCreate
+    UserPublic:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          title: Email
+        display_name:
+          type: string
+          title: Display Name
+        role:
+          type: string
+          title: Role
+        is_active:
+          type: boolean
+          title: Is Active
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        last_login_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Login At
+      type: object
+      required:
+      - id
+      - email
+      - display_name
+      - role
+      - is_active
+      - created_at
+      title: UserPublic
+    UserUpdate:
+      properties:
+        display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Display Name
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+        is_active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Active
+      type: object
+      title: UserUpdate
     ValidationError:
       properties:
         loc:

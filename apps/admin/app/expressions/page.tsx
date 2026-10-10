@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  createAdminClient,
+  adminClient,
   workflowStatuses,
   type ExpressionListItem,
   type WorkflowStatus,
 } from "../../lib/api";
-import { useApiKey } from "../../lib/storage";
+import { useSession } from "../../lib/session";
 
 export default function ExpressionListPage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<WorkflowStatus | "">("");
   const [items, setItems] = useState<ExpressionListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   useEffect(() => {
     if (!client) {
@@ -49,15 +49,15 @@ export default function ExpressionListPage() {
     };
   }, [client, query, status]);
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
-          API key missing. <Link href="/login">Add your API key</Link> to manage expressions.
+          Not signed in. <Link href="/login">Sign in</Link> to manage expressions.
         </p>
       </div>
     );

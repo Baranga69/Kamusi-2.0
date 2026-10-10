@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session, aliased
 
+from app.core.ids import as_uuid
 from app.db import get_db
-from app.deps import require_api_key
+from app.deps import Principal, require_person, require_role
 from app.models import Lexeme, PartOfSpeech, Sense, SenseDefinition, Source
 from app.schemas import (
     ReviewActionResponse,
@@ -20,7 +21,12 @@ from app.schemas import (
     ReviewSourceInfo,
 )
 
-router = APIRouter(prefix="/admin/review", dependencies=[Depends(require_api_key)])
+# Reading the queue is open to any role that can review. Acting on an item
+# requires a signed-in account rather than the shared API key, because the
+# decision is recorded against whoever made it.
+router = APIRouter(prefix="/admin/review", dependencies=[Depends(require_role("reviewer"))])
+
+REVIEWER = Depends(require_person("reviewer"))
 
 MORPHOLOGY_PREFIXES = (
     "Applicative form of",
@@ -31,6 +37,16 @@ MORPHOLOGY_PREFIXES = (
 )
 LEXEME_STATUS_ALLOWED = {"core", "slang", "regional", "deprecated", "neologism"}
 
+
+
+def reviewer_name(principal: Principal) -> str:
+    """Who to record against a review decision.
+
+    Taken from the session, never from the request body: a client-supplied
+    name would make the audit trail unverifiable. The email is stored rather
+    than the display name because it is unique and stable.
+    """
+    return principal.user.email
 
 
 def build_review_note(reason: str, note: str | None) -> str:
@@ -140,7 +156,7 @@ def get_review_item(sense_definition_id: str, db: Session = Depends(get_db)) -> 
         .join(Lexeme, Sense.lexeme_id == Lexeme.id)
         .join(PartOfSpeech, Lexeme.pos_id == PartOfSpeech.id)
         .outerjoin(Source, SenseDefinition.source_id == Source.id)
-        .where(SenseDefinition.id == sense_definition_id)
+        .where(SenseDefinition.id == as_uuid(sense_definition_id, "Sense definition not found"))
     )
     row = db.execute(stmt).first()
     if not row:
@@ -194,19 +210,20 @@ def get_review_item(sense_definition_id: str, db: Session = Depends(get_db)) -> 
 
 
 def require_unreviewed_update(db: Session, definition_id: str, values: dict) -> ReviewActionResponse:
+    key = as_uuid(definition_id, "Sense definition not found")
     stmt = (
         update(SenseDefinition)
-        .where(SenseDefinition.id == definition_id, SenseDefinition.review_status == "unreviewed")
+        .where(SenseDefinition.id == key, SenseDefinition.review_status == "unreviewed")
         .values(**values)
     )
     result = db.execute(stmt)
     if result.rowcount == 0:
-        existing = db.get(SenseDefinition, definition_id)
+        existing = db.get(SenseDefinition, key)
         if not existing:
             raise HTTPException(status_code=404, detail="Sense definition not found")
         raise HTTPException(status_code=409, detail="Sense definition already reviewed")
     db.commit()
-    updated = db.get(SenseDefinition, definition_id)
+    updated = db.get(SenseDefinition, key)
     if not updated:
         raise HTTPException(status_code=404, detail="Sense definition not found")
     return ReviewActionResponse(
@@ -219,11 +236,14 @@ def require_unreviewed_update(db: Session, definition_id: str, values: dict) -> 
 
 @router.post("/item/{definition_id}/approve", response_model=ReviewActionResponse)
 def approve_review_item(
-    definition_id: str, payload: ReviewApproveRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewApproveRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     values = {
         "review_status": "approved",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
@@ -231,7 +251,10 @@ def approve_review_item(
 
 @router.post("/item/{definition_id}/edit", response_model=ReviewActionResponse)
 def edit_review_item(
-    definition_id: str, payload: ReviewEditRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewEditRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     definition_text = payload.definition.strip()
     if not definition_text:
@@ -240,7 +263,7 @@ def edit_review_item(
         "definition": definition_text,
         "gloss": payload.gloss,
         "review_status": "edited",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
@@ -248,21 +271,28 @@ def edit_review_item(
 
 @router.post("/item/{definition_id}/reject", response_model=ReviewActionResponse)
 def reject_review_item(
-    definition_id: str, payload: ReviewRejectRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewRejectRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     if not payload.reason.strip():
         raise HTTPException(status_code=422, detail="Reject reason is required")
     values = {
         "review_status": "rejected",
         "review_note": build_review_note(payload.reason.strip(), payload.note),
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
 
 
 @router.post("/bulk", response_model=ReviewBulkResponse)
-def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)) -> ReviewBulkResponse:
+def bulk_review_action(
+    payload: ReviewBulkRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
+) -> ReviewBulkResponse:
     if not payload.ids:
         raise HTTPException(status_code=422, detail="At least one id is required")
     if payload.action not in {"approve", "reject"}:
@@ -277,7 +307,7 @@ def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)
 
     values = {
         "review_status": "approved" if payload.action == "approve" else "rejected",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": now,
     }
     if review_note:
@@ -286,7 +316,7 @@ def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)
     stmt = (
         update(SenseDefinition)
         .where(
-            SenseDefinition.id.in_(payload.ids),
+            SenseDefinition.id.in_([as_uuid(item, "Invalid id") for item in payload.ids]),
             SenseDefinition.review_status == "unreviewed",
         )
         .values(**values)

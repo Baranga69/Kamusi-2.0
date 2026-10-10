@@ -83,13 +83,62 @@ This needs `pg_trgm` (migration 0003) and is skipped on any other backend.
 the pg_trgm default) sets how close a spelling has to be — lower widens the
 net, higher demands a closer match.
 
-## Admin API
+## Accounts and roles
 
-All `/admin/*` routes require the `X-API-Key` header (`ADMIN_API_KEY`, falling
-back to `API_KEY`).
+There are two ways to authenticate against `/admin/*`:
+
+- **A person**, with a session token in `Authorization: Bearer`. Obtained from
+  `POST /auth/login` and tied to a row in `app_user`.
+- **A service**, with the shared `X-API-Key`. For scripts, ingestion and curl.
+  It has admin rights over content but is *not* an account, so it cannot take
+  review decisions — there would be no one to record.
+
+| Role | Can |
+| --- | --- |
+| `reviewer` | work the review queue (approve / edit / reject) |
+| `editor` | + create and edit entries, move them through the workflow |
+| `admin` | + manage accounts, licences and sources, delete anything |
+
+`reviewed_by` is always taken from the session, never from the request body, so
+the audit trail records who actually acted. A `reviewer` field in a review
+payload is ignored.
+
+### Create the first account
+
+There is no open sign-up. Bootstrap one, then add the rest from the console or
+`POST /admin/users`:
 
 ```bash
-export KEY=dev-api-key
+cd apps/api
+poetry run python scripts/create_user.py --email you@example.com \
+    --name "Your Name" --role admin
+```
+
+The same script with `--update` is the way back in if every admin password is
+lost.
+
+### Sessions
+
+Tokens are signed, not stored, so there is no session table to sweep.
+`SESSION_SECRET` signs them — rotating it invalidates every session, and the
+app logs a warning while the built-in development value is in use.
+`SESSION_MAX_AGE_SECONDS` (default 12 hours) bounds their life.
+Disabling an account or changing a password moves `sessions_valid_from`
+forward, which revokes that account's existing tokens immediately.
+
+```bash
+curl -X POST -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"..."}' \
+  http://localhost:8000/auth/login
+# -> {"token": "...", "expires_in_seconds": 43200, "user": {...}}
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/auth/me
+```
+
+## Admin API
+
+```bash
+export KEY=dev-api-key   # a service credential; a session token also works
 
 # Browse (list projections, for the admin portal's list views)
 curl -H "X-API-Key: $KEY" "http://localhost:8000/admin/lexemes?query=mti&status=published&pos_code=NOUN"
@@ -117,7 +166,8 @@ curl -H "X-API-Key: $KEY" \
 `status` accepts `unreviewed`, `approved`, `edited`, `rejected`, or `reviewed`
 (which means approved + edited). Approve / edit / reject act only on rows that
 are still `unreviewed` and return 409 otherwise, so two reviewers cannot
-overwrite each other.
+overwrite each other. Reading the queue works with either credential; acting on
+an item needs a signed-in account.
 
 ## Database
 

@@ -12,10 +12,9 @@ cp .env.example .env.local   # then fill in
 
 Required env vars:
 
-- `KAMUSI_API_BASE_URL`: Base URL for the Kamusi API (admin routes use `X-API-Key`).
+- `KAMUSI_API_BASE_URL`: Base URL for the Kamusi API. Read server-side at
+  request time, so one build works across environments.
 - `NEXT_PUBLIC_API_BASE_URL`: Optional fallback if `KAMUSI_API_BASE_URL` is not set.
-- `ADMIN_API_KEY`: Server-side API key used by the `/api/review` proxy routes.
-- `PROD_ADMIN_API_KEY`: Optional fallback for a deployed API.
 
 2. Install dependencies from the repo root:
 
@@ -36,8 +35,10 @@ pnpm --filter @kamusi/admin dev
 
 ## Usage
 
-- Visit `http://localhost:3000`.
-- Store your API key on the Login page. The app sends it in the `X-API-Key` header.
+- Visit `http://localhost:3000` and sign in with an email and password.
+- There is no self-service sign-up. Create the first account with
+  `poetry run python scripts/create_user.py` in `apps/api`, then add the rest
+  from **Accounts**.
 - Use the left navigation to manage lexemes, expressions, tags, sources, and licenses.
 - Review queue supports approving, editing, and rejecting AI Swahili definitions with filters, select-all, and keyboard shortcuts.
 - Click a lemma in the review queue to open the detail view with diff preview and audit metadata.
@@ -46,15 +47,28 @@ pnpm --filter @kamusi/admin dev
 
 ## How requests reach the API
 
-Two paths, deliberately:
+The browser never holds a credential. Sign-in exchanges an email and password
+for a session token, which is stored in an **httpOnly** cookie on this app's
+own origin — page scripts cannot read it, so an XSS bug cannot exfiltrate it.
 
-- **Review actions** go through Next server routes under `app/api/review/*`,
-  which inject `ADMIN_API_KEY` server-side. The key never reaches the browser.
-- **Everything else** calls the API directly from the browser with the key the
-  user pasted on the Login page, held in `localStorage`.
+Every admin call then goes to `/api/admin/*`, a catch-all proxy
+(`app/api/admin/[...path]/route.ts`) that attaches the session server-side and
+forwards to the API. One proxy, one credential path.
 
-The second path means any browser-side admin action is only as protected as
-that pasted key. Treat the console as an internal tool on a trusted network.
+That is also what makes the audit trail real: the API resolves the session to
+an account, so `reviewed_by` on an approval is established by the server rather
+than supplied by the client. Nothing in `lib/api.ts` sends a reviewer name.
+
+## Roles
+
+The navigation only shows what the signed-in role can open, and the API
+enforces the same rules regardless:
+
+| Role | Sees |
+| --- | --- |
+| `reviewer` | Review |
+| `editor` | + Lexemes, Expressions, Tags, Sources |
+| `admin` | + Licenses, Accounts |
 
 ## Data shapes
 

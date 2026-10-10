@@ -624,3 +624,57 @@ class LookupBundle(BaseModel):
     regions: list[LookupOption]
     expression_types: list[LookupOption]
     tag_types: list[LookupOption]
+
+
+# --- accounts -------------------------------------------------------------
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserPublic(BaseModel):
+    id: uuid.UUID
+    email: str
+    display_name: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+
+class LoginResponse(BaseModel):
+    """A session token plus who it belongs to.
+
+    The token goes in `Authorization: Bearer`. The admin console keeps it in
+    an httpOnly cookie on its own origin so it never reaches page scripts.
+    """
+
+    token: str
+    expires_in_seconds: int
+    user: UserPublic
+
+
+class UserCreate(BaseModel):
+    email: str
+    display_name: str
+    password: str
+    role: str = "reviewer"
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class PasswordReset(BaseModel):
+    """An admin setting another account's password."""
+
+    new_password: str

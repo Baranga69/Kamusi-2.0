@@ -3,6 +3,42 @@ from datetime import datetime
 from app.models import Language, Lexeme, PartOfSpeech, Sense, SenseDefinition
 
 
+def seed_single_unreviewed_definition(db_session) -> str:
+    """One unreviewed AI Swahili definition; returns its id."""
+    language = Language(code="sw", name="Swahili")
+    pos = PartOfSpeech(code="VERB", label="Verb")
+    db_session.add_all([language, pos])
+    db_session.commit()
+
+    lexeme = Lexeme(
+        lemma="Kula",
+        normalized_lemma="kula",
+        pos_id=pos.id,
+        status="core",
+        default_language_code="sw",
+        workflow="draft",
+    )
+    db_session.add(lexeme)
+    db_session.commit()
+
+    sense = Sense(lexeme_id=lexeme.id, sense_number=1, workflow="draft")
+    db_session.add(sense)
+    db_session.commit()
+
+    definition = SenseDefinition(
+        sense_id=sense.id,
+        lang_code="sw",
+        definition="kula chakula",
+        is_primary=True,
+        is_ai_generated=True,
+        review_status="unreviewed",
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(definition)
+    db_session.commit()
+    return str(definition.id)
+
+
 def test_review_queue_filters(client, db_session):
     language_sw = Language(code="sw", name="Swahili")
     language_en = Language(code="en", name="English")

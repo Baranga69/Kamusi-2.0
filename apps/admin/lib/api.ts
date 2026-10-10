@@ -189,6 +189,17 @@ export interface ReviewBulkResponse {
   skipped_count: number;
 }
 
+/** Mirrors UserPublic in apps/api/app/schemas.py. */
+export interface SessionUserLike {
+  id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+  last_login_at?: string | null;
+}
+
 export interface LookupOption {
   id: string;
   code: string;
@@ -209,11 +220,6 @@ export interface ListResponse<T> {
   items: T[];
 }
 
-const apiBaseUrl =
-  process.env.KAMUSI_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000";
-
 const getItems = <T>(data: ListResponse<T> | T[]): T[] => {
   if (Array.isArray(data)) {
     return data;
@@ -221,122 +227,142 @@ const getItems = <T>(data: ListResponse<T> | T[]): T[] => {
   return data.items;
 };
 
-export const createAdminClient = (apiKey: string) => {
-  const client = axios.create({
-    baseURL: apiBaseUrl,
-    headers: {
-      "X-API-Key": apiKey,
-    },
-  });
-  const reviewClient = axios.create({
-    baseURL: "/api",
-    headers: {
-      "X-API-Key": apiKey,
-    },
-  });
+/**
+ * Client for the admin API.
+ *
+ * Every call goes through this app's own `/api/admin` proxy, which attaches
+ * the session token from an httpOnly cookie. Nothing here carries a
+ * credential, and nothing in the browser can read one.
+ */
+export const createAdminClient = () => {
+  const client = axios.create({ baseURL: "/api/admin" });
+  const reviewClient = client;
 
   return {
     async listLexemes(query?: string, status?: WorkflowStatus, posCode?: string) {
-      const response = await client.get<ListResponse<LexemeListItem> | LexemeListItem[]>("/admin/lexemes", {
+      const response = await client.get<ListResponse<LexemeListItem> | LexemeListItem[]>("/lexemes", {
         params: { query, status, pos_code: posCode },
       });
       return getItems(response.data);
     },
     async getLexeme(id: string) {
-      const response = await client.get<LexemeInput>(`/admin/lexemes/${id}`);
+      const response = await client.get<LexemeInput>(`/lexemes/${id}`);
       return response.data;
     },
     async createLexeme(payload: LexemeInput) {
-      const response = await client.post<LexemeInput>("/admin/lexemes", payload);
+      const response = await client.post<LexemeInput>("/lexemes", payload);
       return response.data;
     },
     async updateLexeme(id: string, payload: LexemeInput) {
-      const response = await client.put<LexemeInput>(`/admin/lexemes/${id}`, payload);
+      const response = await client.put<LexemeInput>(`/lexemes/${id}`, payload);
       return response.data;
     },
     async publishLexeme(id: string) {
-      const response = await client.post<LexemeInput>(`/admin/lexemes/${id}/publish`);
+      const response = await client.post<LexemeInput>(`/lexemes/${id}/publish`);
       return response.data;
     },
     async reviewLexeme(id: string) {
-      const response = await client.post<LexemeInput>(`/admin/lexemes/${id}/review`);
+      const response = await client.post<LexemeInput>(`/lexemes/${id}/review`);
       return response.data;
     },
     async listExpressions(query?: string, status?: WorkflowStatus) {
       const response = await client.get<ListResponse<ExpressionListItem> | ExpressionListItem[]>(
-        "/admin/expressions",
+        "/expressions",
         { params: { query, status } }
       );
       return getItems(response.data);
     },
     async getExpression(id: string) {
-      const response = await client.get<ExpressionInput>(`/admin/expressions/${id}`);
+      const response = await client.get<ExpressionInput>(`/expressions/${id}`);
       return response.data;
     },
     async createExpression(payload: ExpressionInput) {
-      const response = await client.post<ExpressionInput>("/admin/expressions", payload);
+      const response = await client.post<ExpressionInput>("/expressions", payload);
       return response.data;
     },
     async updateExpression(id: string, payload: ExpressionInput) {
-      const response = await client.put<ExpressionInput>(`/admin/expressions/${id}`, payload);
+      const response = await client.put<ExpressionInput>(`/expressions/${id}`, payload);
       return response.data;
     },
     async publishExpression(id: string) {
-      const response = await client.post<ExpressionInput>(`/admin/expressions/${id}/publish`);
+      const response = await client.post<ExpressionInput>(`/expressions/${id}/publish`);
       return response.data;
     },
+    async listUsers() {
+      const response = await client.get<SessionUserLike[]>("/users");
+      return response.data;
+    },
+    async createUser(payload: {
+      email: string;
+      display_name: string;
+      password: string;
+      role: string;
+    }) {
+      const response = await client.post<SessionUserLike>("/users", payload);
+      return response.data;
+    },
+    async updateUser(
+      id: string,
+      payload: { display_name?: string; role?: string; is_active?: boolean }
+    ) {
+      const response = await client.put<SessionUserLike>(`/users/${id}`, payload);
+      return response.data;
+    },
+    async resetUserPassword(id: string, newPassword: string) {
+      await client.post(`/users/${id}/password`, { new_password: newPassword });
+    },
     async getLookups() {
-      const response = await client.get<LookupBundle>("/admin/lookups");
+      const response = await client.get<LookupBundle>("/lookups");
       return response.data;
     },
     async listTags(query?: string) {
-      const response = await client.get<ListResponse<Tag> | Tag[]>("/admin/tags", {
+      const response = await client.get<ListResponse<Tag> | Tag[]>("/tags", {
         params: { query },
       });
       return getItems(response.data);
     },
     async createTag(payload: TagPayload) {
-      const response = await client.post<Tag>("/admin/tags", payload);
+      const response = await client.post<Tag>("/tags", payload);
       return response.data;
     },
     async updateTag(id: string, payload: Partial<TagPayload>) {
-      const response = await client.put<Tag>(`/admin/tags/${id}`, payload);
+      const response = await client.put<Tag>(`/tags/${id}`, payload);
       return response.data;
     },
     async deleteTag(id: string) {
-      await client.delete(`/admin/tags/${id}`);
+      await client.delete(`/tags/${id}`);
     },
     async listSources(query?: string) {
-      const response = await client.get<ListResponse<Source> | Source[]>("/admin/sources", {
+      const response = await client.get<ListResponse<Source> | Source[]>("/sources", {
         params: { query },
       });
       return getItems(response.data);
     },
     async createSource(payload: SourcePayload) {
-      const response = await client.post<Source>("/admin/sources", payload);
+      const response = await client.post<Source>("/sources", payload);
       return response.data;
     },
     async updateSource(id: string, payload: Partial<SourcePayload>) {
-      const response = await client.put<Source>(`/admin/sources/${id}`, payload);
+      const response = await client.put<Source>(`/sources/${id}`, payload);
       return response.data;
     },
     async deleteSource(id: string) {
-      await client.delete(`/admin/sources/${id}`);
+      await client.delete(`/sources/${id}`);
     },
     async listLicenses() {
-      const response = await client.get<ListResponse<License> | License[]>("/admin/licenses");
+      const response = await client.get<ListResponse<License> | License[]>("/licenses");
       return getItems(response.data);
     },
     async createLicense(payload: LicensePayload) {
-      const response = await client.post<License>("/admin/licenses", payload);
+      const response = await client.post<License>("/licenses", payload);
       return response.data;
     },
     async updateLicense(id: string, payload: Partial<LicensePayload>) {
-      const response = await client.put<License>(`/admin/licenses/${id}`, payload);
+      const response = await client.put<License>(`/licenses/${id}`, payload);
       return response.data;
     },
     async deleteLicense(id: string) {
-      await client.delete(`/admin/licenses/${id}`);
+      await client.delete(`/licenses/${id}`);
     },
     async listReviewQueue(params?: {
       status?: string;
@@ -354,17 +380,18 @@ export const createAdminClient = (apiKey: string) => {
       const response = await reviewClient.get<ReviewDetail>(`/review/item/${id}`);
       return response.data;
     },
-    async approveReviewItem(id: string, reviewer: string) {
-      return reviewClient.post(`/review/item/${id}/approve`, { reviewer });
+    // No `reviewer` field on any of these: the API records whoever the
+    // session belongs to, so a client cannot choose whose name is logged.
+    async approveReviewItem(id: string) {
+      return reviewClient.post(`/review/item/${id}/approve`, {});
     },
-    async editReviewItem(id: string, payload: { reviewer: string; definition: string; gloss?: string | null }) {
+    async editReviewItem(id: string, payload: { definition: string; gloss?: string | null }) {
       return reviewClient.post(`/review/item/${id}/edit`, payload);
     },
-    async rejectReviewItem(id: string, payload: { reviewer: string; reason: string; note?: string }) {
+    async rejectReviewItem(id: string, payload: { reason: string; note?: string }) {
       return reviewClient.post(`/review/item/${id}/reject`, payload);
     },
     async bulkReview(payload: {
-      reviewer: string;
       action: "approve" | "reject";
       ids: string[];
       reason?: string;
@@ -377,3 +404,6 @@ export const createAdminClient = (apiKey: string) => {
 };
 
 export const workflowStatuses: WorkflowStatus[] = ["draft", "reviewed", "published", "archived"];
+
+/** Shared instance; it holds no credential, so one is enough. */
+export const adminClient = createAdminClient();

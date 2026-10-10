@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Index,
     DateTime,
     Float,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -84,6 +86,42 @@ ai_mode = SqlEnum(
     native_enum=True,
     create_type=False,
 )
+
+
+USER_ROLES = ("reviewer", "editor", "admin")
+
+
+class AppUser(Base):
+    """An account that can sign in to the admin console.
+
+    `role` is text with a CHECK constraint rather than an enum, so adding a
+    role later does not need an ALTER TYPE. `sessions_valid_from` is the
+    revocation point: a session token issued before it is rejected, so
+    deactivating an account or changing a password ends existing sessions.
+    """
+
+    __tablename__ = "app_user"
+    __table_args__ = (
+        CheckConstraint("role IN ('reviewer', 'editor', 'admin')", name="ck_app_user_role"),
+        # Addresses are compared case-insensitively at login, so uniqueness
+        # has to be too. Declared here as well as in the migration so the
+        # constraint also exists when the schema is built from metadata.
+        Index("ux_app_user_email_lower", text("lower(email)"), unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="reviewer")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    sessions_valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Language(Base):

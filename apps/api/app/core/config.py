@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     admin_api_key: Optional[str] = Field(default=None, alias="ADMIN_API_KEY")
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
 
+    # Signing key for admin session tokens. Rotating it invalidates every
+    # session. The default is for local development only; startup refuses to
+    # serve with it once the app is not in debug mode.
+    session_secret: str = "dev-session-secret-change-me"
+    session_max_age_seconds: int = 60 * 60 * 12
+
     # Trigram similarity floor for the "did you mean" pass in /search.
     # 0.3 is the pg_trgm default: lower widens the net, higher demands a
     # closer spelling. Postgres only; ignored on other backends.
@@ -50,3 +56,18 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def warn_on_insecure_defaults() -> list[str]:
+    """Settings that are fine locally but must not reach a deployment."""
+    problems = []
+    if settings.session_secret == "dev-session-secret-change-me":
+        problems.append(
+            "SESSION_SECRET is the built-in development value. Set it to a long "
+            "random string; anyone who knows it can mint admin sessions."
+        )
+    if (settings.admin_api_key or settings.api_key) == "dev-api-key":
+        problems.append(
+            "ADMIN_API_KEY is the built-in development value. Set it to a secret."
+        )
+    return problems

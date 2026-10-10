@@ -16,6 +16,9 @@ alembic = "^1.13.1"
 psycopg = {extras = ["binary"], version = "^3.3.2"}
 # NoDecode (used in app/core/config.py for CORS_ORIGINS) needs >= 2.3.0
 pydantic-settings = "^2.3.0"
+# Admin accounts: password hashing and signed session tokens
+argon2-cffi = "^23.1.0"
+itsdangerous = "^2.2.0"
 wiktextract = "^1.99.7"
 
 [tool.poetry.group.dev.dependencies]

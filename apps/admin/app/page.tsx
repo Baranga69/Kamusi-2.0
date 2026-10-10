@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useApiKey } from "../lib/storage";
+import { useSession } from "../lib/session";
 
 export default function HomePage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
@@ -14,7 +14,7 @@ export default function HomePage() {
     <section className="stack">
       <h1>Kamusi Admin</h1>
       <p className="muted">Use the navigation above to manage entries, expressions, tags, and sources.</p>
-      {!apiKey && (
+      {!user && (
         <div className="alert">
           <strong>API key required.</strong> <Link href="/login">Add your API key to continue.</Link>
         </div>

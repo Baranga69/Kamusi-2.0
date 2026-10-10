@@ -5,14 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import LanguageTabs from "../../components/LanguageTabs";
 import {
-  createAdminClient,
+  adminClient,
   workflowStatuses,
   type DefinitionInput,
   type ExpressionInput,
   type LanguageCode,
   type WorkflowStatus,
 } from "../../../lib/api";
-import { useApiKey } from "../../../lib/storage";
+import { useSession } from "../../../lib/session";
 
 const emptyExpression: ExpressionInput = {
   text: "",
@@ -38,14 +38,14 @@ const newExample = (language: LanguageCode) => ({
 export default function ExpressionEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [expression, setExpression] = useState<ExpressionInput>(emptyExpression);
   const [activeLang, setActiveLang] = useState<LanguageCode>("sw");
   const [activeExampleLang, setActiveExampleLang] = useState<LanguageCode>("sw");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
   const expressionId = Array.isArray(params?.id) ? params?.id[0] : params?.id;
 
   useEffect(() => {
@@ -127,11 +127,11 @@ export default function ExpressionEditorPage() {
 
   const linkType = expression.link?.lexeme_id ? "lexeme" : expression.link?.sense_id ? "sense" : "none";
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>

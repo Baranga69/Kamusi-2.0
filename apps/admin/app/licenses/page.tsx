@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createAdminClient, type License } from "../../lib/api";
-import { useApiKey } from "../../lib/storage";
+import { adminClient, type License } from "../../lib/api";
+import { useSession } from "../../lib/session";
 
 export default function LicensesPage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [items, setItems] = useState<License[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export default function LicensesPage() {
   const [newCanModify, setNewCanModify] = useState(false);
   const [newCanCommercialize, setNewCanCommercialize] = useState(false);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   const loadLicenses = useCallback(async () => {
     if (!client) {
@@ -38,15 +38,15 @@ export default function LicensesPage() {
     loadLicenses();
   }, [loadLicenses]);
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
-          API key missing. <Link href="/login">Add your API key</Link> to manage licenses.
+          Not signed in. <Link href="/login">Sign in</Link> to manage licenses.
         </p>
       </div>
     );
@@ -172,8 +172,8 @@ function LicenseRow({
   onRefresh: () => Promise<void>;
   onError: (message: string | null) => void;
 }) {
-  const { apiKey } = useApiKey();
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const { user } = useSession();
+  const client = adminClient;
   const [name, setName] = useState(license.name);
   const [summary, setSummary] = useState(license.summary ?? "");
   const [canDisplay, setCanDisplay] = useState(license.can_display);

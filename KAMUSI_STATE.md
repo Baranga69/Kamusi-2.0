@@ -229,6 +229,25 @@ Typography:
 
 ---
 
+## 8b. Accounts and the audit trail (2026-10-10)
+
+The admin console has real accounts (`app_user`), not a shared key:
+
+- sign-in is email + password (argon2), exchanged for a signed session token
+- the console keeps that token in an httpOnly cookie on its own origin and
+  forwards it through `/api/admin/*`, so no credential reaches page scripts
+- roles gate the API: `reviewer` (queue only), `editor` (+ content),
+  `admin` (+ accounts, licences, sources, deletes)
+- **`reviewed_by` is derived from the session**, never from the request body.
+  The shared `X-API-Key` still works for scripts and ingestion but is refused
+  on review actions, because there is no person to record.
+- disabling an account or changing a password revokes its live sessions via
+  `sessions_valid_from`; there is no session table
+
+Bootstrap the first account with `apps/api/scripts/create_user.py`. There is no
+open sign-up. `SESSION_SECRET` must be set for any deployment — the app logs a
+warning while the development default is in use.
+
 ## 9. AI Usage Policy
 
 AI is used to:
@@ -256,14 +275,21 @@ As of this document:
 
 ## 11. Next Priorities (Ordered)
 
-1. Run `backfill_ai_provenance.py` and `reindex_normalized.py` against the
-   working database, then confirm the review queue is populated
-2. Decide the lexeme/expression editor contract: aggregate write endpoints on
+1. Run the one-off repairs against the working database, in this order:
+   `alembic upgrade head`, `backfill_ai_provenance.py`,
+   `reindex_normalized.py`, `rebuild_search_index.py`; then create accounts
+   with `create_user.py` and confirm the review queue is populated
+2. Offline-first mobile: search results and lexeme details are in-memory only,
+   which is the biggest user-visible gap for the intended market
+3. Decide the lexeme/expression editor contract: aggregate write endpoints on
    the API, or sequence per-entity calls in the admin UI
-3. Improve AI definition quality + flags
-4. Mobile UI/UX polish — including the Material 3 colour-role migration
+4. Feed real lookup counts into `search_entry.popularity`, which is in the
+   ranking but always 0
+5. Store the AI `confidence` the generator already emits (currently discarded
+   on import) and sort the review queue worst-first
+6. Mobile UI/UX polish — including the Material 3 colour-role migration
    (`background`, `surfaceVariant`), which needs a `DESIGN_SYSTEM.md` decision
-5. Expand corpus (methali, semi, regional variants) — `/search` now resolves
+7. Expand corpus (methali, semi, regional variants) — `/search` now resolves
    expression and meaning hits, so the surface is ready for the content
 
 ---

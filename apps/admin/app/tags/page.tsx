@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { createAdminClient, type LookupOption, type Tag } from "../../lib/api";
-import { useApiKey } from "../../lib/storage";
+import { adminClient, type LookupOption, type Tag } from "../../lib/api";
+import { useSession } from "../../lib/session";
 
 export default function TagsPage() {
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [items, setItems] = useState<Tag[]>([]);
   const [tagTypes, setTagTypes] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ export default function TagsPage() {
   const [newTagTypeId, setNewTagTypeId] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   const loadTags = useCallback(async () => {
     if (!client) {
@@ -62,15 +62,15 @@ export default function TagsPage() {
     };
   }, [client]);
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
-          API key missing. <Link href="/login">Add your API key</Link> to manage tags.
+          Not signed in. <Link href="/login">Sign in</Link> to manage tags.
         </p>
       </div>
     );
@@ -170,8 +170,8 @@ function TagRow({
   onRefresh: () => Promise<void>;
   onError: (message: string | null) => void;
 }) {
-  const { apiKey } = useApiKey();
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const { user } = useSession();
+  const client = adminClient;
   const [name, setName] = useState(tag.name);
   const [tagTypeId, setTagTypeId] = useState(tag.tag_type_id);
   const [description, setDescription] = useState(tag.description ?? "");
