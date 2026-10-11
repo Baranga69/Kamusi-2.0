@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -140,12 +142,28 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
     });
   }
 
+  /// Delete, the way a crossword should.
+  ///
+  /// It used to clear the square under the cursor and stop there, so
+  /// emptying a wrong answer meant tapping each square and pressing delete
+  /// again — five taps to undo five letters. Now each press steps back
+  /// through the answer, so holding or repeating it unwinds the whole word.
   void _erase() {
     final cursor = _cursor;
     if (cursor == null || _over) {
       return;
     }
-    setState(() => _filled.remove(cursor));
+    final step = eraseStep(
+      cells: _activeEntry?.cells ?? [cursor],
+      cursor: cursor,
+      cursorIsFilled: _filled[cursor] != null,
+    );
+    setState(() {
+      if (step.clear != null) {
+        _filled.remove(step.clear);
+      }
+      _cursor = step.cursor;
+    });
   }
 
   /// Score each entry once, the moment it is completed.
@@ -702,6 +720,9 @@ class _LetterStrip extends StatelessWidget {
                   label: '⌫',
                   wide: true,
                   onTap: enabled ? onErase : null,
+                  // Held down it repeats, so clearing a long answer is one
+                  // press rather than nine.
+                  onHoldRepeat: enabled ? onErase : null,
                 ),
               ],
             ),
@@ -712,28 +733,70 @@ class _LetterStrip extends StatelessWidget {
   }
 }
 
-class _Key extends StatelessWidget {
-  const _Key({required this.label, required this.onTap, this.wide = false});
+class _Key extends StatefulWidget {
+  const _Key({
+    required this.label,
+    required this.onTap,
+    this.wide = false,
+    this.onHoldRepeat,
+  });
 
   final String label;
   final VoidCallback? onTap;
   final bool wide;
 
+  /// Called repeatedly while the key is held, for backspace.
+  final VoidCallback? onHoldRepeat;
+
+  @override
+  State<_Key> createState() => _KeyState();
+}
+
+class _KeyState extends State<_Key> {
+  Timer? _repeat;
+
+  void _startRepeat() {
+    final action = widget.onHoldRepeat;
+    if (action == null) {
+      return;
+    }
+    _repeat?.cancel();
+    // A pause before it takes off, so an ordinary press is one letter and
+    // only a deliberate hold runs on.
+    _repeat = Timer(const Duration(milliseconds: 350), () {
+      _repeat = Timer.periodic(const Duration(milliseconds: 90), (_) => action());
+    });
+  }
+
+  void _stopRepeat() {
+    _repeat?.cancel();
+    _repeat = null;
+  }
+
+  @override
+  void dispose() {
+    _stopRepeat();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: wide ? 68 : 32,
+      width: widget.wide ? 68 : 32,
       height: 40,
       child: Material(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
-          onTap: onTap,
+          onTap: widget.onTap,
+          onTapDown: (_) => _startRepeat(),
+          onTapUp: (_) => _stopRepeat(),
+          onTapCancel: _stopRepeat,
           child: Center(
             child: Text(
-              label,
+              widget.label,
               style: theme.textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),

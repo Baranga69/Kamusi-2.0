@@ -155,3 +155,43 @@ class CrosswordPuzzle {
     );
   }
 }
+
+/// What a backspace should do: the square to clear, and where the cursor
+/// lands afterwards.
+///
+/// Pulled out of the screen so it can be tested. Deleting used to clear the
+/// square under the cursor and stop, which meant emptying a wrong answer was
+/// tap-delete-tap-delete all the way along it. Each press now steps back, so
+/// repeating or holding the key unwinds the whole word.
+class EraseStep {
+  const EraseStep({required this.clear, required this.cursor});
+
+  /// The square to empty, or null when there is nothing left to erase.
+  final CrosswordCell? clear;
+
+  /// Where the cursor should be after the press.
+  final CrosswordCell cursor;
+}
+
+EraseStep eraseStep({
+  required List<CrosswordCell> cells,
+  required CrosswordCell cursor,
+  required bool cursorIsFilled,
+}) {
+  final index = cells.indexOf(cursor);
+
+  if (cursorIsFilled) {
+    // Clear where we are, then step back so the next press continues rather
+    // than stalling on the square just emptied.
+    return EraseStep(
+      clear: cursor,
+      cursor: index > 0 ? cells[index - 1] : cursor,
+    );
+  }
+  if (index > 0) {
+    // Already empty: take the one before it instead of doing nothing.
+    return EraseStep(clear: cells[index - 1], cursor: cells[index - 1]);
+  }
+  // Start of the answer and nothing to clear.
+  return EraseStep(clear: null, cursor: cursor);
+}

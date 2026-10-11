@@ -126,6 +126,82 @@ void main() {
     });
   });
 
+
+  group('backspace', () {
+    // "maji" across from (0,0): the cells a cursor walks.
+    const cells = [
+      CrosswordCell(0, 0),
+      CrosswordCell(0, 1),
+      CrosswordCell(0, 2),
+      CrosswordCell(0, 3),
+    ];
+
+    test('clears the square you are on and steps back', () {
+      final step = eraseStep(
+        cells: cells,
+        cursor: const CrosswordCell(0, 3),
+        cursorIsFilled: true,
+      );
+
+      expect(step.clear, const CrosswordCell(0, 3));
+      expect(step.cursor, const CrosswordCell(0, 2),
+          reason: 'so the next press continues instead of stalling');
+    });
+
+    test('on an empty square it clears the one before instead', () {
+      final step = eraseStep(
+        cells: cells,
+        cursor: const CrosswordCell(0, 2),
+        cursorIsFilled: false,
+      );
+
+      expect(step.clear, const CrosswordCell(0, 1));
+      expect(step.cursor, const CrosswordCell(0, 1));
+    });
+
+    test('repeated presses walk the whole answer backwards', () {
+      // The complaint this fixes: emptying a word used to be tap, delete,
+      // tap, delete, all the way along it.
+      var cursor = const CrosswordCell(0, 3);
+      final cleared = <CrosswordCell>[];
+      for (var press = 0; press < 4; press++) {
+        final step = eraseStep(
+          cells: cells,
+          cursor: cursor,
+          cursorIsFilled: !cleared.contains(cursor),
+        );
+        if (step.clear != null) {
+          cleared.add(step.clear!);
+        }
+        cursor = step.cursor;
+      }
+
+      expect(cleared, cells.reversed.toList());
+    });
+
+    test('at the start of an empty answer there is nothing left to do', () {
+      final step = eraseStep(
+        cells: cells,
+        cursor: const CrosswordCell(0, 0),
+        cursorIsFilled: false,
+      );
+
+      expect(step.clear, isNull);
+      expect(step.cursor, const CrosswordCell(0, 0));
+    });
+
+    test('at the start of a filled answer it clears without moving', () {
+      final step = eraseStep(
+        cells: cells,
+        cursor: const CrosswordCell(0, 0),
+        cursorIsFilled: true,
+      );
+
+      expect(step.clear, const CrosswordCell(0, 0));
+      expect(step.cursor, const CrosswordCell(0, 0));
+    });
+  });
+
   group('cells', () {
     test('equal coordinates are equal cells', () {
       expect(const CrosswordCell(1, 2), const CrosswordCell(1, 2));
