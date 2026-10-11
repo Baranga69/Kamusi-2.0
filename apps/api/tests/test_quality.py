@@ -108,6 +108,25 @@ def test_a_placeholder_is_caught(text):
     assert looks_like_refusal(text)
 
 
+def test_a_swahili_refusal_is_caught():
+    """The model declines in the language it was asked to write in.
+
+    This arrived as a real row: asked to define the proper noun "Panji" from
+    the gloss "Dorado", the model wrote its apology into the definition
+    field, where it reads as prose.
+    """
+    assert looks_like_refusal(
+        "Samahani, neno hili halina maana inayojulikana katika Kiswahili."
+    )
+    assert looks_like_refusal("Hakuna maelezo ya kutosha kuhusu neno hili.")
+
+
+def test_a_definition_about_meaninglessness_is_not_a_refusal():
+    """Defining "nonsense" requires saying something has no meaning."""
+    assert not looks_like_refusal("jambo lisilo na maana wala mpangilio")
+    assert check_definition("jambo lisilo na maana wala mpangilio") == []
+
+
 def test_a_definition_merely_containing_a_placeholder_word_survives():
     """'unknown' alone is a placeholder; inside a sentence it is a word."""
     text = "neno lenye asili isiyojulikana, unknown kwa Kiingereza"

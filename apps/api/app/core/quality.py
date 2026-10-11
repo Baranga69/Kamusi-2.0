@@ -98,6 +98,14 @@ REFUSAL_PHRASES = (
     "sina uhakika",
     "no definition",
     "lorem ipsum",
+    # Swahili refusals. Kept to specific phrasings rather than bare words:
+    # "samahani" means "sorry" and a definition could conceivably contain
+    # it, while "neno hili halina maana" is talking *about* the word instead
+    # of defining it and can only be a refusal.
+    "halina maana inayojulikana",
+    "hakuna maelezo ya kutosha",
+    "neno hili halina maana",
+    "siwezi kutoa maelezo",
 )
 
 # Matched only as the *whole* text. "unknown" alone is a placeholder; a real

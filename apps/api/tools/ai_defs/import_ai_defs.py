@@ -70,6 +70,17 @@ REJECTS_PATH = Path(env("REJECTS_PATH") or f"{IN_PATH}.rejected.jsonl")
 # Escape hatch for a corpus the heuristics judge badly. Off by default,
 # because the failure it guards against is a reviewer's time.
 SKIP_VALIDATION = (env("SKIP_VALIDATION", "false") or "").lower() in {"1", "true", "yes"}
+# The model's own confidence is evidence. Asked not to invent, it reports 0.0
+# on a word it cannot define — and sometimes writes that refusal into the
+# definition field, where it reads like prose. Taking it at its word is
+# cheaper than any heuristic that tries to detect the same thing in the text.
+MIN_CONFIDENCE = float(env("MIN_CONFIDENCE", "0.1"))
+# How many senses may share one definition text before it looks like filler
+# rather than synonymy. A model with nothing to work from repeats itself —
+# one phrase came back for six unrelated verbs in the bare-stub batch — but
+# two or three shared definitions are normal in a language with this many
+# synonyms, and rejecting those throws away correct work.
+REUSED_TEXT_LIMIT = int(env("REUSED_TEXT_LIMIT", "3"))
 
 INSERT_COLUMNS = """
   id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
@@ -124,11 +135,12 @@ def main() -> None:
     # the authority on duplicates; this only catches the ones that would waste
     # a round trip, and reports them so a bad export can be fixed.
     seen_senses: set[str] = set()
-    # Definition text already used for a *different* sense. A model with
-    # nothing to work from returns the same filler over and over — one phrase
-    # came back for six different words in the first real corpus — and each
-    # copy reads like a definition on its own.
-    seen_text: dict[str, str] = {}
+    # How many senses each definition text has been used for. Reuse is not
+    # automatically wrong: Swahili has plenty of synonyms, and a dictionary
+    # properly gives "uhodari", "umahiri" and "umilisi" near-identical
+    # definitions. On the first real batch every single repeat was a synonym
+    # cluster like that, so only heavy reuse counts — see REUSED_TEXT_LIMIT.
+    text_uses: dict[str, int] = {}
     rejects_file = None
 
     # Build SQL depending on conflict strategy
@@ -209,6 +221,15 @@ def main() -> None:
                             skipped_bad += 1
                             continue
 
+                        # Parsed before the gate, which reads it. Kept so the
+                        # review queue can also lead with the definitions the
+                        # model was least sure about.
+                        confidence = obj.get("confidence")
+                        try:
+                            confidence = None if confidence is None else float(confidence)
+                        except (TypeError, ValueError):
+                            confidence = None
+
                         # The gate. Text that cannot be a Swahili definition is
                         # refused here rather than left for a reviewer to find.
                         problems = (
@@ -222,17 +243,22 @@ def main() -> None:
                                 max_length=MAX_LENGTH,
                             )
                         )
+                        if (
+                            not SKIP_VALIDATION
+                            and confidence is not None
+                            and confidence < MIN_CONFIDENCE
+                        ):
+                            problems.append("model_not_confident")
+
                         if sense_id in seen_senses:
                             problems.append("duplicate_in_file")
                         seen_senses.add(sense_id)
 
                         if not SKIP_VALIDATION:
                             fingerprint = " ".join(definition_sw.lower().split())
-                            previous = seen_text.get(fingerprint)
-                            if previous is not None and previous != sense_id:
+                            text_uses[fingerprint] = text_uses.get(fingerprint, 0) + 1
+                            if text_uses[fingerprint] > REUSED_TEXT_LIMIT:
                                 problems.append("reused_text")
-                            else:
-                                seen_text[fingerprint] = sense_id
 
                         if problems:
                             rejected_rows += 1
@@ -254,13 +280,6 @@ def main() -> None:
                         gloss_sw = obj.get("gloss_sw", None)
                         ai_model = obj.get("model") or DEFAULT_MODEL
                         prompt_version = obj.get("prompt_version") or DEFAULT_PROMPT_VERSION
-                        # Kept so the review queue can lead with the definitions
-                        # the model was least sure about.
-                        confidence = obj.get("confidence")
-                        try:
-                            confidence = None if confidence is None else float(confidence)
-                        except (TypeError, ValueError):
-                            confidence = None
 
                         new_id = str(uuid.uuid4())
                         cur.execute(
