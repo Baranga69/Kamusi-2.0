@@ -20,6 +20,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     required this.onIncorrectContainer,
     required this.gameCard,
     required this.onGameCard,
+    required this.gameAccentA,
+    required this.gameAccentB,
+    required this.gameAccentC,
     required this.streak,
     required this.progressTrack,
   });
@@ -56,6 +59,16 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
   final Color gameCard;
   final Color onGameCard;
 
+  /// One accent per game.
+  ///
+  /// Three identical cards read as a list of settings; three colours read as
+  /// a shelf of games, which is what this section is. The card tints itself
+  /// from its accent, so adding a fourth game means adding one colour rather
+  /// than redesigning anything.
+  final Color gameAccentA;
+  final Color gameAccentB;
+  final Color gameAccentC;
+
   /// The streak flame. The one place the app is allowed to be a bit bright.
   final Color streak;
 
@@ -72,6 +85,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     onIncorrectContainer: Color(0xFF53330A),
     gameCard: Color(0xFFD9EBEA),
     onGameCard: Color(0xFF16403D),
+    gameAccentA: Color(0xFF2E8B82),
+    gameAccentB: Color(0xFFC8761F),
+    gameAccentC: Color(0xFF5A5AC8),
     streak: Color(0xFFE07A3F),
     progressTrack: Color(0xFFE9EBF0),
   );
@@ -87,6 +103,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     onIncorrectContainer: Color(0xFFF4DEBB),
     gameCard: Color(0xFF17352F),
     onGameCard: Color(0xFFCCE7E3),
+    gameAccentA: Color(0xFF6FC3B8),
+    gameAccentB: Color(0xFFE6A663),
+    gameAccentC: Color(0xFF9A9AF0),
     streak: Color(0xFFF2985C),
     progressTrack: Color(0xFF1F2834),
   );
@@ -107,6 +126,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     Color? onIncorrectContainer,
     Color? gameCard,
     Color? onGameCard,
+    Color? gameAccentA,
+    Color? gameAccentB,
+    Color? gameAccentC,
     Color? streak,
     Color? progressTrack,
   }) {
@@ -121,6 +143,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
       onIncorrectContainer: onIncorrectContainer ?? this.onIncorrectContainer,
       gameCard: gameCard ?? this.gameCard,
       onGameCard: onGameCard ?? this.onGameCard,
+      gameAccentA: gameAccentA ?? this.gameAccentA,
+      gameAccentB: gameAccentB ?? this.gameAccentB,
+      gameAccentC: gameAccentC ?? this.gameAccentC,
       streak: streak ?? this.streak,
       progressTrack: progressTrack ?? this.progressTrack,
     );
@@ -144,6 +169,9 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
           Color.lerp(onIncorrectContainer, other.onIncorrectContainer, t)!,
       gameCard: Color.lerp(gameCard, other.gameCard, t)!,
       onGameCard: Color.lerp(onGameCard, other.onGameCard, t)!,
+      gameAccentA: Color.lerp(gameAccentA, other.gameAccentA, t)!,
+      gameAccentB: Color.lerp(gameAccentB, other.gameAccentB, t)!,
+      gameAccentC: Color.lerp(gameAccentC, other.gameAccentC, t)!,
       streak: Color.lerp(streak, other.streak, t)!,
       progressTrack: Color.lerp(progressTrack, other.progressTrack, t)!,
     );

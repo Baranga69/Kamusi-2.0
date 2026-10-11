@@ -9,6 +9,7 @@ import '../../domain/models/crossword_puzzle.dart';
 import '../../providers/learn_providers.dart';
 import '../theme/kamusi_learn_colors.dart';
 import '../widgets/game_timer_bar.dart';
+import '../widgets/hint_button.dart';
 import 'lexeme_detail_screen.dart';
 
 /// Chemsha Bongo — a crossword.
@@ -39,6 +40,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
   bool _outOfTime = false;
   int _score = 0;
   Duration? _timeLeft;
+  int _hintsLeft = GameHints.perBoard;
 
   CrosswordPuzzle get _puzzle => widget.puzzle;
 
@@ -106,6 +108,35 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
       _filled[cursor] = letter;
       _awardNewlySolved();
       _advance();
+    });
+  }
+
+  /// Fill in the square the cursor is on, or the first empty one in the
+  /// answer being worked on. A letter, not a whole entry: the crossings mean
+  /// one letter is already worth a great deal.
+  void _takeHint() {
+    if (_over || _hintsLeft <= 0) {
+      return;
+    }
+    var target = _cursor;
+    final entry = _activeEntry;
+    if (entry != null) {
+      for (final cell in entry.cells) {
+        if (_filled[cell] != _solution[cell]) {
+          target = cell;
+          break;
+        }
+      }
+    }
+    if (target == null || _solution[target] == null) {
+      return;
+    }
+    setState(() {
+      _hintsLeft--;
+      _score = (_score - GameHints.cost).clamp(0, 1 << 30);
+      _filled[target!] = _solution[target]!;
+      _cursor = target;
+      _awardNewlySolved();
     });
   }
 
@@ -213,6 +244,16 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                   ),
                   const SizedBox(height: 10),
                 ],
+                if (!_over)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: HintButton(
+                      remaining: _hintsLeft,
+                      cost: GameHints.cost,
+                      label: _hintsLeft > 0 ? l10n.learnHint : l10n.learnHintNone,
+                      onPressed: _takeHint,
+                    ),
+                  ),
                 _ScoreRow(
                   score: _score,
                   solved: _solvedCount,

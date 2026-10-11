@@ -10,6 +10,7 @@ import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
+import '../widgets/hint_button.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -54,6 +55,11 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   bool _outOfTime = false;
   int _score = 0;
   Duration? _timeLeft;
+
+  /// How many leading letters have been given away per word. One at a time,
+  /// so a hint narrows the field rather than handing over the answer.
+  final Map<String, int> _revealedLetters = {};
+  int _hintsLeft = GameHints.perBoard;
 
   WordBuildPuzzle get _puzzle => widget.puzzle;
 
@@ -147,6 +153,28 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
         _lastAttemptFailed = solved == null;
       }
       _selected.clear();
+    });
+  }
+
+  void _takeHint() {
+    if (_over || _hintsLeft <= 0) {
+      return;
+    }
+    // Shortest first: the cheap words are the way back into a board that has
+    // stalled, and the pangram is no use to somebody stuck.
+    final unsolved = _puzzle.words
+        .where((word) => !_found.contains(word.letters))
+        .where((word) => (_revealedLetters[word.letters] ?? 0) < word.letters.length - 1)
+        .toList()
+      ..sort((a, b) => a.letters.length - b.letters.length);
+    if (unsolved.isEmpty) {
+      return;
+    }
+    final word = unsolved.first;
+    setState(() {
+      _hintsLeft--;
+      _score = (_score - GameHints.cost).clamp(0, 1 << 30);
+      _revealedLetters[word.letters] = (_revealedLetters[word.letters] ?? 0) + 1;
     });
   }
 
@@ -296,6 +324,16 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             },
           ),
           const SizedBox(height: 16),
+          if (!_over)
+            Align(
+              alignment: Alignment.centerRight,
+              child: HintButton(
+                remaining: _hintsLeft,
+                cost: GameHints.cost,
+                label: _hintsLeft > 0 ? l10n.learnHint : l10n.learnHintNone,
+                onPressed: _takeHint,
+              ),
+            ),
           _ProgressRow(
             found: _found.length,
             total: _puzzle.words.length,
@@ -314,6 +352,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
               showDefinition:
                   _easyMode || _outOfTime || _found.contains(word.letters),
               revealed: _outOfTime,
+              revealedLetters: _revealedLetters[word.letters] ?? 0,
               onTap: () => _openEntry(word),
               learnColors: learnColors,
             ),
@@ -595,6 +634,7 @@ class _SolutionRow extends StatelessWidget {
     required this.onTap,
     required this.learnColors,
     this.revealed = false,
+    this.revealedLetters = 0,
   });
 
   final WordBuildWord word;
@@ -606,12 +646,19 @@ class _SolutionRow extends StatelessWidget {
   /// Shown because the clock ran out rather than because it was solved.
   final bool revealed;
 
+  /// Leading letters given away by hints.
+  final int revealedLetters;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Unsolved words show their length, never their letters: the dashes are
     // the puzzle, and in easy mode the definition beside them is the clue.
-    final label = found || revealed ? word.word : '·' * word.letters.length;
+    // Dots for what is still hidden, letters for what a hint has given.
+    final label = found || revealed
+        ? word.word
+        : word.letters.substring(0, revealedLetters).toUpperCase() +
+            '·' * (word.letters.length - revealedLetters);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

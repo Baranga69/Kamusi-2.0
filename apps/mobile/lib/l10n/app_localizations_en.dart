@@ -406,4 +406,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String learnGameNewBest(int score) {
     return 'New best: $score points!';
   }
+
+  @override
+  String get learnHint => 'Hint';
+
+  @override
+  String get learnHintNone => 'No hints left';
+
+  @override
+  String get learnHintUsed => 'Hint used';
+
+  @override
+  String get learnGamesHeading => 'Games';
+
+  @override
+  String get learnGamesSubheading => 'Learn words by playing.';
 }

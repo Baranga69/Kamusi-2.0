@@ -835,6 +835,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New best: {score} points!'**
   String learnGameNewBest(int score);
+
+  /// No description provided for @learnHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint'**
+  String get learnHint;
+
+  /// No description provided for @learnHintNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No hints left'**
+  String get learnHintNone;
+
+  /// No description provided for @learnHintUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint used'**
+  String get learnHintUsed;
+
+  /// No description provided for @learnGamesHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get learnGamesHeading;
+
+  /// No description provided for @learnGamesSubheading.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn words by playing.'**
+  String get learnGamesSubheading;
 }
 
 class _AppLocalizationsDelegate

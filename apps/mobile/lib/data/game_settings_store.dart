@@ -48,6 +48,21 @@ class GameSettingsStore {
   }
 }
 
+/// Help, and what it costs.
+///
+/// Hints are limited and priced rather than free and endless, because a hint
+/// you can take forever is just the answer with extra steps. Three is enough
+/// to get unstuck on a board you would otherwise abandon, and the cost is
+/// visible before you spend it.
+class GameHints {
+  /// Per board, not per word.
+  static const perBoard = 3;
+
+  /// Deducted from the score the moment a hint is taken. The score floors at
+  /// zero: a bad round should not leave someone in debt.
+  static const cost = 20;
+}
+
 /// How long each game gets when the clock is on.
 ///
 /// Set from how long the boards actually take: the grid is a hunt and wants

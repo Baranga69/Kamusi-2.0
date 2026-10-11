@@ -206,5 +206,10 @@
         "type": "int"
       }
     }
-  }
+  },
+  "learnHint": "Dokezo",
+  "learnHintNone": "Hakuna dokezo",
+  "learnHintUsed": "Dokezo limetumika",
+  "learnGamesHeading": "Michezo",
+  "learnGamesSubheading": "Jifunze maneno kwa kucheza."
 }

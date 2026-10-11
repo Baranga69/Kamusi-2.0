@@ -148,6 +148,17 @@ cover.
   time runs out the board stays on screen with every answer revealed, because
   being shown what you missed is the part worth having.
 
+### Hints
+
+Three per board, costing 20 points each, with the count and the price both on
+the button. Priced and limited rather than free and endless: a hint you can
+take forever is just the answer with extra steps.
+
+What one gives differs by game, and in each case it is a nudge rather than a
+reveal — the word hunt rings the square a word *starts* in, the ring gives one
+more leading letter of the shortest unsolved word, and the crossword fills a
+single square, which the crossings already make worth a lot.
+
 ### Points
 
 Every solved word scores. The difficulty half is computed on the server, so

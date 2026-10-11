@@ -172,11 +172,13 @@ class LearnHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final daily = ref.watch(dailyRoundProvider);
     final progress = ref.watch(learnProgressProvider);
     final timed = ref.watch(timedModeProvider).value ?? false;
+    final learnColors = theme.extension<KamusiLearnColors>();
     final best = ref.watch(bestScoresProvider).value ?? const <String, int>{};
 
     // Top the offline queues up in the background on the way in, and refresh
@@ -237,11 +239,22 @@ class LearnHomeScreen extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 28),
-            // Their own cards rather than more practice tiles: these are a
-            // different shape of game, not another quiz mix, and each takes a
-            // board's worth of space to be worth opening.
+            Text(
+              l10n.learnGamesHeading,
+              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.learnGamesSubheading,
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 14),
+            // Three cards, three colours. Identical ones read as a list of
+            // settings; these should read as a shelf of games.
             _GameCard(
-              icon: Icons.grid_on_outlined,
+              index: 0,
+              icon: Icons.grid_on_rounded,
+              accent: learnColors?.gameAccentA ?? colorScheme.primary,
               title: l10n.learnWordFindTitle,
               body: l10n.learnWordFindCardBody,
               best: best[GameIds.wordFind] ?? 0,
@@ -249,7 +262,9 @@ class LearnHomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             _GameCard(
-              icon: Icons.bubble_chart_outlined,
+              index: 1,
+              icon: Icons.bubble_chart_rounded,
+              accent: learnColors?.gameAccentB ?? colorScheme.secondary,
               title: l10n.learnWordBuildTitle,
               body: l10n.learnWordBuildCardBody,
               best: best[GameIds.wordBuild] ?? 0,
@@ -257,7 +272,9 @@ class LearnHomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             _GameCard(
-              icon: Icons.grid_4x4,
+              index: 2,
+              icon: Icons.grid_4x4_rounded,
+              accent: learnColors?.gameAccentC ?? colorScheme.tertiary,
               title: l10n.learnCrosswordTitle,
               body: l10n.learnCrosswordCardBody,
               best: best[GameIds.crossword] ?? 0,
@@ -291,7 +308,9 @@ class LearnHomeScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          total > 0 ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                          total > 0
+                              ? Icons.cloud_done_outlined
+                              : Icons.cloud_off_outlined,
                           size: 14,
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -362,16 +381,27 @@ class LearnHomeScreen extends ConsumerWidget {
   }
 }
 
-class _GameCard extends StatelessWidget {
+/// A game on the shelf.
+///
+/// Tinted from its own accent rather than sharing one colour with the
+/// others, lifted by a soft shadow, and animated on the way in and under a
+/// finger. DESIGN_SYSTEM.md §0 gives Jifunze licence for warmth and motion
+/// that the dictionary does not get; this is where it is spent.
+class _GameCard extends StatefulWidget {
   const _GameCard({
+    required this.index,
     required this.icon,
+    required this.accent,
     required this.title,
     required this.body,
     required this.onTap,
     this.best = 0,
   });
 
+  /// Position on the shelf, used only to stagger the entrance.
+  final int index;
   final IconData icon;
+  final Color accent;
   final String title;
   final String body;
   final Future<void> Function() onTap;
@@ -380,62 +410,166 @@ class _GameCard extends StatelessWidget {
   final int best;
 
   @override
+  State<_GameCard> createState() => _GameCardState();
+}
+
+class _GameCardState extends State<_GameCard> {
+  bool _shown = false;
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Staggered, so the shelf assembles itself rather than appearing all at
+    // once. Short enough that nobody waiting to tap notices it.
+    Future<void>.delayed(Duration(milliseconds: 70 * widget.index + 40), () {
+      if (mounted) {
+        setState(() => _shown = true);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final learnColors = theme.extension<KamusiLearnColors>();
-    final background = learnColors?.gameCard ?? colorScheme.secondaryContainer;
-    final foreground = learnColors?.onGameCard ?? colorScheme.onSecondaryContainer;
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Icon(icon, size: 32, color: foreground),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final accent = widget.accent;
+    final dark = theme.brightness == Brightness.dark;
+
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      offset: _shown ? Offset.zero : const Offset(0, 0.14),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 320),
+        opacity: _shown ? 1 : 0,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 110),
+          scale: _pressed ? 0.975 : 1,
+          child: GestureDetector(
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapCancel: () => setState(() => _pressed = false),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTap: widget.onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.20 : 0.13),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: dark ? 0.0 : 0.16),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: foreground,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      body,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: foreground.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    if (best > 0) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        AppLocalizations.of(context)!.learnGameBest(best),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: foreground.withValues(alpha: 0.75),
-                          fontWeight: FontWeight.w700,
+                    // A disc of the accent sliding off the corner. Cheap
+                    // decoration that stops the card reading as a form field.
+                    Positioned(
+                      right: -28,
+                      top: -34,
+                      child: Container(
+                        width: 112,
+                        height: 112,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: accent.withValues(alpha: 0.12),
                         ),
                       ),
-                    ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Icon(
+                              widget.icon,
+                              size: 27,
+                              color: dark ? const Color(0xFF10151C) : Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.title,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  widget.body,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    height: 1.3,
+                                  ),
+                                ),
+                                if (widget.best > 0) ...[
+                                  const SizedBox(height: 8),
+                                  _BestChip(score: widget.best, accent: accent),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.play_arrow_rounded, color: accent, size: 28),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward,
-                color: foreground,
-              ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The score to beat, when there is one.
+class _BestChip extends StatelessWidget {
+  const _BestChip({required this.score, required this.accent});
+
+  final int score;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.emoji_events_rounded, size: 13, color: accent),
+          const SizedBox(width: 5),
+          Text(
+            AppLocalizations.of(context)!.learnGameBest(score),
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -449,7 +583,8 @@ class _ProgressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final hasStreak = progress.currentStreak > 0;
 
@@ -488,7 +623,8 @@ class _DailyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final learn = KamusiLearnColors.of(context);
 

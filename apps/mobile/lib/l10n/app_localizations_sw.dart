@@ -409,4 +409,19 @@ class AppLocalizationsSw extends AppLocalizations {
   String learnGameNewBest(int score) {
     return 'Rekodi mpya: alama $score!';
   }
+
+  @override
+  String get learnHint => 'Dokezo';
+
+  @override
+  String get learnHintNone => 'Hakuna dokezo';
+
+  @override
+  String get learnHintUsed => 'Dokezo limetumika';
+
+  @override
+  String get learnGamesHeading => 'Michezo';
+
+  @override
+  String get learnGamesSubheading => 'Jifunze maneno kwa kucheza.';
 }

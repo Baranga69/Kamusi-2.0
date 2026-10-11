@@ -8,6 +8,7 @@ import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
+import '../widgets/hint_button.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -52,6 +53,11 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   bool _outOfTime = false;
   int _score = 0;
   Duration? _timeLeft;
+
+  /// Starting squares given away by a hint. Only the first cell: pointing at
+  /// where a word begins is help, lighting the whole path is the answer.
+  final Set<WordFindCell> _hinted = {};
+  int _hintsLeft = GameHints.perBoard;
 
   /// The drag in progress.
   WordFindCell? _dragStart;
@@ -215,6 +221,25 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     }
   }
 
+  void _takeHint() {
+    if (_over || _hintsLeft <= 0) {
+      return;
+    }
+    final unfound = _puzzle.words
+        .where((word) => !_found.contains(word))
+        .where((word) => !_hinted.contains(word.cells.first))
+        .toList();
+    if (unfound.isEmpty) {
+      return;
+    }
+    unfound.shuffle();
+    setState(() {
+      _hintsLeft--;
+      _score = (_score - GameHints.cost).clamp(0, 1 << 30);
+      _hinted.add(unfound.first.cells.first);
+    });
+  }
+
   void _openEntry(WordFindWord word) {
     if (word.lexemeId.isEmpty) {
       return;
@@ -274,7 +299,17 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             complete: _complete,
             score: _score,
           ),
-          const SizedBox(height: 16),
+          if (!_over)
+            Align(
+              alignment: Alignment.centerRight,
+              child: HintButton(
+                remaining: _hintsLeft,
+                cost: GameHints.cost,
+                label: _hintsLeft > 0 ? l10n.learnHint : l10n.learnHintNone,
+                onPressed: _takeHint,
+              ),
+            ),
+          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
               final side = constraints.maxWidth;
@@ -293,6 +328,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
                   child: _Grid(
                     puzzle: _puzzle,
                     foundCells: _foundCells,
+                    hintedCells: _hinted,
                     selection: _dragPath,
                     selectionIsWrong: _dragIsWrong,
                     learnColors: learnColors,
@@ -425,6 +461,7 @@ class _Grid extends StatelessWidget {
   const _Grid({
     required this.puzzle,
     required this.foundCells,
+    required this.hintedCells,
     required this.selection,
     required this.selectionIsWrong,
     required this.learnColors,
@@ -432,6 +469,7 @@ class _Grid extends StatelessWidget {
 
   final WordFindPuzzle puzzle;
   final Set<WordFindCell> foundCells;
+  final Set<WordFindCell> hintedCells;
   final List<WordFindCell> selection;
   final bool selectionIsWrong;
   final KamusiLearnColors? learnColors;
@@ -458,6 +496,7 @@ class _Grid extends StatelessWidget {
                         child: _LetterCell(
                           letter: puzzle.letterAt(row, col),
                           isFound: foundCells.contains(WordFindCell(row, col)),
+                          isHinted: hintedCells.contains(WordFindCell(row, col)),
                           isSelected: selected.contains(WordFindCell(row, col)),
                           selectionIsWrong: selectionIsWrong,
                           learnColors: learnColors,
@@ -477,6 +516,7 @@ class _LetterCell extends StatelessWidget {
   const _LetterCell({
     required this.letter,
     required this.isFound,
+    required this.isHinted,
     required this.isSelected,
     required this.selectionIsWrong,
     required this.learnColors,
@@ -484,6 +524,7 @@ class _LetterCell extends StatelessWidget {
 
   final String letter;
   final bool isFound;
+  final bool isHinted;
   final bool isSelected;
   final bool selectionIsWrong;
   final KamusiLearnColors? learnColors;
@@ -506,6 +547,12 @@ class _LetterCell extends StatelessWidget {
       background = learnColors?.correctContainer ?? colorScheme.secondaryContainer;
       foreground =
           learnColors?.onCorrectContainer ?? colorScheme.onSecondaryContainer;
+    } else if (isHinted) {
+      // A word starts here. Ringed rather than filled, so it reads as a
+      // pointer rather than as something already found.
+      background = (learnColors?.streak ?? colorScheme.tertiary)
+          .withValues(alpha: 0.22);
+      foreground = colorScheme.onSurface;
     }
 
     return Padding(
