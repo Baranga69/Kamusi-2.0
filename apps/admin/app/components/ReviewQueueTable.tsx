@@ -89,6 +89,13 @@ export default function ReviewQueueTable({
             {item.is_ai_generated && <span className="badge badge-ai">AI Draft</span>}
             {item.review_status && <span className={`badge badge-${item.review_status}`}>{item.review_status}</span>}
             {item.morphology_like && <span className="badge badge-morph">Morphology</span>}
+            {/* Only flagged when the model was notably unsure. A confident
+                definition needs no badge, and an unrecorded one says nothing. */}
+            {typeof item.ai_confidence === "number" && item.ai_confidence < 0.6 && (
+              <span className="badge badge-lowconfidence">
+                {Math.round(item.ai_confidence * 100)}% sure
+              </span>
+            )}
           </span>
           <span className="inline-actions">
             <button

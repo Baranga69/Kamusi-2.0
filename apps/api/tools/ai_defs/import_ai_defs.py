@@ -43,12 +43,12 @@ INITIAL_REVIEW_STATUS = "unreviewed"
 
 INSERT_COLUMNS = """
   id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
-  is_ai_generated, review_status, ai_model, ai_prompt_version
+  is_ai_generated, review_status, ai_model, ai_prompt_version, ai_confidence
 """
 
 INSERT_VALUES = """
   %s, %s, 'sw', %s, %s, %s, %s, now(),
-  true, %s, %s, %s
+  true, %s, %s, %s, %s
 """
 
 
@@ -103,6 +103,7 @@ def main() -> None:
           review_status = EXCLUDED.review_status,
           ai_model = EXCLUDED.ai_model,
           ai_prompt_version = EXCLUDED.ai_prompt_version,
+          ai_confidence = EXCLUDED.ai_confidence,
           reviewed_by = NULL,
           reviewed_at = NULL,
           review_note = NULL
@@ -138,6 +139,13 @@ def main() -> None:
                     gloss_sw = obj.get("gloss_sw", None)
                     ai_model = obj.get("model") or DEFAULT_MODEL
                     prompt_version = obj.get("prompt_version") or DEFAULT_PROMPT_VERSION
+                    # Kept so the review queue can lead with the definitions
+                    # the model was least sure about.
+                    confidence = obj.get("confidence")
+                    try:
+                        confidence = None if confidence is None else float(confidence)
+                    except (TypeError, ValueError):
+                        confidence = None
 
                     new_id = str(uuid.uuid4())
                     cur.execute(
@@ -152,6 +160,7 @@ def main() -> None:
                             INITIAL_REVIEW_STATUS,
                             ai_model,
                             prompt_version,
+                            confidence,
                         ),
                     )
 

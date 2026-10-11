@@ -260,6 +260,10 @@ class SenseDefinition(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ai_model: Mapped[str | None] = mapped_column(String)
     ai_prompt_version: Mapped[str | None] = mapped_column(String)
+    # How sure the model was, 0.0-1.0. Null on anything written before this
+    # was captured, which the review queue treats as "unknown" rather than
+    # "poor".
+    ai_confidence: Mapped[float | None] = mapped_column(Float)
     review_note: Mapped[str | None] = mapped_column(Text)
 
     sense: Mapped[Sense] = relationship(back_populates="definitions")

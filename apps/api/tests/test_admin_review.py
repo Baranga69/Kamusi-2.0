@@ -180,3 +180,83 @@ def test_review_queue_lexeme_status_filter(client, db_session):
 
     resp = client.get("/admin/review/queue", headers=headers, params={"lexeme_status": "bogus"})
     assert resp.status_code == 400
+
+
+def seed_definitions_with_confidence(db_session, values: list[float | None]) -> None:
+    """One unreviewed AI definition per confidence value, lemma a/b/c/..."""
+    language = Language(code="sw", name="Swahili")
+    pos = PartOfSpeech(code="NOUN", label="Noun")
+    db_session.add_all([language, pos])
+    db_session.commit()
+
+    for index, confidence in enumerate(values):
+        lemma = chr(ord("a") + index)
+        lexeme = Lexeme(
+            lemma=lemma,
+            normalized_lemma=lemma,
+            pos_id=pos.id,
+            status="core",
+            default_language_code="sw",
+            workflow="draft",
+        )
+        db_session.add(lexeme)
+        db_session.commit()
+        sense = Sense(lexeme_id=lexeme.id, sense_number=1, workflow="draft")
+        db_session.add(sense)
+        db_session.commit()
+        db_session.add(
+            SenseDefinition(
+                sense_id=sense.id,
+                lang_code="sw",
+                definition=f"maelezo ya {lemma}",
+                is_primary=True,
+                is_ai_generated=True,
+                review_status="unreviewed",
+                ai_confidence=confidence,
+                created_at=datetime.utcnow(),
+            )
+        )
+    db_session.commit()
+
+
+def test_queue_can_lead_with_the_least_confident(client, db_session):
+    """Reviewer attention is scarce; spend it where the model was unsure."""
+    seed_definitions_with_confidence(db_session, [0.9, 0.2, 0.55])
+
+    resp = client.get(
+        "/admin/review/queue",
+        headers={"X-API-Key": "dev-api-key"},
+        params={"sort": "confidence"},
+    )
+    assert resp.status_code == 200
+    assert [item["ai_confidence"] for item in resp.json()] == [0.2, 0.55, 0.9]
+
+
+def test_unknown_confidence_sorts_last_not_first(client, db_session):
+    """Null is "we did not record it", not "this one is bad"."""
+    seed_definitions_with_confidence(db_session, [0.8, None, 0.1])
+
+    resp = client.get(
+        "/admin/review/queue",
+        headers={"X-API-Key": "dev-api-key"},
+        params={"sort": "confidence"},
+    )
+    assert [item["ai_confidence"] for item in resp.json()] == [0.1, 0.8, None]
+
+
+def test_confidence_is_reported_on_every_queue_item(client, db_session):
+    seed_definitions_with_confidence(db_session, [0.42])
+
+    item = client.get(
+        "/admin/review/queue", headers={"X-API-Key": "dev-api-key"}
+    ).json()[0]
+    assert item["ai_confidence"] == 0.42
+
+
+def test_an_invalid_sort_is_still_rejected(client, db_session):
+    resp = client.get(
+        "/admin/review/queue",
+        headers={"X-API-Key": "dev-api-key"},
+        params={"sort": "vibes"},
+    )
+    assert resp.status_code == 400

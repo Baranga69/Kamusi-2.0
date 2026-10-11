@@ -101,7 +101,8 @@ WHERE sd.lang_code = 'sw'
 UPDATE_ONE_SQL = """
 UPDATE sense_definition
 SET ai_model = coalesce(ai_model, %s),
-    ai_prompt_version = coalesce(ai_prompt_version, %s)
+    ai_prompt_version = coalesce(ai_prompt_version, %s),
+    ai_confidence = coalesce(ai_confidence, %s)
 WHERE lang_code = 'sw'
   AND source_id = %s
   AND sense_id = %s
@@ -130,9 +131,9 @@ WHERE sd.id = se.target_id
 """
 
 
-def load_jsonl_metadata(path: Path) -> dict[str, tuple[str, str]]:
-    """Map sense_id -> (model, prompt_version) from a generator output file."""
-    metadata: dict[str, tuple[str, str]] = {}
+def load_jsonl_metadata(path: Path) -> dict[str, tuple[str, str, float | None]]:
+    """Map sense_id -> (model, prompt_version, confidence) from generator output."""
+    metadata: dict[str, tuple[str, str, float | None]] = {}
     with path.open("r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
@@ -142,9 +143,15 @@ def load_jsonl_metadata(path: Path) -> dict[str, tuple[str, str]]:
             sense_id = row.get("sense_id")
             if not sense_id:
                 continue
+            try:
+                confidence = row.get("confidence")
+                confidence = None if confidence is None else float(confidence)
+            except (TypeError, ValueError):
+                confidence = None
             metadata[str(sense_id)] = (
                 row.get("model") or "unknown",
                 row.get("prompt_version") or "unknown",
+                confidence,
             )
     return metadata
 
@@ -231,8 +238,11 @@ def main() -> int:
             changed = cur.rowcount
 
             refined = 0
-            for sense_id, (model, prompt_version) in jsonl_metadata.items():
-                cur.execute(UPDATE_ONE_SQL, (model, prompt_version, source_id, sense_id))
+            for sense_id, (model, prompt_version, confidence) in jsonl_metadata.items():
+                cur.execute(
+                    UPDATE_ONE_SQL,
+                    (model, prompt_version, confidence, source_id, sense_id),
+                )
                 refined += cur.rowcount
 
             pruned = 0
@@ -244,7 +254,7 @@ def main() -> int:
 
     print(f"✅ Tagged {changed} definitions as is_ai_generated=true, review_status='unreviewed'")
     if jsonl_metadata:
-        print(f"   Restored model/prompt_version on {refined} rows from the JSONL")
+        print(f"   Restored model, prompt version and confidence on {refined} rows")
     if args.prune_search_index:
         print(f"   Removed {pruned} stale search_entry rows")
     print()

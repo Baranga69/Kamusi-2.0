@@ -5705,6 +5705,11 @@ components:
         morphology_like:
           type: boolean
           title: Morphology Like
+        ai_confidence:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ai Confidence
       type: object
       required:
       - sense_definition_id

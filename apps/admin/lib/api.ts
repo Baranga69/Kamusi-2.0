@@ -141,6 +141,8 @@ export interface ReviewQueueItem {
   review_status: "unreviewed" | "approved" | "edited" | "rejected";
   is_ai_generated: boolean;
   morphology_like: boolean;
+  /** How sure the model was, 0-1. Null when it was never recorded. */
+  ai_confidence?: number | null;
 }
 
 export interface ReviewDefinitionReference {
@@ -371,7 +373,7 @@ export const createAdminClient = () => {
       lexeme_status?: string;
       limit?: number;
       offset?: number;
-      sort?: "oldest" | "newest" | "lemma";
+      sort?: "oldest" | "newest" | "lemma" | "confidence";
     }) {
       const response = await reviewClient.get<ReviewQueueItem[]>("/review/queue", { params });
       return response.data;

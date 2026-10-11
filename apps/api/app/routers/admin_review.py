@@ -90,6 +90,7 @@ def get_review_queue(
             sw_definition.created_at,
             sw_definition.review_status,
             sw_definition.is_ai_generated,
+            sw_definition.ai_confidence,
         )
         .join(Sense, sw_definition.sense_id == Sense.id)
         .join(Lexeme, Sense.lexeme_id == Lexeme.id)
@@ -118,6 +119,15 @@ def get_review_queue(
         stmt = stmt.order_by(sw_definition.created_at.desc())
     elif sort == "lemma":
         stmt = stmt.order_by(Lexeme.lemma.asc())
+    elif sort == "confidence":
+        # Worst first. Reviewer attention is the scarcest thing here, so lead
+        # with what the model was least sure about. Rows with no recorded
+        # confidence sort last: unknown is not the same as poor, and putting
+        # them first would bury the definitions that genuinely need a look.
+        stmt = stmt.order_by(
+            sw_definition.ai_confidence.asc().nullslast(),
+            sw_definition.created_at.asc(),
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid sort option")
 
@@ -142,6 +152,7 @@ def get_review_queue(
                 created_at=row.created_at,
                 review_status=row.review_status,
                 is_ai_generated=row.is_ai_generated,
+                ai_confidence=row.ai_confidence,
                 morphology_like=morphology_like,
             )
         )

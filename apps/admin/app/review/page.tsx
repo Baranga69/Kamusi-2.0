@@ -28,7 +28,7 @@ export default function ReviewQueuePage() {
   const [lexemeStatus, setLexemeStatus] = useState("");
   const [aiOnly, setAiOnly] = useState(false);
   const [languageFilter, setLanguageFilter] = useState<"all" | "has_en" | "sw_only">("all");
-  const [sort, setSort] = useState<"oldest" | "newest" | "lemma">("oldest");
+  const [sort, setSort] = useState<"oldest" | "newest" | "lemma" | "confidence">("oldest");
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
@@ -436,6 +436,8 @@ export default function ReviewQueuePage() {
               <option value="oldest">Oldest</option>
               <option value="newest">Newest</option>
               <option value="lemma">Lemma</option>
+              {/* Worst first: lead with what the model was least sure about. */}
+              <option value="confidence">Least confident</option>
             </select>
           </label>
           <label className="field">

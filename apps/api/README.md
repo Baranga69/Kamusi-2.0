@@ -167,6 +167,11 @@ Review actions take no `reviewer` field: who acted is read from the session
 and recorded server-side, so a client cannot choose whose name is logged. An
 older client still sending one keeps working — the value is ignored.
 
+`sort` accepts `oldest`, `newest`, `lemma`, or `confidence` — the last leads
+with the definitions the model was least sure about, which is where reviewer
+attention is worth most. Rows with no recorded confidence sort last: unknown
+is not the same as poor.
+
 `status` accepts `unreviewed`, `approved`, `edited`, `rejected`, or `reviewed`
 (which means approved + edited). Approve / edit / reject act only on rows that
 are still `unreviewed` and return 409 otherwise, so two reviewers cannot

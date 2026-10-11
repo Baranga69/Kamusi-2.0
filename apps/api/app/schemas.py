@@ -477,6 +477,9 @@ class ReviewQueueItem(BaseModel):
     review_status: str | None
     is_ai_generated: bool
     morphology_like: bool
+    # How sure the model was, 0.0-1.0, or null for rows written before this was
+    # captured. Null means "unknown", which is not the same as "poor".
+    ai_confidence: float | None = None
 
 
 class ReviewDefinitionReference(BaseModel):
