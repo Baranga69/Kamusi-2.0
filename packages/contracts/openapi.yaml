@@ -311,6 +311,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /learn/wordfind:
+    get:
+      tags:
+      - learn
+      summary: Word Find
+      operationId: word_find_learn_wordfind_get
+      parameters:
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 14
+          minimum: 8
+          default: 11
+          title: Size
+      - name: count
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 10
+          minimum: 3
+          default: 7
+          title: Count
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(sw|en)$
+          default: sw
+          title: Lang
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordFindPuzzle'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/login:
     post:
       tags:
@@ -6578,6 +6624,78 @@ components:
       - msg
       - type
       title: ValidationError
+    WordFindPuzzle:
+      properties:
+        lang_code:
+          type: string
+          title: Lang Code
+        size:
+          type: integer
+          title: Size
+        rows:
+          items:
+            type: string
+          type: array
+          title: Rows
+        words:
+          items:
+            $ref: '#/components/schemas/WordFindWord'
+          type: array
+          title: Words
+      type: object
+      required:
+      - lang_code
+      - size
+      - rows
+      - words
+      title: WordFindPuzzle
+      description: A word-search grid built from published, reviewed vocabulary.
+    WordFindWord:
+      properties:
+        lexeme_id:
+          type: string
+          format: uuid
+          title: Lexeme Id
+        word:
+          type: string
+          title: Word
+        letters:
+          type: string
+          title: Letters
+        definition:
+          type: string
+          title: Definition
+        pos_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pos Code
+        cells:
+          items:
+            items:
+              type: integer
+            type: array
+          type: array
+          title: Cells
+      type: object
+      required:
+      - lexeme_id
+      - word
+      - letters
+      - definition
+      - cells
+      title: WordFindWord
+      description: 'One word hidden in the grid, with the meaning to show once it
+        is found.
+
+
+        `cells` is the solution, and it is sent to the client for the same reason
+
+        `LearnQuestion.answer_index` is: nothing is at stake, the puzzle has to be
+
+        playable from the cache with no connection, and checking a drag locally is
+
+        instant where a round trip per attempt would not be.'
     WordOfDayPublic:
       properties:
         date:

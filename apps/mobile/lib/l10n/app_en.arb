@@ -152,5 +152,12 @@
   "settingsLanguage": "Language",
   "languageSwahili": "Kiswahili",
   "languageEnglish": "English",
-  "languageSystem": "Follow device"
+  "languageSystem": "Follow device",
+  "learnWordFindTitle": "Word Hunt",
+  "learnWordFindCardBody": "Find the hidden words, then learn what they mean.",
+  "learnWordFindHint": "Drag from the first letter to the last.",
+  "learnWordFindFoundTitle": "Words you have found",
+  "learnWordFindEmpty": "Nothing found yet. Meanings will appear here.",
+  "learnWordFindDone": "You found them all. Well done!",
+  "learnWordFindNew": "New puzzle"
 }

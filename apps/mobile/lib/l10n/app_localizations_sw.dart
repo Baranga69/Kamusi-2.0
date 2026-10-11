@@ -298,4 +298,28 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get languageSystem => 'Fuata mipangilio ya simu';
+
+  @override
+  String get learnWordFindTitle => 'Tafuta Neno';
+
+  @override
+  String get learnWordFindCardBody =>
+      'Tafuta maneno yaliyofichwa, kisha ujifunze maana zao.';
+
+  @override
+  String get learnWordFindHint =>
+      'Chora kutoka herufi ya kwanza hadi ya mwisho.';
+
+  @override
+  String get learnWordFindFoundTitle => 'Maneno uliyoyapata';
+
+  @override
+  String get learnWordFindEmpty =>
+      'Hakuna neno lililopatikana bado. Maana zitaonekana hapa.';
+
+  @override
+  String get learnWordFindDone => 'Umepata maneno yote. Hongera!';
+
+  @override
+  String get learnWordFindNew => 'Chemsha bongo mpya';
 }

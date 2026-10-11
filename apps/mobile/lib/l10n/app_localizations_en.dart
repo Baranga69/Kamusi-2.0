@@ -295,4 +295,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageSystem => 'Follow device';
+
+  @override
+  String get learnWordFindTitle => 'Word Hunt';
+
+  @override
+  String get learnWordFindCardBody =>
+      'Find the hidden words, then learn what they mean.';
+
+  @override
+  String get learnWordFindHint => 'Drag from the first letter to the last.';
+
+  @override
+  String get learnWordFindFoundTitle => 'Words you have found';
+
+  @override
+  String get learnWordFindEmpty =>
+      'Nothing found yet. Meanings will appear here.';
+
+  @override
+  String get learnWordFindDone => 'You found them all. Well done!';
+
+  @override
+  String get learnWordFindNew => 'New puzzle';
 }

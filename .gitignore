@@ -33,3 +33,7 @@ next-env.d.ts
 # approved or published, in a particular database. Needed locally to undo a
 # run, meaningless anywhere else.
 apps/api/out/
+
+# Generated candidate, definition and reject files from the AI pipeline.
+# Megabytes of intermediate output tied to one run against one database.
+apps/api/tools/ai_defs/out/

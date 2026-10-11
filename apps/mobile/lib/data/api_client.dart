@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/models/expression_detail.dart';
 import '../domain/models/learn_round.dart';
+import '../domain/models/word_find_puzzle.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
@@ -201,6 +202,28 @@ class ApiClient {
       );
     }
     return LearnRound.fromJson(data);
+  }
+
+  /// A word-search grid. Cached so a puzzle survives losing signal part-way
+  /// through; the key has no date in it because a new grid on request is the
+  /// point, and the cache is only a fallback.
+  Future<WordFindPuzzle> getWordFind({
+    String lang = 'sw',
+    int size = 11,
+    int count = 7,
+  }) async {
+    final data = await _read(
+      '/learn/wordfind',
+      cacheKey: 'learn-wordfind:$lang:$size:$count',
+      queryParameters: {'lang': lang, 'size': size, 'count': count},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/learn/wordfind'),
+        error: 'Unexpected word find response',
+      );
+    }
+    return WordFindPuzzle.fromJson(data);
   }
 
   Future<ExpressionDetail> getExpression(String id, {String lang = 'sw'}) async {

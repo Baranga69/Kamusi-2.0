@@ -58,9 +58,10 @@ from sqlalchemy.orm import selectinload
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.db import SessionLocal  # noqa: E402
-from app.models import Lexeme, Sense, SenseDefinition  # noqa: E402
+from app.models import Expression, ExpressionMeaning, Lexeme, Sense  # noqa: E402
 from app.services.publish import (  # noqa: E402
     NotReady,
+    publish_expression,
     publish_lexeme,
     readiness_problems,
 )
@@ -105,6 +106,92 @@ def screen(rows) -> tuple[list, dict[str, int]]:
     return ready, blocked
 
 
+def expression_candidates(db, *, workflow: str | None):
+    """Draft expressions that have at least one meaning.
+
+    Readiness for a proverb is simpler than for a lexeme: there is no sense
+    structure and no AI review guard on `expression_meaning`, so the only
+    thing to check is that it actually says what it means.
+    """
+    stmt = select(Expression).order_by(Expression.normalized_text)
+    if workflow:
+        stmt = stmt.where(Expression.workflow == workflow)
+    rows = db.scalars(stmt).all()
+    ready, blocked = [], 0
+    for expression in rows:
+        has_meaning = db.scalar(
+            select(func.count())
+            .select_from(ExpressionMeaning)
+            .where(ExpressionMeaning.expression_id == expression.id)
+        )
+        if has_meaning:
+            ready.append(expression)
+        else:
+            blocked += 1
+    return ready, blocked
+
+
+def publish_expressions(db, args) -> int:
+    ready, blocked = expression_candidates(db, workflow=args.workflow)
+    selected = ready[: args.limit] if args.limit else ready
+
+    print(f"Mode:       {'APPLY' if args.apply else 'DRY RUN'}")
+    print(f"Expressions in '{args.workflow}': {len(ready) + blocked}")
+    print(f"  ready (have a meaning):  {len(ready)}")
+    print(f"  no meaning recorded:     {blocked}")
+    print()
+    if selected and args.sample:
+        print("Sample:")
+        for expression in selected[: args.sample]:
+            meaning = db.scalar(
+                select(ExpressionMeaning.meaning)
+                .where(
+                    ExpressionMeaning.expression_id == expression.id,
+                    ExpressionMeaning.lang_code == "sw",
+                )
+                .limit(1)
+            )
+            print(f"  {expression.text[:40]:<42}{(meaning or '')[:44]}")
+        if len(selected) > args.sample:
+            print(f"  ... and {len(selected) - args.sample} more")
+        print()
+
+    if not selected:
+        print("Nothing to publish.")
+        return 0
+    if not args.apply:
+        print("Dry run: nothing published. Re-run with --apply to commit.")
+        return 0
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    args.journal_dir.mkdir(parents=True, exist_ok=True)
+    journal_path = args.journal_dir / f"bulk_publish_expressions-{stamp}.jsonl"
+
+    published = 0
+    with journal_path.open("w", encoding="utf-8") as journal:
+        for expression in selected:
+            journal.write(
+                json.dumps(
+                    {
+                        "expression_id": str(expression.id),
+                        "text": expression.text,
+                        "previous_workflow": expression.workflow,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+            journal.flush()
+            publish_expression(db, expression.id)
+            published += 1
+
+    print(f"✅ Published {published} expressions")
+    print(f"   journal: {journal_path}")
+    print("Undo with:")
+    print(f"   python tools/maintenance/bulk_publish.py --undo {journal_path}")
+    return 0
+
+
 def run_undo(db, journal: Path) -> int:
     if not journal.exists():
         print(f"❌ No journal at {journal}")
@@ -113,6 +200,19 @@ def run_undo(db, journal: Path) -> int:
     entries = [json.loads(line) for line in journal.read_text().splitlines() if line.strip()]
     if not entries:
         print("Journal is empty; nothing to undo.")
+        return 0
+
+    if entries and "expression_id" in entries[0]:
+        restored = 0
+        for entry in entries:
+            expression = db.scalar(
+                select(Expression).where(Expression.id == entry["expression_id"])
+            )
+            if expression:
+                expression.workflow = entry["previous_workflow"]
+                restored += 1
+        db.commit()
+        print(f"✅ Restored {restored} expressions to their previous workflow.")
         return 0
 
     print(f"Restoring {len(entries)} lexemes from {journal.name}")
@@ -160,6 +260,11 @@ def main() -> int:
         default="draft",
         help="which workflow state to take candidates from (default: draft)",
     )
+    parser.add_argument(
+        "--expressions",
+        action="store_true",
+        help="publish methali/nahau instead of lexemes",
+    )
     parser.add_argument("--undo", type=Path, help="restore from a run's journal")
     parser.add_argument(
         "--journal-dir",
@@ -174,6 +279,9 @@ def main() -> int:
     try:
         if args.undo:
             return run_undo(db, args.undo)
+
+        if args.expressions:
+            return publish_expressions(db, args)
 
         rows = candidates(
             db, include_morphology=args.include_morphology, workflow=args.workflow

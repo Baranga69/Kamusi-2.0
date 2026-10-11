@@ -720,6 +720,37 @@ class LearnQuestion(BaseModel):
     expression_id: uuid.UUID | None = None
 
 
+class WordFindWord(BaseModel):
+    """One word hidden in the grid, with the meaning to show once it is found.
+
+    `cells` is the solution, and it is sent to the client for the same reason
+    `LearnQuestion.answer_index` is: nothing is at stake, the puzzle has to be
+    playable from the cache with no connection, and checking a drag locally is
+    instant where a round trip per attempt would not be.
+    """
+
+    lexeme_id: uuid.UUID
+    # The headword as it should be displayed, accents and capitals intact.
+    word: str
+    # The same word reduced to the letters that appear in the grid.
+    letters: str
+    definition: str
+    pos_code: str | None = None
+    # [[row, col], ...] in reading order, so the client can highlight the path.
+    cells: list[list[int]]
+
+
+class WordFindPuzzle(BaseModel):
+    """A word-search grid built from published, reviewed vocabulary."""
+
+    lang_code: str
+    size: int
+    # One string per row, `size` letters long. A list of strings rather than a
+    # list of lists: it is a third of the JSON and trivial to index.
+    rows: list[str]
+    words: list[WordFindWord]
+
+
 class LearnRound(BaseModel):
     kind: str
     lang_code: str

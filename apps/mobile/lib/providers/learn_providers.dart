@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/learn_progress_store.dart';
 import '../domain/models/learn_round.dart';
+import '../domain/models/word_find_puzzle.dart';
 import 'app_providers.dart';
 
 final learnProgressStoreProvider = Provider<LearnProgressStore>((ref) {
@@ -18,6 +19,11 @@ final dailyRoundProvider = FutureProvider<LearnRound>((ref) async {
 final practiceRoundProvider =
     FutureProvider.family<LearnRound, String>((ref, kind) async {
   return ref.read(kamusiRepositoryProvider).fetchPracticeRound(kind);
+});
+
+/// A fresh word-search grid. Invalidated to get another one.
+final wordFindProvider = FutureProvider<WordFindPuzzle>((ref) async {
+  return ref.read(kamusiRepositoryProvider).fetchWordFind();
 });
 
 class LearnProgressController extends AsyncNotifier<LearnProgress> {

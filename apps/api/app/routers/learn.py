@@ -13,6 +13,7 @@ reproducible from a seed.
 from __future__ import annotations
 
 import random
+import re
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -28,7 +29,7 @@ from app.models import (
     Sense,
     SenseDefinition,
 )
-from app.schemas import LearnQuestion, LearnRound
+from app.schemas import LearnQuestion, LearnRound, WordFindPuzzle, WordFindWord
 
 router = APIRouter(prefix="/learn", tags=["learn"])
 
@@ -345,3 +346,211 @@ def practice_round(
         methali_pool(db, lang) if "methali" in kinds else [],
     )
     return LearnRound(kind=kind, lang_code=lang, questions=questions)
+
+# --- word find -------------------------------------------------------------
+#
+# A grid of letters with vocabulary hidden in it. Finding a word reveals its
+# meaning, which is the point: the puzzle is the way in, the definition is
+# what you leave with.
+
+# Only these four directions, all of which read left-to-right or top-to-bottom.
+# A classic word search also hides words backwards, but reversed Swahili is a
+# puzzle about letters rather than about the language, and a learner gets
+# nothing from it.
+WORDFIND_DIRECTIONS = (
+    (0, 1),    # east
+    (1, 0),    # south
+    (1, 1),    # south-east
+    (-1, 1),   # north-east
+)
+
+WORDFIND_MIN_WORD = 4
+WORDFIND_MAX_WORD = 9
+WORDFIND_DEFAULT_SIZE = 11
+WORDFIND_DEFAULT_COUNT = 7
+# Attempts to seat one word before giving up on it and trying the next.
+WORDFIND_PLACEMENT_TRIES = 120
+
+# Filler letters, weighted roughly to written Swahili so the grid does not
+# read as obvious noise around the answers. No q or x: they do not occur in
+# Swahili, and a learner scanning for real letters should not have to skip
+# over them.
+WORDFIND_FILLER = "aaaaaiiiiuuuunnnmmmkkkwwtttieeeoosslyybhrdgjpfvzc"
+
+# Letters a word must consist of to be placeable. Apostrophes ("ng'ombe"),
+# spaces and hyphens cannot go in a grid cell.
+WORDFIND_ALPHABET = re.compile(r"^[a-z]+$")
+
+
+def wordfind_pool(db: Session, lang: str) -> list[_Word]:
+    """Published words shaped like something that fits in a grid.
+
+    Deliberately not `word_pool`: that one takes the first POOL_LIMIT rows by
+    lemma, which is fine for distractors but would mean every puzzle was built
+    from words starting with "a". This filters on shape in SQL and returns the
+    lot, so the caller can sample across the whole published vocabulary.
+    """
+    stmt = (
+        select(
+            Lexeme.id,
+            Lexeme.lemma,
+            PartOfSpeech.code,
+            SenseDefinition.definition,
+        )
+        .join(Sense, Sense.lexeme_id == Lexeme.id)
+        .join(SenseDefinition, SenseDefinition.sense_id == Sense.id)
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .where(
+            Lexeme.workflow == "published",
+            Sense.workflow == "published",
+            SenseDefinition.lang_code == lang,
+            func.length(SenseDefinition.definition) >= MIN_DEFINITION_LENGTH,
+            func.length(Lexeme.lemma) >= WORDFIND_MIN_WORD,
+            func.length(Lexeme.lemma) <= WORDFIND_MAX_WORD,
+        )
+        # The same review guard as every other read path. A game is a worse
+        # place than most to teach an unreviewed machine translation.
+        .where(
+            or_(
+                SenseDefinition.lang_code != "sw",
+                SenseDefinition.is_ai_generated.is_(False),
+                SenseDefinition.review_status.in_(["approved", "edited"]),
+            )
+        )
+        .order_by(Lexeme.normalized_lemma.asc(), Lexeme.id.asc())
+    )
+
+    seen: set = set()
+    pool: list[_Word] = []
+    for lexeme_id, lemma, pos_code, definition in db.execute(stmt).all():
+        if lexeme_id in seen:
+            continue
+        letters = lemma.strip().lower()
+        if not WORDFIND_ALPHABET.match(letters):
+            continue
+        seen.add(lexeme_id)
+        pool.append(_Word(lexeme_id, lemma.strip(), pos_code, definition.strip()))
+    return pool
+
+
+def _fits(rows: list[list[str]], letters: str, row: int, col: int, dr: int, dc: int) -> bool:
+    size = len(rows)
+    for index, letter in enumerate(letters):
+        r, c = row + dr * index, col + dc * index
+        if not (0 <= r < size and 0 <= c < size):
+            return False
+        occupant = rows[r][c]
+        # An empty cell, or one that already holds this very letter — words
+        # crossing on a shared letter is what makes a grid feel designed.
+        if occupant and occupant != letter:
+            return False
+    return True
+
+
+def _seat(rows: list[list[str]], letters: str, row: int, col: int, dr: int, dc: int):
+    cells = []
+    for index, letter in enumerate(letters):
+        r, c = row + dr * index, col + dc * index
+        rows[r][c] = letter
+        cells.append([r, c])
+    return cells
+
+
+def build_wordfind(
+    pool: list[_Word], *, size: int, count: int, rng: random.Random
+) -> tuple[list[str], list[WordFindWord]]:
+    """Seat as many words as will fit, then fill the gaps.
+
+    Returns however many it managed rather than failing: a grid with five of
+    the seven words asked for is still a puzzle, where an error is not.
+    """
+    rows: list[list[str]] = [["" for _ in range(size)] for _ in range(size)]
+    placed: list[WordFindWord] = []
+
+    eligible = [word for word in pool if len(word.lemma) <= size]
+    rng.shuffle(eligible)
+
+    # Choose a spread of lengths before choosing an order. Seating longest
+    # first is the right placement strategy, but selecting that way too gave
+    # a grid of seven nine-letter nouns — correct, and a dull puzzle. So:
+    # round-robin over the available lengths to pick the set, then sort that
+    # set longest-first to seat it.
+    by_length: dict[int, list[_Word]] = {}
+    for word in eligible:
+        by_length.setdefault(len(word.lemma), []).append(word)
+
+    chosen: list[_Word] = []
+    lengths = sorted(by_length)
+    # Twice what we need, so there are spares when one will not fit anywhere.
+    while lengths and len(chosen) < count * 2:
+        for length in list(lengths):
+            bucket = by_length[length]
+            if not bucket:
+                lengths.remove(length)
+                continue
+            chosen.append(bucket.pop())
+            if len(chosen) >= count * 2:
+                break
+
+    candidates = sorted(chosen, key=lambda word: len(word.lemma), reverse=True)
+
+    used_letters: set[str] = set()
+    for word in candidates:
+        if len(placed) >= count:
+            break
+        letters = word.lemma.lower()
+        # Two entries spelled the same would be indistinguishable in the grid.
+        if letters in used_letters:
+            continue
+        for _ in range(WORDFIND_PLACEMENT_TRIES):
+            dr, dc = rng.choice(WORDFIND_DIRECTIONS)
+            row = rng.randrange(size)
+            col = rng.randrange(size)
+            if not _fits(rows, letters, row, col, dr, dc):
+                continue
+            cells = _seat(rows, letters, row, col, dr, dc)
+            placed.append(
+                WordFindWord(
+                    lexeme_id=word.lexeme_id,
+                    word=word.lemma,
+                    letters=letters,
+                    definition=word.definition,
+                    pos_code=word.pos_code,
+                    cells=cells,
+                )
+            )
+            used_letters.add(letters)
+            break
+
+    for r in range(size):
+        for c in range(size):
+            if not rows[r][c]:
+                rows[r][c] = rng.choice(WORDFIND_FILLER)
+
+    return ["".join(row) for row in rows], placed
+
+
+@router.get("/wordfind", response_model=WordFindPuzzle)
+def word_find(
+    size: int = Query(WORDFIND_DEFAULT_SIZE, ge=8, le=14),
+    count: int = Query(WORDFIND_DEFAULT_COUNT, ge=3, le=10),
+    lang: str = Query("sw", pattern="^(sw|en)$"),
+    db: Session = Depends(get_db),
+) -> WordFindPuzzle:
+    pool = wordfind_pool(db, lang)
+    if not pool:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No published words are shaped for a grid yet. A word needs a "
+                "reviewed definition and a headword of "
+                f"{WORDFIND_MIN_WORD}-{WORDFIND_MAX_WORD} letters, no spaces."
+            ),
+        )
+
+    rows, words = build_wordfind(pool, size=size, count=count, rng=random.Random())
+    if not words:
+        raise HTTPException(
+            status_code=404, detail="Could not fit any word into a grid that size."
+        )
+    return WordFindPuzzle(lang_code=lang, size=size, rows=rows, words=words)

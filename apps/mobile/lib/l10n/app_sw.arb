@@ -152,5 +152,12 @@
   "settingsLanguage": "Lugha",
   "languageSwahili": "Kiswahili",
   "languageEnglish": "Kiingereza",
-  "languageSystem": "Fuata mipangilio ya simu"
+  "languageSystem": "Fuata mipangilio ya simu",
+  "learnWordFindTitle": "Tafuta Neno",
+  "learnWordFindCardBody": "Tafuta maneno yaliyofichwa, kisha ujifunze maana zao.",
+  "learnWordFindHint": "Chora kutoka herufi ya kwanza hadi ya mwisho.",
+  "learnWordFindFoundTitle": "Maneno uliyoyapata",
+  "learnWordFindEmpty": "Hakuna neno lililopatikana bado. Maana zitaonekana hapa.",
+  "learnWordFindDone": "Umepata maneno yote. Hongera!",
+  "learnWordFindNew": "Chemsha bongo mpya"
 }

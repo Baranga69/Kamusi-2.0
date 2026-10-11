@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/learn_progress_bar.dart';
 import 'learn_round_screen.dart';
+import 'word_find_screen.dart';
 
 /// The Jifunze surface.
 ///
@@ -183,7 +184,108 @@ class LearnHomeScreen extends ConsumerWidget {
                   ),
               ],
             ),
+            const SizedBox(height: 28),
+            // Its own card rather than a fifth practice tile: it is a
+            // different shape of game, not another quiz mix, and it takes a
+            // grid's worth of space to be worth opening.
+            _WordFindCard(
+              title: l10n.learnWordFindTitle,
+              body: l10n.learnWordFindCardBody,
+              onTap: () async {
+                ref.invalidate(wordFindProvider);
+                try {
+                  final puzzle = await ref.read(wordFindProvider.future);
+                  if (!context.mounted) {
+                    return;
+                  }
+                  if (puzzle.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.learnEmptyBody)),
+                    );
+                    return;
+                  }
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => WordFindScreen(puzzle: puzzle),
+                    ),
+                  );
+                } catch (_) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  // 404 when nothing published is shaped for a grid yet, which
+                  // is a content state rather than a failure.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.learnEmptyBody)),
+                  );
+                }
+              },
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WordFindCard extends StatelessWidget {
+  const _WordFindCard({
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+
+  final String title;
+  final String body;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Material(
+      color: colorScheme.tertiaryContainer,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Icon(
+                Icons.grid_on_outlined,
+                size: 32,
+                color: colorScheme.onTertiaryContainer,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onTertiaryContainer,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      body,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward,
+                color: colorScheme.onTertiaryContainer,
+              ),
+            ],
+          ),
         ),
       ),
     );

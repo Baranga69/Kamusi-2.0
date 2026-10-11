@@ -637,6 +637,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follow device'**
   String get languageSystem;
+
+  /// No description provided for @learnWordFindTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word Hunt'**
+  String get learnWordFindTitle;
+
+  /// No description provided for @learnWordFindCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Find the hidden words, then learn what they mean.'**
+  String get learnWordFindCardBody;
+
+  /// No description provided for @learnWordFindHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag from the first letter to the last.'**
+  String get learnWordFindHint;
+
+  /// No description provided for @learnWordFindFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Words you have found'**
+  String get learnWordFindFoundTitle;
+
+  /// No description provided for @learnWordFindEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found yet. Meanings will appear here.'**
+  String get learnWordFindEmpty;
+
+  /// No description provided for @learnWordFindDone.
+  ///
+  /// In en, this message translates to:
+  /// **'You found them all. Well done!'**
+  String get learnWordFindDone;
+
+  /// No description provided for @learnWordFindNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New puzzle'**
+  String get learnWordFindNew;
 }
 
 class _AppLocalizationsDelegate
