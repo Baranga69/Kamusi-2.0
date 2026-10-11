@@ -124,6 +124,11 @@ def main() -> None:
     # the authority on duplicates; this only catches the ones that would waste
     # a round trip, and reports them so a bad export can be fixed.
     seen_senses: set[str] = set()
+    # Definition text already used for a *different* sense. A model with
+    # nothing to work from returns the same filler over and over — one phrase
+    # came back for six different words in the first real corpus — and each
+    # copy reads like a definition on its own.
+    seen_text: dict[str, str] = {}
     rejects_file = None
 
     # Build SQL depending on conflict strategy
@@ -220,6 +225,14 @@ def main() -> None:
                         if sense_id in seen_senses:
                             problems.append("duplicate_in_file")
                         seen_senses.add(sense_id)
+
+                        if not SKIP_VALIDATION:
+                            fingerprint = " ".join(definition_sw.lower().split())
+                            previous = seen_text.get(fingerprint)
+                            if previous is not None and previous != sense_id:
+                                problems.append("reused_text")
+                            else:
+                                seen_text[fingerprint] = sense_id
 
                         if problems:
                             rejected_rows += 1

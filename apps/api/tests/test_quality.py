@@ -12,6 +12,7 @@ import pytest
 
 from app.core.quality import (
     MORPHOLOGY_PREFIXES,
+    is_bare_morphology_stub,
     analyze_english,
     check_definition,
     collapse,
@@ -203,3 +204,55 @@ def test_the_length_floor_is_adjustable():
 def test_collapse_normalises_for_comparison():
     assert collapse("  a\n\tb  ") == "a b"
     assert collapse(None) == ""
+
+
+# --- what the model was given, not what it returned -----------------------
+#
+# The hardest bad definition to catch is a fluent one. If the English source
+# was a bare "Stative form of" with no gloss, the model had no semantic input,
+# so whatever came back is invention — and it reads like a definition, which
+# is exactly why nothing downstream notices. Judge the input instead.
+
+
+@pytest.mark.parametrize(
+    "source", ["Stative form of", "Stative form of ", "Stative form of :", "Passive form of"]
+)
+def test_a_stub_with_no_gloss_is_recognised(source):
+    assert is_bare_morphology_stub(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Stative form of : to be rare",
+        "Passive form of -ona",
+        "a form of government that is elected",
+        "a writing implement that uses ink",
+    ],
+)
+def test_a_source_the_model_could_work_from_is_not_a_bare_stub(source):
+    assert not is_bare_morphology_stub(source)
+
+
+def test_a_definition_invented_from_a_bare_stub_is_refused():
+    """Fluent Swahili, and still not a definition of anything."""
+    problems = check_definition(
+        "Aina ya kitenzi inayoonyesha hali au mwelekeo.",
+        source_definition="Stative form of",
+    )
+    assert problems == ["source_was_bare_stub"]
+
+
+def test_a_definition_built_from_a_glossed_stub_is_kept():
+    """The model had the meaning to work from, and used it."""
+    assert (
+        check_definition(
+            "Kuwa nadra au kutopatikana kwa urahisi.",
+            source_definition="Stative form of : to be rare",
+        )
+        == []
+    )
+
+
+def test_a_missing_source_is_not_held_against_a_definition():
+    assert check_definition("chombo cha kuandikia chenye wino", source_definition=None) == []

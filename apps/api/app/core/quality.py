@@ -55,6 +55,21 @@ MORPHOLOGY_PATTERN = re.compile(
     r"[A-Z][a-z]+(?:[- ][A-Za-z]+)? form of\b"
 )
 
+# A morphology stub carrying no gloss at all: "Stative form of", with nothing
+# after it. Worth telling apart from "Stative form of : to be rare", because
+# the difference decides whether a model asked to define the word had any
+# semantic input or none.
+#
+# With none it invents, and the invention reads like a definition, so nothing
+# downstream catches it. In the first real corpus 77 definitions came from
+# bare stubs, and the proof was the repetition: "Aina ya kitenzi inayoonyesha
+# hali au mwelekeo" ("a type of verb showing state or direction") was returned
+# for six different words.
+BARE_MORPHOLOGY_PATTERN = re.compile(
+    r"^(?!(?:A|An|The|Another|Any|Some|One|No)\b)"
+    r"[A-Z][a-z]+(?:[- ][A-Za-z]+)? form of\s*:?\s*$"
+)
+
 # Function words that are common in English and rare-to-absent in Swahili.
 # Deliberately not content words: "radio" and "hoteli" are Swahili too.
 ENGLISH_STOP_WORDS = frozenset(
@@ -136,6 +151,17 @@ def looks_morphological(text: str) -> bool:
     return bool(MORPHOLOGY_PATTERN.match(collapse(text)))
 
 
+def is_bare_morphology_stub(text: str | None) -> bool:
+    """True when `text` is a morphology cross-reference with no gloss.
+
+    Asking a model to define a word from this gives it nothing to work from,
+    so whatever comes back is invention dressed as a definition.
+    """
+    if not text:
+        return False
+    return bool(BARE_MORPHOLOGY_PATTERN.match(collapse(text)))
+
+
 def looks_like_refusal(text: str) -> bool:
     """True when the model declined, or filled the field with a placeholder."""
     lowered = collapse(text).casefold().rstrip(".")
@@ -198,4 +224,8 @@ def check_definition(
         problems.append("echoes_lemma")
     if echoes(stripped, source_definition):
         problems.append("echoes_source")
+    if is_bare_morphology_stub(source_definition):
+        # Judged by what the model was given, not by what it returned: the
+        # Swahili reads fine, which is exactly why nothing else catches it.
+        problems.append("source_was_bare_stub")
     return problems

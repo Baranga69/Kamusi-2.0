@@ -253,6 +253,32 @@ poetry run python scripts/export_openapi.py
 poetry run python scripts/export_openapi.py --check   # what CI runs
 ```
 
+## Reviewing AI definitions in bulk
+
+An unreviewed AI definition is invisible to readers by design, so a corpus of
+them is a corpus nobody can use — and nothing can be published until they are
+reviewed.
+
+```bash
+cd apps/api
+export DATABASE_URL="postgresql+psycopg://kamusi:kamusi123@localhost:5433/kamusi"
+
+python tools/maintenance/bulk_approve_ai_defs.py                            # report + sample
+python tools/maintenance/bulk_approve_ai_defs.py --reviewer you@example.com --apply
+python tools/maintenance/bulk_approve_ai_defs.py --undo out/bulk_approve-<stamp>.jsonl
+```
+
+This is **not** a person having read each definition, and it does not pretend
+to be: it approves only what the quality gate finds no fault with, and records
+that in `review_note`. Anything flagged is left in the queue, because that is
+the set worth a person's time. `--reviewer` is required and must be an email,
+because approval makes text visible to readers and the audit trail has to name
+whoever is accountable for that rather than a script.
+
+The dry run prints a *random* sample rather than the first N — the first N by
+lemma are not a fair look at what you are about to publish. Read it before
+passing `--apply`.
+
 ## Publishing in bulk
 
 Publishing through the admin console is one lexeme and one click, which is
@@ -320,6 +346,8 @@ decide what is not worth a model call.
 | `echoes_lemma` | the definition is just the headword |
 | `echoes_source` | the model handed back its English prompt |
 | `duplicate_in_file` | the same sense appears twice in one input |
+| `reused_text` | the same definition text already used for another sense |
+| `source_was_bare_stub` | the English source was "Stative form of" with no gloss, so the model had nothing to define from |
 
 Refused rows are **written, not dropped** — to `<input>.rejected.jsonl` by
 default, one JSON object per row with the problems found and the original
@@ -340,6 +368,15 @@ DRY_RUN=true poetry run python tools/ai_defs/import_ai_defs.py
 # Tally the reasons across a rejects file.
 jq -r '.problems[]' tools/ai_defs/out/ai_defs.jsonl.rejected.jsonl | sort | uniq -c | sort -rn
 ```
+
+**Judging the input, not just the output.** `source_was_bare_stub` is the only
+check that looks at what the model was *given*. A bare morphology stub carries
+no meaning, so a definition generated from one is invention — and it comes
+back fluent, which is why nothing reading the Swahili alone can catch it. The
+first real corpus had 77 of these, and the giveaway was repetition: "Aina ya
+kitenzi inayoonyesha hali au mwelekeo" ("a type of verb showing state or
+direction") was returned for six different words. `reused_text` catches that
+second signal directly.
 
 The thresholds are deliberately forgiving, and each check needs more than one
 signal before it fires: `english` wants both an absolute count of function
