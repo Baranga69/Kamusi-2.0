@@ -18,11 +18,16 @@ class GameTimerBar extends StatefulWidget {
     super.key,
     required this.duration,
     required this.onExpired,
+    this.onTick,
     this.paused = false,
   });
 
   final Duration duration;
   final VoidCallback onExpired;
+
+  /// Reports what is left, so a screen can pay a speed bonus without
+  /// running a second clock of its own.
+  final ValueChanged<Duration>? onTick;
 
   /// True once the game is over, so the clock stops where it stopped rather
   /// than carrying on under a finished board.
@@ -62,10 +67,12 @@ class _GameTimerBarState extends State<GameTimerBar> {
       if (next <= Duration.zero) {
         setState(() => _left = Duration.zero);
         _ticker?.cancel();
+        widget.onTick?.call(Duration.zero);
         widget.onExpired();
         return;
       }
       setState(() => _left = next);
+      widget.onTick?.call(next);
     });
   }
 

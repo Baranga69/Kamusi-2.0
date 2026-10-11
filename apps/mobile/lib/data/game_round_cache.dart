@@ -18,7 +18,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class GameRoundCache {
   GameRoundCache({
     this.roundsPerGame = 10,
-    this.namespace = 'kamusi_games',
+    // Versioned: rounds queued before words carried points would score
+    // nothing, and a stale queue is cheaper to drop than to migrate.
+    this.namespace = 'kamusi_games_v2',
     Random? random,
   }) : _random = random ?? Random();
 
@@ -156,8 +158,8 @@ class _Queues {
 class GameIds {
   static const wordFind = 'wordfind';
   static const wordBuild = 'wordbuild';
-  static const codeword = 'codeword';
+  static const crossword = 'crossword';
   static String practice(String kind) => 'round:$kind';
 
-  static const all = [wordFind, wordBuild, codeword];
+  static const all = [wordFind, wordBuild, crossword];
 }

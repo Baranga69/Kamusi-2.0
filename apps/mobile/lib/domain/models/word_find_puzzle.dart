@@ -11,6 +11,7 @@ class WordFindWord {
     required this.letters,
     required this.definition,
     required this.posCode,
+    required this.points,
     required this.cells,
   });
 
@@ -26,6 +27,9 @@ class WordFindWord {
   final String definition;
   final String? posCode;
 
+  /// What finding this word is worth, before any speed bonus.
+  final int points;
+
   /// The solution path, in reading order.
   final List<WordFindCell> cells;
 
@@ -36,6 +40,7 @@ class WordFindWord {
       letters: (json['letters'] ?? '').toString(),
       definition: (json['definition'] ?? '').toString(),
       posCode: json['pos_code']?.toString(),
+      points: (json['points'] as num?)?.toInt() ?? 0,
       cells: (json['cells'] as List?)
               ?.whereType<List>()
               .where((pair) => pair.length >= 2)

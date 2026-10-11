@@ -782,47 +782,59 @@ abstract class AppLocalizations {
   /// **'Play without a clock.'**
   String get learnGameTimedOff;
 
-  /// No description provided for @learnCodewordTitle.
+  /// No description provided for @learnCrosswordTitle.
   ///
   /// In en, this message translates to:
-  /// **'Codeword'**
-  String get learnCodewordTitle;
+  /// **'Crossword'**
+  String get learnCrosswordTitle;
 
-  /// No description provided for @learnCodewordCardBody.
+  /// No description provided for @learnCrosswordCardBody.
   ///
   /// In en, this message translates to:
-  /// **'Every letter is a number. Crack the numbers, open the words.'**
-  String get learnCodewordCardBody;
+  /// **'Fill interlocking words from their meanings.'**
+  String get learnCrosswordCardBody;
 
-  /// No description provided for @learnCodewordHint.
+  /// No description provided for @learnCrosswordHint.
   ///
   /// In en, this message translates to:
-  /// **'Tap a number, then choose its letter.'**
-  String get learnCodewordHint;
+  /// **'Tap a square, then type a letter.'**
+  String get learnCrosswordHint;
 
-  /// No description provided for @learnCodewordPick.
+  /// No description provided for @learnCrosswordAcross.
   ///
   /// In en, this message translates to:
-  /// **'Choose the letter for {code}'**
-  String learnCodewordPick(int code);
+  /// **'Across'**
+  String get learnCrosswordAcross;
 
-  /// No description provided for @learnCodewordDone.
+  /// No description provided for @learnCrosswordDown.
   ///
   /// In en, this message translates to:
-  /// **'Every word is open!'**
-  String get learnCodewordDone;
+  /// **'Down'**
+  String get learnCrosswordDown;
 
-  /// No description provided for @learnCodewordGiven.
+  /// No description provided for @learnCrosswordDone.
   ///
   /// In en, this message translates to:
-  /// **'Given'**
-  String get learnCodewordGiven;
+  /// **'The whole grid is filled!'**
+  String get learnCrosswordDone;
 
-  /// No description provided for @learnCodewordClear.
+  /// No description provided for @learnGameScore.
   ///
   /// In en, this message translates to:
-  /// **'Clear'**
-  String get learnCodewordClear;
+  /// **'Score'**
+  String get learnGameScore;
+
+  /// No description provided for @learnGameBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best {score}'**
+  String learnGameBest(int score);
+
+  /// No description provided for @learnGameNewBest.
+  ///
+  /// In en, this message translates to:
+  /// **'New best: {score} points!'**
+  String learnGameNewBest(int score);
 }
 
 class _AppLocalizationsDelegate

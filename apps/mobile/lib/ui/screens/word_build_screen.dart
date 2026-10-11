@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../domain/models/word_build_puzzle.dart';
+import '../../data/game_round_cache.dart';
+import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
@@ -50,6 +52,8 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   /// Set when the clock runs out. Every answer is then revealed: being shown
   /// the words you could not see is the part worth having.
   bool _outOfTime = false;
+  int _score = 0;
+  Duration? _timeLeft;
 
   WordBuildPuzzle get _puzzle => widget.puzzle;
 
@@ -133,6 +137,11 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
       _dragLock = false;
       if (solved != null && !_found.contains(solved.letters)) {
         _found.add(solved.letters);
+        _score += GameScore.award(
+          points: solved.points,
+          timeLeft: widget.timed ? _timeLeft : null,
+          total: widget.timed ? GameDurations.wordBuild : null,
+        );
         _lastAttemptFailed = false;
       } else if (attempt.isNotEmpty) {
         _lastAttemptFailed = solved == null;
@@ -203,7 +212,18 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             GameTimerBar(
               duration: GameDurations.wordBuild,
               paused: _over,
-              onExpired: () => setState(() => _outOfTime = true),
+              onTick: (left) => _timeLeft = left,
+              onExpired: () {
+                setState(() => _outOfTime = true);
+                ref
+                    .read(gameSettingsStoreProvider)
+                    .recordScore(GameIds.wordBuild, _score)
+                    .then((_) {
+                  if (mounted) {
+                    ref.invalidate(bestScoresProvider);
+                  }
+                });
+              },
             ),
             const SizedBox(height: 14),
           ],
@@ -280,6 +300,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             found: _found.length,
             total: _puzzle.words.length,
             complete: _complete,
+            score: _score,
             doneLabel: l10n.learnWordBuildDone,
             learnColors: learnColors,
           ),
@@ -507,6 +528,7 @@ class _ProgressRow extends StatelessWidget {
     required this.found,
     required this.total,
     required this.complete,
+    required this.score,
     required this.doneLabel,
     required this.learnColors,
   });
@@ -514,6 +536,7 @@ class _ProgressRow extends StatelessWidget {
   final int found;
   final int total;
   final bool complete;
+  final int score;
   final String doneLabel;
   final KamusiLearnColors? learnColors;
 
@@ -539,6 +562,14 @@ class _ProgressRow extends StatelessWidget {
                 learnColors?.correct ?? theme.colorScheme.primary,
               ),
             ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          '$score',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: learnColors?.correct,
           ),
         ),
         if (complete) ...[

@@ -11,6 +11,7 @@ class WordBuildWord {
     required this.letters,
     required this.definition,
     required this.posCode,
+    required this.points,
     required this.isPangram,
   });
 
@@ -21,6 +22,9 @@ class WordBuildWord {
   final String letters;
   final String definition;
   final String? posCode;
+
+  /// What building this word is worth, before any speed bonus.
+  final int points;
 
   /// True for the one word that uses every letter in the ring.
   final bool isPangram;
@@ -34,6 +38,7 @@ class WordBuildWord {
       letters: (json['letters'] ?? '').toString().toLowerCase(),
       definition: (json['definition'] ?? '').toString(),
       posCode: json['pos_code']?.toString(),
+      points: (json['points'] as num?)?.toInt() ?? 0,
       isPangram: json['is_pangram'] == true,
     );
   }

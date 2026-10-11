@@ -184,18 +184,27 @@
   "learnGameTimed": "Kwa muda",
   "learnGameTimedOn": "Saa inahesabu wakati unacheza.",
   "learnGameTimedOff": "Cheza bila haraka, bila saa.",
-  "learnCodewordTitle": "Neno la Siri",
-  "learnCodewordCardBody": "Kila herufi ni namba. Tambua namba, fungua maneno.",
-  "learnCodewordHint": "Gusa namba, kisha chagua herufi yake.",
-  "learnCodewordPick": "Chagua herufi ya namba {code}",
-  "@learnCodewordPick": {
+  "learnCrosswordTitle": "Chemsha Bongo",
+  "learnCrosswordCardBody": "Jaza maneno yanayopishana kwa kutumia maana zao.",
+  "learnCrosswordHint": "Gusa kisanduku, kisha andika herufi.",
+  "learnCrosswordAcross": "Kulala",
+  "learnCrosswordDown": "Kusimama",
+  "learnCrosswordDone": "Umejaza chemsha bongo yote!",
+  "learnGameScore": "Alama",
+  "learnGameBest": "Bora {score}",
+  "@learnGameBest": {
     "placeholders": {
-      "code": {
+      "score": {
         "type": "int"
       }
     }
   },
-  "learnCodewordDone": "Umefungua maneno yote!",
-  "learnCodewordGiven": "Umepewa",
-  "learnCodewordClear": "Futa"
+  "learnGameNewBest": "Rekodi mpya: alama {score}!",
+  "@learnGameNewBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  }
 }

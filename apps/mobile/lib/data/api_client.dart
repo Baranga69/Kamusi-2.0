@@ -245,14 +245,14 @@ class ApiClient {
     return data;
   }
 
-  /// A codeword board, as raw JSON. Queued like the other games.
-  Future<Map<String, dynamic>> getCodewordJson({String lang = 'sw'}) async {
-    final response = await get('/learn/codeword', queryParameters: {'lang': lang});
+  /// A crossword grid, as raw JSON. Queued like the other games.
+  Future<Map<String, dynamic>> getCrosswordJson({String lang = 'sw'}) async {
+    final response = await get('/learn/crossword', queryParameters: {'lang': lang});
     final data = response.data;
     if (data is! Map<String, dynamic>) {
       throw DioException(
-        requestOptions: RequestOptions(path: '/learn/codeword'),
-        error: 'Unexpected codeword response',
+        requestOptions: RequestOptions(path: '/learn/crossword'),
+        error: 'Unexpected crossword response',
       );
     }
     return data;

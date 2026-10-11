@@ -5,7 +5,7 @@ import '../domain/models/learn_round.dart';
 import '../data/game_round_cache.dart';
 import '../data/game_settings_store.dart';
 import '../data/game_rounds_service.dart';
-import '../domain/models/codeword_puzzle.dart';
+import '../domain/models/crossword_puzzle.dart';
 import '../domain/models/word_build_puzzle.dart';
 import '../domain/models/word_find_puzzle.dart';
 import 'app_providers.dart';
@@ -70,9 +70,19 @@ final wordBuildProvider = FutureProvider<WordBuildPuzzle>((ref) async {
   return ref.read(gameRoundsServiceProvider).nextWordBuild();
 });
 
-/// A codeword board, from the same queue.
-final codewordProvider = FutureProvider<CodewordPuzzle>((ref) async {
-  return ref.read(gameRoundsServiceProvider).nextCodeword();
+/// A crossword grid, from the same queue.
+final crosswordProvider = FutureProvider<CrosswordPuzzle>((ref) async {
+  return ref.read(gameRoundsServiceProvider).nextCrossword();
+});
+
+/// Best score per game, for the cards on the Jifunze home.
+final bestScoresProvider = FutureProvider<Map<String, int>>((ref) async {
+  final store = ref.read(gameSettingsStoreProvider);
+  final scores = <String, int>{};
+  for (final game in GameIds.all) {
+    scores[game] = await store.bestScore(game);
+  }
+  return scores;
 });
 
 /// How many rounds of each game are playable with no connection.

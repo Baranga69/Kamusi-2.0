@@ -31,8 +31,8 @@ from app.models import (
     SenseDefinition,
 )
 from app.schemas import (
-    CodewordEntry,
-    CodewordPuzzle,
+    CrosswordEntry,
+    CrosswordPuzzle,
     LearnQuestion,
     LearnRound,
     WordBuildPuzzle,
@@ -476,6 +476,7 @@ def build_wordfind(
     """
     rows: list[list[str]] = [["" for _ in range(size)] for _ in range(size)]
     placed: list[WordFindWord] = []
+    rare = letter_rarity(pool)
 
     eligible = [word for word in pool if len(word.lemma) <= size]
     rng.shuffle(eligible)
@@ -526,6 +527,7 @@ def build_wordfind(
                     letters=letters,
                     definition=word.definition,
                     pos_code=word.pos_code,
+                    points=word_points(letters, rare),
                     cells=cells,
                 )
             )
@@ -645,6 +647,7 @@ def build_wordbuild(
     worth playing, which the caller turns into a 404 rather than a thin ring
     nobody can finish.
     """
+    rare = letter_rarity(pool)
     counted = [(word, Counter(word.lemma.lower())) for word in pool]
     bases = [pair for pair in counted if len(pair[0].lemma) == WORDBUILD_LETTERS]
     rng.shuffle(bases)
@@ -699,27 +702,68 @@ def word_build(
         )
     return WordBuildPuzzle(lang_code=lang, letters=letters, words=words)
 
-
-# --- codeword --------------------------------------------------------------
+# --- what a word is worth --------------------------------------------------
 #
-# Every letter is replaced by a number, the same number everywhere it occurs.
-# Crack a letter in one word and it opens in all of them, which is the whole
-# pleasure of the form — and it happens to drill exactly the thing a learner
-# of a new orthography needs: which letters actually recur in this language.
+# Scored on the server so every game values a word identically: finding
+# "momonyoa" in the grid should be worth what building it in the ring is.
+# Two things make a word hard, and both are measurable without guessing at a
+# learner's head: how long it is, and how unusual its letters are in this
+# language. Speed is the client's half of the sum, since only it knows how
+# long the player took.
 
-CODEWORD_ENTRIES = 5
-CODEWORD_MIN_WORD = 4
-CODEWORD_MAX_WORD = 9
-# Keeping the alphabet small is what makes numbers repeat often enough to
-# deduce anything. Above this the board is a cipher with no leverage.
-CODEWORD_MAX_ALPHABET = 13
-# Letters given away at the start, so there is somewhere to begin.
-CODEWORD_REVEALED = 2
-CODEWORD_SEED_TRIES = 80
+POINTS_PER_LETTER = 10
+POINTS_PER_RARE_LETTER = 5
 
 
-def codeword_pool(db: Session, lang: str) -> list[_Word]:
-    """Published words of a length that fits a row of numbered cells."""
+def letter_rarity(pool: list[_Word]) -> set[str]:
+    """The less common half of the alphabet, measured from the corpus itself.
+
+    Taken from the published vocabulary rather than a table copied from
+    somewhere, so it describes *this* dictionary. As the corpus grows the
+    measurement improves on its own.
+    """
+    counts = Counter()
+    for word in pool:
+        counts.update(word.lemma.lower())
+    if not counts:
+        return set()
+    ordered = [letter for letter, _ in counts.most_common()]
+    return set(ordered[len(ordered) // 2 :])
+
+
+def word_points(word: str, rare: set[str]) -> int:
+    """Length, plus a bonus for each distinct awkward letter.
+
+    Distinct rather than every occurrence: "kikikiki" is not harder than
+    "kiki" for having more k's in it.
+    """
+    letters = word.lower()
+    bonus = sum(1 for letter in set(letters) if letter in rare)
+    return POINTS_PER_LETTER * len(letters) + POINTS_PER_RARE_LETTER * bonus
+
+
+# --- crossword -------------------------------------------------------------
+#
+# Words interlocking in a grid, clued by their definitions. The crossings are
+# what make it a crossword rather than a list of questions: a letter you are
+# sure of in one answer is a letter given to another, which is the same
+# pleasure the codeword had and rather more useful, because here the thing
+# you deduce is a word rather than a cipher.
+
+CROSSWORD_SIZE = 13
+CROSSWORD_TARGET = 12
+CROSSWORD_MIN_WORD = 3
+CROSSWORD_MAX_WORD = 9
+CROSSWORD_MIN_ENTRIES = 6
+# Layouts to try before giving up. One greedy pass can strand itself on an
+# unlucky seed — a long word with rare letters, seated where little crosses
+# it — and return a board too thin to play. Trying again with a different
+# first word is far cheaper than refusing.
+CROSSWORD_ATTEMPTS = 12
+
+
+def crossword_pool(db: Session, lang: str) -> list[_Word]:
+    """Published words short enough to interlock on a phone-sized grid."""
     stmt = (
         select(
             Lexeme.id,
@@ -735,8 +779,8 @@ def codeword_pool(db: Session, lang: str) -> list[_Word]:
             Sense.workflow == "published",
             SenseDefinition.lang_code == lang,
             func.length(SenseDefinition.definition) >= MIN_DEFINITION_LENGTH,
-            func.length(Lexeme.lemma) >= CODEWORD_MIN_WORD,
-            func.length(Lexeme.lemma) <= CODEWORD_MAX_WORD,
+            func.length(Lexeme.lemma) >= CROSSWORD_MIN_WORD,
+            func.length(Lexeme.lemma) <= CROSSWORD_MAX_WORD,
         )
         .where(
             or_(
@@ -763,94 +807,184 @@ def codeword_pool(db: Session, lang: str) -> list[_Word]:
     return pool
 
 
-def build_codeword(
-    pool: list[_Word], *, rng: random.Random
-) -> tuple[dict[str, int], list[str], list[CodewordEntry]]:
-    """Gather words that share an alphabet, then number its letters.
+def _crossword_fit(grid, word: str, row: int, col: int, dr: int, dc: int):
+    """How many letters this placement shares, or None if it does not fit.
 
-    Built greedily around a seed word: each addition is the candidate that
-    adds fewest new letters, because a board where every number appears once
-    is a substitution with nothing to deduce.
+    The awkward part of a crossword generator is not the crossings, it is
+    everything it must *not* create: a word butted against another end to
+    end, or running alongside one so the perpendicular reading becomes a
+    second, unintended entry. Both are checked here.
     """
-    if len(pool) < CODEWORD_ENTRIES:
-        return {}, [], []
+    size = len(grid)
+    length = len(word)
+    end_row, end_col = row + dr * (length - 1), col + dc * (length - 1)
+    if not (0 <= row < size and 0 <= col < size):
+        return None
+    if not (0 <= end_row < size and 0 <= end_col < size):
+        return None
 
-    shuffled = list(pool)
-    rng.shuffle(shuffled)
+    before_row, before_col = row - dr, col - dc
+    after_row, after_col = row + dr * length, col + dc * length
+    for r, c in ((before_row, before_col), (after_row, after_col)):
+        if 0 <= r < size and 0 <= c < size and grid[r][c] is not None:
+            return None
 
-    for seed in shuffled[:CODEWORD_SEED_TRIES]:
-        chosen = [seed]
-        alphabet = set(seed.lemma.lower())
+    crossings = 0
+    for index, letter in enumerate(word):
+        r, c = row + dr * index, col + dc * index
+        occupant = grid[r][c]
+        if occupant is None:
+            # Nothing may sit shoulder to shoulder with a letter we are
+            # laying down fresh.
+            for pr, pc in ((dc, dr), (-dc, -dr)):
+                nr, nc = r + pr, c + pc
+                if 0 <= nr < size and 0 <= nc < size and grid[nr][nc] is not None:
+                    return None
+        elif occupant == letter:
+            crossings += 1
+        else:
+            return None
+    return crossings
 
-        # Cheapest-first, recomputed each round: what is cheap changes as the
-        # alphabet grows.
-        while len(chosen) < CODEWORD_ENTRIES:
-            best = None
-            best_cost = None
-            for word in shuffled:
-                if word in chosen:
-                    continue
-                letters = set(word.lemma.lower())
-                cost = len(letters - alphabet)
-                if len(alphabet | letters) > CODEWORD_MAX_ALPHABET:
-                    continue
-                if best_cost is None or cost < best_cost:
-                    best, best_cost = word, cost
-                    if cost == 0:
-                        break
-            if best is None:
-                break
-            chosen.append(best)
-            alphabet |= set(best.lemma.lower())
 
-        if len(chosen) < CODEWORD_ENTRIES:
-            continue
+def _crossword_place(grid, word: str, row: int, col: int, dr: int, dc: int) -> None:
+    for index, letter in enumerate(word):
+        grid[row + dr * index][col + dc * index] = letter
 
-        letters = sorted(alphabet)
-        numbers = list(range(1, len(letters) + 1))
-        rng.shuffle(numbers)
-        codes = {letter: number for letter, number in zip(letters, numbers)}
 
-        # Give away the two commonest letters: they open the most cells and
-        # make the first deduction reachable rather than a guess.
-        frequency = Counter("".join(word.lemma.lower() for word in chosen))
-        revealed = [letter for letter, _ in frequency.most_common(CODEWORD_REVEALED)]
+def build_crossword(
+    pool: list[_Word], *, rng: random.Random
+) -> list[tuple[_Word, int, int, int, int]]:
+    """The best of several greedy layouts.
 
-        rng.shuffle(chosen)
-        return (
-            codes,
-            revealed,
-            [
-                CodewordEntry(
-                    lexeme_id=word.lexeme_id,
-                    word=word.lemma,
-                    letters=word.lemma.lower(),
-                    definition=word.definition,
-                    pos_code=word.pos_code,
-                )
-                for word in chosen
-            ],
+    One pass can strand itself on an unlucky seed and come back with three
+    words, so this runs a few and keeps the fullest. Returns empty only if
+    none of them reached a playable size.
+    """
+    candidates = [word for word in pool if len(word.lemma) <= CROSSWORD_SIZE]
+    if len(candidates) < CROSSWORD_MIN_ENTRIES:
+        return []
+
+    best: list[tuple[_Word, int, int, int, int]] = []
+    for _ in range(CROSSWORD_ATTEMPTS):
+        attempt = _crossword_attempt(candidates, rng=rng)
+        if len(attempt) > len(best):
+            best = attempt
+        if len(best) >= CROSSWORD_TARGET:
+            break
+    return best if len(best) >= CROSSWORD_MIN_ENTRIES else []
+
+
+def _crossword_attempt(
+    candidates: list[_Word], *, rng: random.Random
+) -> list[tuple[_Word, int, int, int, int]]:
+    """Seat a first word in the middle, then hang the rest off it.
+
+    Greedy, preferring the placement with the most crossings: a grid where
+    every word touches only one other is a list of clues in a trench coat.
+    """
+    candidates = list(candidates)
+    rng.shuffle(candidates)
+    candidates.sort(key=lambda word: len(word.lemma), reverse=True)
+
+    grid = [[None] * CROSSWORD_SIZE for _ in range(CROSSWORD_SIZE)]
+    seed = candidates[0]
+    seed_letters = seed.lemma.lower()
+    row = CROSSWORD_SIZE // 2
+    col = (CROSSWORD_SIZE - len(seed_letters)) // 2
+    _crossword_place(grid, seed_letters, row, col, 0, 1)
+    placed: list[tuple[_Word, int, int, int, int]] = [(seed, row, col, 0, 1)]
+
+    for word in candidates[1:]:
+        if len(placed) >= CROSSWORD_TARGET:
+            break
+        letters = word.lemma.lower()
+        best = None
+        for other, other_row, other_col, other_dr, other_dc in placed:
+            other_letters = other.lemma.lower()
+            # Cross it the other way round; two words the same way round
+            # cannot share a cell.
+            dr, dc = (1, 0) if other_dr == 0 else (0, 1)
+            for i, anchor_letter in enumerate(other_letters):
+                anchor_row = other_row + other_dr * i
+                anchor_col = other_col + other_dc * i
+                for j, letter in enumerate(letters):
+                    if letter != anchor_letter:
+                        continue
+                    start_row = anchor_row - dr * j
+                    start_col = anchor_col - dc * j
+                    crossings = _crossword_fit(
+                        grid, letters, start_row, start_col, dr, dc
+                    )
+                    if crossings and (best is None or crossings > best[0]):
+                        best = (crossings, start_row, start_col, dr, dc)
+        if best is not None:
+            _, start_row, start_col, dr, dc = best
+            _crossword_place(grid, letters, start_row, start_col, dr, dc)
+            placed.append((word, start_row, start_col, dr, dc))
+
+    return placed
+
+
+def number_crossword(placed) -> list[tuple[_Word, int, str, int, int]]:
+    """Number the entries the way a printed crossword does.
+
+    Cells are walked in reading order and numbered as they are met, so an
+    across and a down answer starting in the same cell share one number.
+    """
+    starts = {(row, col) for _, row, col, _, _ in placed}
+    numbers: dict[tuple[int, int], int] = {}
+    next_number = 1
+    for row in range(CROSSWORD_SIZE):
+        for col in range(CROSSWORD_SIZE):
+            if (row, col) in starts:
+                numbers[(row, col)] = next_number
+                next_number += 1
+
+    return [
+        (
+            word,
+            numbers[(row, col)],
+            "across" if dr == 0 else "down",
+            row,
+            col,
         )
+        for word, row, col, dr, dc in placed
+    ]
 
-    return {}, [], []
 
-
-@router.get("/codeword", response_model=CodewordPuzzle)
-def codeword(
+@router.get("/crossword", response_model=CrosswordPuzzle)
+def crossword(
     lang: str = Query("sw", pattern="^(sw|en)$"),
     db: Session = Depends(get_db),
-) -> CodewordPuzzle:
-    pool = codeword_pool(db, lang)
-    codes, revealed, entries = build_codeword(pool, rng=random.Random())
-    if not entries:
+) -> CrosswordPuzzle:
+    pool = crossword_pool(db, lang)
+    placed = build_crossword(pool, rng=random.Random())
+    if not placed:
         raise HTTPException(
             status_code=404,
             detail=(
-                "Not enough published vocabulary for a codeword yet. This "
-                f"needs {CODEWORD_ENTRIES} reviewed words that between them "
-                f"use no more than {CODEWORD_MAX_ALPHABET} different letters."
+                "Not enough published vocabulary for a crossword yet. This "
+                f"needs at least {CROSSWORD_MIN_ENTRIES} reviewed words that "
+                "interlock on a grid."
             ),
         )
-    return CodewordPuzzle(
-        lang_code=lang, codes=codes, revealed=revealed, entries=entries
-    )
+
+    rare = letter_rarity(pool)
+    entries = [
+        CrosswordEntry(
+            lexeme_id=word.lexeme_id,
+            number=number,
+            direction=direction,
+            row=row,
+            col=col,
+            word=word.lemma,
+            answer=word.lemma.lower(),
+            definition=word.definition,
+            pos_code=word.pos_code,
+            points=word_points(word.lemma, rare),
+        )
+        for word, number, direction, row, col in number_crossword(placed)
+    ]
+    entries.sort(key=lambda entry: (entry.direction, entry.number))
+    return CrosswordPuzzle(lang_code=lang, size=CROSSWORD_SIZE, entries=entries)

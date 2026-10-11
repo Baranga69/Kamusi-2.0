@@ -736,6 +736,9 @@ class WordFindWord(BaseModel):
     letters: str
     definition: str
     pos_code: str | None = None
+    # What finding this word is worth, before any speed bonus. Scored on the
+    # server so every game values a word the same way.
+    points: int = 0
     # [[row, col], ...] in reading order, so the client can highlight the path.
     cells: list[list[int]]
 
@@ -759,6 +762,7 @@ class WordBuildWord(BaseModel):
     letters: str
     definition: str
     pos_code: str | None = None
+    points: int = 0
     # True for the word that uses every letter in the ring. There is always
     # exactly one, and it is what makes the set of letters solvable rather
     # than arbitrary.
@@ -780,31 +784,34 @@ class WordBuildPuzzle(BaseModel):
     words: list[WordBuildWord]
 
 
-class CodewordEntry(BaseModel):
-    """One word in the grid, with the clue that identifies it."""
+class CrosswordEntry(BaseModel):
+    """One answer in the grid, with its clue."""
 
     lexeme_id: uuid.UUID
+    # The clue number, shared with a perpendicular entry starting in the
+    # same cell, exactly as a printed crossword numbers them.
+    number: int
+    direction: str  # "across" | "down"
+    row: int
+    col: int
     word: str
-    letters: str
+    answer: str
     definition: str
     pos_code: str | None = None
+    points: int = 0
 
 
-class CodewordPuzzle(BaseModel):
-    """A set of words written as numbers, one number per letter.
+class CrosswordPuzzle(BaseModel):
+    """An interlocking grid of words, clued by their definitions.
 
-    The whole key is sent, like every other round here: nothing is at stake,
-    and the board has to be solvable from the cache with no connection. The
-    deduction is the game — knowing the key would spoil it, but a player who
-    wants to cheat can already read the clues.
+    Only the entries are sent; the client derives which cells are fillable
+    from them. The answers come too, as everywhere else here: nothing is at
+    stake and the board has to work from the cache with no connection.
     """
 
     lang_code: str
-    # letter -> its number, for every letter used anywhere in the puzzle.
-    codes: dict[str, int]
-    # Letters filled in from the start, so there is somewhere to begin.
-    revealed: list[str]
-    entries: list[CodewordEntry]
+    size: int
+    entries: list[CrosswordEntry]
 
 
 class LearnRound(BaseModel):

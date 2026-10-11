@@ -376,26 +376,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get learnGameTimedOff => 'Play without a clock.';
 
   @override
-  String get learnCodewordTitle => 'Codeword';
+  String get learnCrosswordTitle => 'Crossword';
 
   @override
-  String get learnCodewordCardBody =>
-      'Every letter is a number. Crack the numbers, open the words.';
+  String get learnCrosswordCardBody =>
+      'Fill interlocking words from their meanings.';
 
   @override
-  String get learnCodewordHint => 'Tap a number, then choose its letter.';
+  String get learnCrosswordHint => 'Tap a square, then type a letter.';
 
   @override
-  String learnCodewordPick(int code) {
-    return 'Choose the letter for $code';
+  String get learnCrosswordAcross => 'Across';
+
+  @override
+  String get learnCrosswordDown => 'Down';
+
+  @override
+  String get learnCrosswordDone => 'The whole grid is filled!';
+
+  @override
+  String get learnGameScore => 'Score';
+
+  @override
+  String learnGameBest(int score) {
+    return 'Best $score';
   }
 
   @override
-  String get learnCodewordDone => 'Every word is open!';
-
-  @override
-  String get learnCodewordGiven => 'Given';
-
-  @override
-  String get learnCodewordClear => 'Clear';
+  String learnGameNewBest(int score) {
+    return 'New best: $score points!';
+  }
 }

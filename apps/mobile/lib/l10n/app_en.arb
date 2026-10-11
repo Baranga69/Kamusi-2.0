@@ -184,18 +184,27 @@
   "learnGameTimed": "Timed",
   "learnGameTimedOn": "A clock runs while you play.",
   "learnGameTimedOff": "Play without a clock.",
-  "learnCodewordTitle": "Codeword",
-  "learnCodewordCardBody": "Every letter is a number. Crack the numbers, open the words.",
-  "learnCodewordHint": "Tap a number, then choose its letter.",
-  "learnCodewordPick": "Choose the letter for {code}",
-  "@learnCodewordPick": {
+  "learnCrosswordTitle": "Crossword",
+  "learnCrosswordCardBody": "Fill interlocking words from their meanings.",
+  "learnCrosswordHint": "Tap a square, then type a letter.",
+  "learnCrosswordAcross": "Across",
+  "learnCrosswordDown": "Down",
+  "learnCrosswordDone": "The whole grid is filled!",
+  "learnGameScore": "Score",
+  "learnGameBest": "Best {score}",
+  "@learnGameBest": {
     "placeholders": {
-      "code": {
+      "score": {
         "type": "int"
       }
     }
   },
-  "learnCodewordDone": "Every word is open!",
-  "learnCodewordGiven": "Given",
-  "learnCodewordClear": "Clear"
+  "learnGameNewBest": "New best: {score} points!",
+  "@learnGameNewBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  }
 }

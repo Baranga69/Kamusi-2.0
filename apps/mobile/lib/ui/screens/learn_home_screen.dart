@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../data/game_round_cache.dart';
 import '../../data/learn_progress_store.dart';
 import '../../domain/models/learn_round.dart';
 import '../../providers/learn_providers.dart';
@@ -11,7 +12,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/learn_progress_bar.dart';
 import 'learn_round_screen.dart';
-import 'codeword_screen.dart';
+import 'crossword_screen.dart';
 import 'word_build_screen.dart';
 import 'word_find_screen.dart';
 
@@ -140,11 +141,11 @@ class LearnHomeScreen extends ConsumerWidget {
     ref.invalidate(gameRoundsReadyProvider);
   }
 
-  Future<void> _openCodeword(BuildContext context, WidgetRef ref,
+  Future<void> _openCrossword(BuildContext context, WidgetRef ref,
       AppLocalizations l10n, bool timed) async {
-    ref.invalidate(codewordProvider);
+    ref.invalidate(crosswordProvider);
     try {
-      final puzzle = await ref.read(codewordProvider.future);
+      final puzzle = await ref.read(crosswordProvider.future);
       if (!context.mounted) {
         return;
       }
@@ -155,7 +156,7 @@ class LearnHomeScreen extends ConsumerWidget {
       }
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => CodewordScreen(puzzle: puzzle, timed: timed),
+          builder: (_) => CrosswordScreen(puzzle: puzzle, timed: timed),
         ),
       );
     } catch (_) {
@@ -176,6 +177,7 @@ class LearnHomeScreen extends ConsumerWidget {
     final daily = ref.watch(dailyRoundProvider);
     final progress = ref.watch(learnProgressProvider);
     final timed = ref.watch(timedModeProvider).value ?? false;
+    final best = ref.watch(bestScoresProvider).value ?? const <String, int>{};
 
     // Top the offline queues up in the background on the way in, and refresh
     // the "ready offline" line once it has. Nothing here waits on it.
@@ -242,6 +244,7 @@ class LearnHomeScreen extends ConsumerWidget {
               icon: Icons.grid_on_outlined,
               title: l10n.learnWordFindTitle,
               body: l10n.learnWordFindCardBody,
+              best: best[GameIds.wordFind] ?? 0,
               onTap: () => _openWordFind(context, ref, l10n, timed),
             ),
             const SizedBox(height: 12),
@@ -249,14 +252,16 @@ class LearnHomeScreen extends ConsumerWidget {
               icon: Icons.bubble_chart_outlined,
               title: l10n.learnWordBuildTitle,
               body: l10n.learnWordBuildCardBody,
+              best: best[GameIds.wordBuild] ?? 0,
               onTap: () => _openWordBuild(context, ref, l10n, timed),
             ),
             const SizedBox(height: 12),
             _GameCard(
-              icon: Icons.pin_outlined,
-              title: l10n.learnCodewordTitle,
-              body: l10n.learnCodewordCardBody,
-              onTap: () => _openCodeword(context, ref, l10n, timed),
+              icon: Icons.grid_4x4,
+              title: l10n.learnCrosswordTitle,
+              body: l10n.learnCrosswordCardBody,
+              best: best[GameIds.crossword] ?? 0,
+              onTap: () => _openCrossword(context, ref, l10n, timed),
             ),
             const SizedBox(height: 6),
             // One switch for every game: timed or untimed is a mood a player
@@ -363,12 +368,16 @@ class _GameCard extends StatelessWidget {
     required this.title,
     required this.body,
     required this.onTap,
+    this.best = 0,
   });
 
   final IconData icon;
   final String title;
   final String body;
   final Future<void> Function() onTap;
+
+  /// Highest score so far, or zero when this one has not been played.
+  final int best;
 
   @override
   Widget build(BuildContext context) {
@@ -407,6 +416,16 @@ class _GameCard extends StatelessWidget {
                         color: foreground.withValues(alpha: 0.85),
                       ),
                     ),
+                    if (best > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        AppLocalizations.of(context)!.learnGameBest(best),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: foreground.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

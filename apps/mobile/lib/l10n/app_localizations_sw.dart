@@ -379,26 +379,34 @@ class AppLocalizationsSw extends AppLocalizations {
   String get learnGameTimedOff => 'Cheza bila haraka, bila saa.';
 
   @override
-  String get learnCodewordTitle => 'Neno la Siri';
+  String get learnCrosswordTitle => 'Chemsha Bongo';
 
   @override
-  String get learnCodewordCardBody =>
-      'Kila herufi ni namba. Tambua namba, fungua maneno.';
+  String get learnCrosswordCardBody =>
+      'Jaza maneno yanayopishana kwa kutumia maana zao.';
 
   @override
-  String get learnCodewordHint => 'Gusa namba, kisha chagua herufi yake.';
+  String get learnCrosswordHint => 'Gusa kisanduku, kisha andika herufi.';
 
   @override
-  String learnCodewordPick(int code) {
-    return 'Chagua herufi ya namba $code';
+  String get learnCrosswordAcross => 'Kulala';
+
+  @override
+  String get learnCrosswordDown => 'Kusimama';
+
+  @override
+  String get learnCrosswordDone => 'Umejaza chemsha bongo yote!';
+
+  @override
+  String get learnGameScore => 'Alama';
+
+  @override
+  String learnGameBest(int score) {
+    return 'Bora $score';
   }
 
   @override
-  String get learnCodewordDone => 'Umefungua maneno yote!';
-
-  @override
-  String get learnCodewordGiven => 'Umepewa';
-
-  @override
-  String get learnCodewordClear => 'Futa';
+  String learnGameNewBest(int score) {
+    return 'Rekodi mpya: alama $score!';
+  }
 }

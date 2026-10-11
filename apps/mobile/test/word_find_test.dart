@@ -41,6 +41,11 @@ List<WordFindCell> _path(List<List<int>> pairs) =>
 
 void main() {
   group('parsing', () {
+    test('a round queued before points existed still parses', () {
+      final puzzle = WordFindPuzzle.fromJson(_payload());
+      expect(puzzle.words.single.points, 0);
+    });
+
     test('reads the grid and the words', () {
       final puzzle = WordFindPuzzle.fromJson(_payload());
 

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../domain/models/word_find_puzzle.dart';
+import '../../data/game_round_cache.dart';
+import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
@@ -48,6 +50,8 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   /// answer revealed: being shown what you missed is the part worth having,
   /// and a bare "time up" teaches nothing.
   bool _outOfTime = false;
+  int _score = 0;
+  Duration? _timeLeft;
 
   /// The drag in progress.
   WordFindCell? _dragStart;
@@ -189,12 +193,26 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     final found = hit;
     setState(() {
       _dragLock = false;
+      _score += GameScore.award(
+        points: found.points,
+        timeLeft: widget.timed ? _timeLeft : null,
+        total: widget.timed ? GameDurations.wordFind : null,
+      );
       _found.insert(0, found);
       _foundCells.addAll(found.cells);
       _dragStart = null;
       _dragPath = const [];
       _dragIsWrong = false;
     });
+  }
+
+  Future<void> _recordScore() async {
+    await ref
+        .read(gameSettingsStoreProvider)
+        .recordScore(GameIds.wordFind, _score);
+    if (mounted) {
+      ref.invalidate(bestScoresProvider);
+    }
   }
 
   void _openEntry(WordFindWord word) {
@@ -242,7 +260,11 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             GameTimerBar(
               duration: GameDurations.wordFind,
               paused: _over,
-              onExpired: () => setState(() => _outOfTime = true),
+              onTick: (left) => _timeLeft = left,
+              onExpired: () {
+                setState(() => _outOfTime = true);
+                _recordScore();
+              },
             ),
             const SizedBox(height: 12),
           ],
@@ -250,6 +272,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             found: _found.length,
             total: _puzzle.words.length,
             complete: _complete,
+            score: _score,
           ),
           const SizedBox(height: 16),
           LayoutBuilder(
@@ -341,11 +364,13 @@ class _ProgressHeader extends StatelessWidget {
     required this.found,
     required this.total,
     required this.complete,
+    required this.score,
   });
 
   final int found;
   final int total;
   final bool complete;
+  final int score;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +387,13 @@ class _ProgressHeader extends StatelessWidget {
               '$found / $total',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              '$score',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: learnColors?.correct,
               ),
             ),
             if (complete)

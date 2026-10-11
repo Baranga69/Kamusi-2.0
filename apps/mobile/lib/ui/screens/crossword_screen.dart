@@ -1,0 +1,687 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../data/game_round_cache.dart';
+import '../../data/game_score.dart';
+import '../../data/game_settings_store.dart';
+import '../../domain/models/crossword_puzzle.dart';
+import '../../providers/learn_providers.dart';
+import '../theme/kamusi_learn_colors.dart';
+import '../widgets/game_timer_bar.dart';
+import 'lexeme_detail_screen.dart';
+
+/// Chemsha Bongo — a crossword.
+///
+/// The crossings are the point. A letter you are sure of in one answer is a
+/// letter given to another, so a clue you cannot read becomes solvable from
+/// the ones you can — which is exactly how reading in a new language works.
+///
+/// Typing happens one cell at a time with a letter strip rather than the
+/// system keyboard: a 13-wide grid and a keyboard do not fit on a phone
+/// together, and the strip can be restricted to letters Swahili uses.
+class CrosswordScreen extends ConsumerStatefulWidget {
+  const CrosswordScreen({super.key, required this.puzzle, this.timed = false});
+
+  final CrosswordPuzzle puzzle;
+  final bool timed;
+
+  @override
+  ConsumerState<CrosswordScreen> createState() => _CrosswordScreenState();
+}
+
+class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
+  final Map<CrosswordCell, String> _filled = {};
+  final Set<int> _scored = {};
+
+  CrosswordCell? _cursor;
+  bool _cursorAcross = true;
+  bool _outOfTime = false;
+  int _score = 0;
+  Duration? _timeLeft;
+
+  CrosswordPuzzle get _puzzle => widget.puzzle;
+
+  late final Map<CrosswordCell, String> _solution = _puzzle.solution;
+  late final Set<CrosswordCell> _cells = _puzzle.filledCells;
+  late final Map<CrosswordCell, int> _numbers = _puzzle.cellNumbers;
+
+  bool _solved(CrosswordEntry entry) {
+    final cells = entry.cells;
+    for (var i = 0; i < cells.length; i++) {
+      if (_filled[cells[i]] != entry.answer[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  int get _solvedCount => _puzzle.entries.where(_solved).length;
+
+  bool get _complete => _solvedCount == _puzzle.entries.length;
+
+  bool get _over => _complete || _outOfTime;
+
+  /// The entry the cursor is working in, so the clue can be shown without
+  /// making the player hunt for it in the list.
+  CrosswordEntry? get _activeEntry {
+    final cursor = _cursor;
+    if (cursor == null) {
+      return null;
+    }
+    final here = _puzzle.entriesAt(cursor);
+    if (here.isEmpty) {
+      return null;
+    }
+    for (final entry in here) {
+      if (entry.isAcross == _cursorAcross) {
+        return entry;
+      }
+    }
+    return here.first;
+  }
+
+  void _tapCell(CrosswordCell cell) {
+    if (_over || !_cells.contains(cell)) {
+      return;
+    }
+    setState(() {
+      if (_cursor == cell) {
+        // Tapping the cell you are already in turns the corner, which is how
+        // every crossword app works and the only way to reach a down clue
+        // whose cells all belong to an across one too.
+        _cursorAcross = !_cursorAcross;
+      } else {
+        _cursor = cell;
+      }
+    });
+  }
+
+  void _type(String letter) {
+    final cursor = _cursor;
+    if (cursor == null || _over) {
+      return;
+    }
+    setState(() {
+      _filled[cursor] = letter;
+      _awardNewlySolved();
+      _advance();
+    });
+  }
+
+  void _erase() {
+    final cursor = _cursor;
+    if (cursor == null || _over) {
+      return;
+    }
+    setState(() => _filled.remove(cursor));
+  }
+
+  /// Score each entry once, the moment it is completed.
+  void _awardNewlySolved() {
+    for (final entry in _puzzle.entries) {
+      final key = Object.hash(entry.number, entry.direction);
+      if (_scored.contains(key) || !_solved(entry)) {
+        continue;
+      }
+      _scored.add(key);
+      _score += GameScore.award(
+        points: entry.points,
+        timeLeft: widget.timed ? _timeLeft : null,
+        total: widget.timed ? GameDurations.crossword : null,
+      );
+    }
+  }
+
+  void _advance() {
+    final cursor = _cursor;
+    final entry = _activeEntry;
+    if (cursor == null || entry == null) {
+      return;
+    }
+    final cells = entry.cells;
+    final index = cells.indexOf(cursor);
+    if (index >= 0 && index + 1 < cells.length) {
+      _cursor = cells[index + 1];
+    }
+  }
+
+  Future<void> _finish() async {
+    final best = await ref
+        .read(gameSettingsStoreProvider)
+        .recordScore(GameIds.crossword, _score);
+    if (!mounted) {
+      return;
+    }
+    ref.invalidate(bestScoresProvider);
+    if (best == _score && _score > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.learnGameNewBest(_score)),
+        ),
+      );
+    }
+  }
+
+  void _openEntry(CrosswordEntry entry) {
+    if (entry.lexemeId.isEmpty) {
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LexemeDetailScreen(lexemeId: entry.lexemeId),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final learnColors = theme.extension<KamusiLearnColors>();
+    final active = _activeEntry;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.learnCrosswordTitle),
+        actions: [
+          IconButton(
+            tooltip: l10n.learnWordBuildNew,
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              ref.invalidate(crosswordProvider);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+              children: [
+                if (widget.timed) ...[
+                  GameTimerBar(
+                    duration: GameDurations.crossword,
+                    paused: _over,
+                    onTick: (left) => _timeLeft = left,
+                    onExpired: () {
+                      setState(() => _outOfTime = true);
+                      _finish();
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                _ScoreRow(
+                  score: _score,
+                  solved: _solvedCount,
+                  total: _puzzle.entries.length,
+                  learnColors: learnColors,
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final side = constraints.maxWidth;
+                      return SizedBox(
+                        width: side,
+                        height: side,
+                        child: _Grid(
+                          puzzle: _puzzle,
+                          cells: _cells,
+                          numbers: _numbers,
+                          filled: _filled,
+                          solution: _solution,
+                          cursor: _cursor,
+                          cursorAcross: _cursorAcross,
+                          revealAll: _outOfTime,
+                          onTap: _tapCell,
+                          learnColors: learnColors,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (active != null && !_over)
+                  _ActiveClue(entry: active)
+                else
+                  Text(
+                    _outOfTime
+                        ? l10n.learnGameTimeUp
+                        : _complete
+                            ? l10n.learnCrosswordDone
+                            : l10n.learnCrosswordHint,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                const SizedBox(height: 16),
+                for (final direction in const ['across', 'down']) ...[
+                  Text(
+                    direction == 'across'
+                        ? l10n.learnCrosswordAcross
+                        : l10n.learnCrosswordDown,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  for (final entry in _puzzle.entries
+                      .where((entry) => entry.direction == direction))
+                    _ClueRow(
+                      entry: entry,
+                      solved: _solved(entry) || _outOfTime,
+                      active: active == entry,
+                      onTap: () {
+                        if (_solved(entry) || _outOfTime) {
+                          _openEntry(entry);
+                        } else {
+                          setState(() {
+                            _cursor = CrosswordCell(entry.row, entry.col);
+                            _cursorAcross = entry.isAcross;
+                          });
+                        }
+                      },
+                      learnColors: learnColors,
+                    ),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ),
+          if (!_over)
+            _LetterStrip(
+              onLetter: _type,
+              onErase: _erase,
+              enabled: _cursor != null,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreRow extends StatelessWidget {
+  const _ScoreRow({
+    required this.score,
+    required this.solved,
+    required this.total,
+    required this.learnColors,
+  });
+
+  final int score;
+  final int solved;
+  final int total;
+  final KamusiLearnColors? learnColors;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Text(
+          '$solved / $total',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : solved / total,
+              minHeight: 6,
+              backgroundColor: learnColors?.progressTrack ??
+                  theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                learnColors?.correct ?? theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          '$score',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: learnColors?.correct,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Grid extends StatelessWidget {
+  const _Grid({
+    required this.puzzle,
+    required this.cells,
+    required this.numbers,
+    required this.filled,
+    required this.solution,
+    required this.cursor,
+    required this.cursorAcross,
+    required this.revealAll,
+    required this.onTap,
+    required this.learnColors,
+  });
+
+  final CrosswordPuzzle puzzle;
+  final Set<CrosswordCell> cells;
+  final Map<CrosswordCell, int> numbers;
+  final Map<CrosswordCell, String> filled;
+  final Map<CrosswordCell, String> solution;
+  final CrosswordCell? cursor;
+  final bool cursorAcross;
+  final bool revealAll;
+  final void Function(CrosswordCell) onTap;
+  final KamusiLearnColors? learnColors;
+
+  /// The cells of the answer the cursor is in, so the whole clue is lit
+  /// rather than one square — without it there is no telling which way you
+  /// are typing.
+  Set<CrosswordCell> get _highlighted {
+    final at = cursor;
+    if (at == null) {
+      return const {};
+    }
+    for (final entry in puzzle.entriesAt(at)) {
+      if (entry.isAcross == cursorAcross) {
+        return entry.cells.toSet();
+      }
+    }
+    return {at};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final highlighted = _highlighted;
+    return Column(
+      children: [
+        for (var row = 0; row < puzzle.size; row++)
+          Expanded(
+            child: Row(
+              children: [
+                for (var col = 0; col < puzzle.size; col++)
+                  Expanded(
+                    child: _Cell(
+                      cell: CrosswordCell(row, col),
+                      active: cells.contains(CrosswordCell(row, col)),
+                      number: numbers[CrosswordCell(row, col)],
+                      letter: revealAll
+                          ? solution[CrosswordCell(row, col)]
+                          : filled[CrosswordCell(row, col)],
+                      isCursor: cursor == CrosswordCell(row, col),
+                      inClue: highlighted.contains(CrosswordCell(row, col)),
+                      onTap: () => onTap(CrosswordCell(row, col)),
+                      learnColors: learnColors,
+                      theme: theme,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _Cell extends StatelessWidget {
+  const _Cell({
+    required this.cell,
+    required this.active,
+    required this.number,
+    required this.letter,
+    required this.isCursor,
+    required this.inClue,
+    required this.onTap,
+    required this.learnColors,
+    required this.theme,
+  });
+
+  final CrosswordCell cell;
+  final bool active;
+  final int? number;
+  final String? letter;
+  final bool isCursor;
+  final bool inClue;
+  final VoidCallback onTap;
+  final KamusiLearnColors? learnColors;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!active) {
+      // A blocked square. Nothing to tap, nothing to read.
+      return const SizedBox.shrink();
+    }
+    final colorScheme = theme.colorScheme;
+    final background = isCursor
+        ? colorScheme.primaryContainer
+        : inClue
+            ? colorScheme.primaryContainer.withValues(alpha: 0.38)
+            : colorScheme.surface;
+
+    return Padding(
+      padding: const EdgeInsets.all(0.8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: background,
+            border: Border.all(color: colorScheme.outlineVariant, width: 0.8),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Stack(
+            children: [
+              if (number != null)
+                Positioned(
+                  left: 1.5,
+                  top: 0.5,
+                  child: Text(
+                    '$number',
+                    style: TextStyle(
+                      fontSize: 7,
+                      height: 1,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Center(
+                child: FittedBox(
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Text(
+                      (letter ?? '').toUpperCase(),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveClue extends StatelessWidget {
+  const _ActiveClue({required this.entry});
+
+  final CrosswordEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${entry.number}${entry.isAcross ? "→" : "↓"}',
+            style: theme.textTheme.labelLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(entry.definition, style: theme.textTheme.bodyMedium),
+          ),
+          Text(
+            '${entry.points}',
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClueRow extends StatelessWidget {
+  const _ClueRow({
+    required this.entry,
+    required this.solved,
+    required this.active,
+    required this.onTap,
+    required this.learnColors,
+  });
+
+  final CrosswordEntry entry;
+  final bool solved;
+  final bool active;
+  final VoidCallback onTap;
+  final KamusiLearnColors? learnColors;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 26,
+              child: Text(
+                '${entry.number}.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                  color: solved ? learnColors?.correct : null,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                solved ? '${entry.word} — ${entry.definition}' : entry.definition,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                  color: solved
+                      ? learnColors?.correct
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Letters to type with.
+///
+/// Not the system keyboard: a 13-wide grid and a keyboard do not fit on a
+/// phone together, and this can be limited to the letters Swahili uses —
+/// no q, no x — so there is one less way to go wrong.
+class _LetterStrip extends StatelessWidget {
+  const _LetterStrip({
+    required this.onLetter,
+    required this.onErase,
+    required this.enabled,
+  });
+
+  final void Function(String) onLetter;
+  final VoidCallback onErase;
+  final bool enabled;
+
+  static const _letters = 'abcdefghijklmnoprstuvwyz';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      elevation: 8,
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: Opacity(
+            opacity: enabled ? 1 : 0.4,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final letter in _letters.split(''))
+                  _Key(
+                    label: letter.toUpperCase(),
+                    onTap: enabled ? () => onLetter(letter) : null,
+                  ),
+                _Key(
+                  label: '⌫',
+                  wide: true,
+                  onTap: enabled ? onErase : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Key extends StatelessWidget {
+  const _Key({required this.label, required this.onTap, this.wide = false});
+
+  final String label;
+  final VoidCallback? onTap;
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: wide ? 68 : 32,
+      height: 40,
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onTap,
+          child: Center(
+            child: Text(
+              label,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

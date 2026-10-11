@@ -385,12 +385,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /learn/codeword:
+  /learn/crossword:
     get:
       tags:
       - learn
-      summary: Codeword
-      operationId: codeword_learn_codeword_get
+      summary: Crossword
+      operationId: crossword_learn_crossword_get
       parameters:
       - name: lang
         in: query
@@ -406,7 +406,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CodewordPuzzle'
+                $ref: '#/components/schemas/CrosswordPuzzle'
         '422':
           description: Validation Error
           content:
@@ -4276,18 +4276,30 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    CodewordEntry:
+    CrosswordEntry:
       properties:
         lexeme_id:
           type: string
           format: uuid
           title: Lexeme Id
+        number:
+          type: integer
+          title: Number
+        direction:
+          type: string
+          title: Direction
+        row:
+          type: integer
+          title: Row
+        col:
+          type: integer
+          title: Col
         word:
           type: string
           title: Word
-        letters:
+        answer:
           type: string
-          title: Letters
+          title: Answer
         definition:
           type: string
           title: Definition
@@ -4296,51 +4308,49 @@ components:
           - type: string
           - type: 'null'
           title: Pos Code
+        points:
+          type: integer
+          title: Points
+          default: 0
       type: object
       required:
       - lexeme_id
+      - number
+      - direction
+      - row
+      - col
       - word
-      - letters
+      - answer
       - definition
-      title: CodewordEntry
-      description: One word in the grid, with the clue that identifies it.
-    CodewordPuzzle:
+      title: CrosswordEntry
+      description: One answer in the grid, with its clue.
+    CrosswordPuzzle:
       properties:
         lang_code:
           type: string
           title: Lang Code
-        codes:
-          additionalProperties:
-            type: integer
-          type: object
-          title: Codes
-        revealed:
-          items:
-            type: string
-          type: array
-          title: Revealed
+        size:
+          type: integer
+          title: Size
         entries:
           items:
-            $ref: '#/components/schemas/CodewordEntry'
+            $ref: '#/components/schemas/CrosswordEntry'
           type: array
           title: Entries
       type: object
       required:
       - lang_code
-      - codes
-      - revealed
+      - size
       - entries
-      title: CodewordPuzzle
-      description: 'A set of words written as numbers, one number per letter.
+      title: CrosswordPuzzle
+      description: 'An interlocking grid of words, clued by their definitions.
 
 
-        The whole key is sent, like every other round here: nothing is at stake,
+        Only the entries are sent; the client derives which cells are fillable
 
-        and the board has to be solvable from the cache with no connection. The
+        from them. The answers come too, as everywhere else here: nothing is at
 
-        deduction is the game — knowing the key would spoil it, but a player who
-
-        wants to cheat can already read the clues.'
+        stake and the board has to work from the cache with no connection.'
     ExampleCreate:
       properties:
         sense_id:
@@ -6796,6 +6806,10 @@ components:
           - type: string
           - type: 'null'
           title: Pos Code
+        points:
+          type: integer
+          title: Points
+          default: 0
         is_pangram:
           type: boolean
           title: Is Pangram
@@ -6854,6 +6868,10 @@ components:
           - type: string
           - type: 'null'
           title: Pos Code
+        points:
+          type: integer
+          title: Points
+          default: 0
         cells:
           items:
             items:

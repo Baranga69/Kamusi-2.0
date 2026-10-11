@@ -134,10 +134,11 @@ cover.
   the start, so the game is "which word means this?", and **hard** reveals
   each one as its word is built. Unsolved answers show their length as dots
   and never their letters. The word using all eight letters is starred.
-- **Neno la Siri** — a codeword. Every letter is a number, the same number
-  everywhere it appears, so cracking one letter opens it in every word at
-  once. Two letters are given to start. The clues are definitions, so a board
-  you never finish has still taught you five words.
+- **Chemsha Bongo** — a crossword. Answers interlock, so a letter you are
+  sure of in one is a letter given to another, which is how reading in a new
+  language actually works. Typing uses a letter strip rather than the system
+  keyboard: a 13-wide grid and a keyboard do not fit on a phone together, and
+  the strip holds only letters Swahili uses — no q, no x.
 - The boards freeze the page scroll while a finger is on them, so a downward
   drag selects a word instead of scrolling. (It did scroll, once.)
 - **Kwa muda** — one switch on the Jifunze home puts every game on a clock.
@@ -146,6 +147,26 @@ cover.
   turns a learning game into a test, and that should be opted into. When the
   time runs out the board stays on screen with every answer revealed, because
   being shown what you missed is the part worth having.
+
+### Points
+
+Every solved word scores. The difficulty half is computed on the server, so
+all three games value a word identically — finding "momonyoa" in the grid is
+worth what building it in the ring is. It comes from two things that can be
+measured rather than guessed at: how long the word is, and how unusual its
+letters are **in this corpus**, counted from the published vocabulary itself
+rather than a table copied from somewhere. As the dictionary grows, the
+measurement improves on its own.
+
+The speed half can only be worked out on the device, since only it knows how
+long the player took. Solving the moment a timed round starts is worth
+double; solving as the clock expires is worth the difficulty alone. Untimed
+play scores the difficulty with no bonus — playing without a clock should not
+mean playing for nothing.
+
+Only a best score per game is kept. This is a dictionary with a learning
+surface, not a leaderboard, and one number is enough to give someone
+something to beat.
 
 ### Playing offline
 

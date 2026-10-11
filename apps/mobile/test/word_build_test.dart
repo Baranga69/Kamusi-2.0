@@ -29,6 +29,11 @@ Map<String, dynamic> payload({List<String>? letters, List<Map<String, dynamic>>?
 
 void main() {
   group('parsing', () {
+    test('a round queued before points existed still parses', () {
+      final puzzle = WordBuildPuzzle.fromJson(payload());
+      expect(puzzle.words.first.points, 0);
+    });
+
     test('reads the ring and its words', () {
       final puzzle = WordBuildPuzzle.fromJson(payload());
 
