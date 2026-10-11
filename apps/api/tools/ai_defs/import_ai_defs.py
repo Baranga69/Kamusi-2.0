@@ -19,7 +19,14 @@ import psycopg
 from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from import_run import count_lines, import_run  # noqa: E402
+
+from app.core.quality import (  # noqa: E402
+    MAX_DEFINITION_LENGTH,
+    MIN_DEFINITION_LENGTH,
+    check_definition,
+)
 
 
 def env(name: str, default: str | None = None) -> str | None:
@@ -51,6 +58,18 @@ BATCH_SIZE = int(env("BATCH_SIZE", "500"))
 RESUME = env("RESUME")
 # Parse and report without writing anything.
 DRY_RUN = (env("DRY_RUN", "false") or "").lower() in {"1", "true", "yes"}
+
+# Quality gate. Growing the dictionary by a factor of ten also multiplies the
+# bad rows by ten, and a reviewer's time is the scarce resource — text that
+# cannot be a Swahili definition should not reach the queue at all.
+MIN_LENGTH = int(env("MIN_LENGTH", str(MIN_DEFINITION_LENGTH)))
+MAX_LENGTH = int(env("MAX_LENGTH", str(MAX_DEFINITION_LENGTH)))
+# Refused rows are written here rather than dropped, so a bad prompt can be
+# diagnosed from what it produced instead of guessed at.
+REJECTS_PATH = Path(env("REJECTS_PATH") or f"{IN_PATH}.rejected.jsonl")
+# Escape hatch for a corpus the heuristics judge badly. Off by default,
+# because the failure it guards against is a reviewer's time.
+SKIP_VALIDATION = (env("SKIP_VALIDATION", "false") or "").lower() in {"1", "true", "yes"}
 
 INSERT_COLUMNS = """
   id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
@@ -99,6 +118,13 @@ def main() -> None:
     skipped_bad = 0
     skipped_resume = 0
     total = 0
+    rejected_rows = 0
+    rejected_by_reason: dict[str, int] = {}
+    # sense_ids already seen in this file. The database's conflict handling is
+    # the authority on duplicates; this only catches the ones that would waste
+    # a round trip, and reports them so a bad export can be fixed.
+    seen_senses: set[str] = set()
+    rejects_file = None
 
     # Build SQL depending on conflict strategy
     if ON_CONFLICT == "update":
@@ -132,107 +158,148 @@ def main() -> None:
 
     run_id = None
     resumed_from = 0
-    with psycopg.connect(DB_URL, row_factory=dict_row) as conn, import_run(
-        conn,
-        kind="ai_definitions",
-        tool="import_ai_defs.py",
-        source_id=AI_SOURCE_ID,
-        input_path=str(IN_PATH.resolve()),
-        parameters={
-            "on_conflict": ON_CONFLICT,
-            "is_primary": IS_PRIMARY,
-            "batch_size": BATCH_SIZE,
-        },
-        resume=RESUME,
-        total_lines=count_lines(IN_PATH),
-        dry_run=DRY_RUN,
-    ) as run:
-        run_id = run.id if run else None
-        resumed_from = run.resume_from if run else 0
-        if resumed_from:
-            print(f"Resuming run {run_id} from line {resumed_from:,}")
-        with conn.cursor() as cur:
-            with IN_PATH.open("r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    total += 1
+    try:
+        with psycopg.connect(DB_URL, row_factory=dict_row) as conn, import_run(
+            conn,
+            kind="ai_definitions",
+            tool="import_ai_defs.py",
+            source_id=AI_SOURCE_ID,
+            input_path=str(IN_PATH.resolve()),
+            parameters={
+                "on_conflict": ON_CONFLICT,
+                "is_primary": IS_PRIMARY,
+                "batch_size": BATCH_SIZE,
+                "min_length": MIN_LENGTH,
+                "max_length": MAX_LENGTH,
+                "validation": "skipped" if SKIP_VALIDATION else "enforced",
+            },
+            resume=RESUME,
+            total_lines=count_lines(IN_PATH),
+            dry_run=DRY_RUN,
+        ) as run:
+            run_id = run.id if run else None
+            resumed_from = run.resume_from if run else 0
+            if resumed_from:
+                print(f"Resuming run {run_id} from line {resumed_from:,}")
+            with conn.cursor() as cur:
+                with IN_PATH.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        total += 1
 
-                    # Lines an earlier attempt already committed.
-                    if run and run.should_skip(total):
-                        skipped_resume += 1
-                        continue
+                        # Lines an earlier attempt already committed.
+                        if run and run.should_skip(total):
+                            skipped_resume += 1
+                            continue
 
-                    obj = json.loads(line)
+                        obj = json.loads(line)
 
-                    # generator writes error rows without definition_sw
-                    definition_sw = (obj.get("definition_sw") or "").strip()
-                    sense_id = obj.get("sense_id")
+                        # generator writes error rows without definition_sw
+                        definition_sw = (obj.get("definition_sw") or "").strip()
+                        sense_id = obj.get("sense_id")
 
-                    if not sense_id or not definition_sw:
-                        skipped_bad += 1
-                        continue
+                        if not sense_id or not definition_sw:
+                            skipped_bad += 1
+                            continue
 
-                    # sense_id might be string UUID; keep it as string for psycopg
-                    gloss_sw = obj.get("gloss_sw", None)
-                    ai_model = obj.get("model") or DEFAULT_MODEL
-                    prompt_version = obj.get("prompt_version") or DEFAULT_PROMPT_VERSION
-                    # Kept so the review queue can lead with the definitions
-                    # the model was least sure about.
-                    confidence = obj.get("confidence")
-                    try:
-                        confidence = None if confidence is None else float(confidence)
-                    except (TypeError, ValueError):
-                        confidence = None
+                        # The gate. Text that cannot be a Swahili definition is
+                        # refused here rather than left for a reviewer to find.
+                        problems = (
+                            []
+                            if SKIP_VALIDATION
+                            else check_definition(
+                                definition_sw,
+                                lemma=obj.get("lemma"),
+                                source_definition=obj.get("en_definition"),
+                                min_length=MIN_LENGTH,
+                                max_length=MAX_LENGTH,
+                            )
+                        )
+                        if sense_id in seen_senses:
+                            problems.append("duplicate_in_file")
+                        seen_senses.add(sense_id)
 
-                    new_id = str(uuid.uuid4())
-                    cur.execute(
-                        upsert_sql,
-                        (
-                            new_id,
-                            sense_id,
-                            definition_sw,
-                            gloss_sw,
-                            IS_PRIMARY,
-                            AI_SOURCE_ID,
-                            INITIAL_REVIEW_STATUS,
-                            ai_model,
-                            prompt_version,
-                            confidence,
-                            run_id,
-                        ),
-                    )
+                        if problems:
+                            rejected_rows += 1
+                            for reason in problems:
+                                rejected_by_reason[reason] = rejected_by_reason.get(reason, 0) + 1
+                            if rejects_file is None:
+                                REJECTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+                                rejects_file = REJECTS_PATH.open("w", encoding="utf-8")
+                            rejects_file.write(
+                                json.dumps(
+                                    {"line": total, "problems": problems, "row": obj},
+                                    ensure_ascii=False,
+                                )
+                                + "\n"
+                            )
+                            continue
 
-                    # rowcount meaning differs between DO NOTHING vs DO UPDATE
-                    if ON_CONFLICT == "update":
-                        # rowcount is 1 for both insert and update paths here, so
-                        # this counts rows written rather than rows created.
-                        updated += 1
-                    else:
-                        if cur.rowcount == 1:
-                            inserted += 1
+                        # sense_id might be string UUID; keep it as string for psycopg
+                        gloss_sw = obj.get("gloss_sw", None)
+                        ai_model = obj.get("model") or DEFAULT_MODEL
+                        prompt_version = obj.get("prompt_version") or DEFAULT_PROMPT_VERSION
+                        # Kept so the review queue can lead with the definitions
+                        # the model was least sure about.
+                        confidence = obj.get("confidence")
+                        try:
+                            confidence = None if confidence is None else float(confidence)
+                        except (TypeError, ValueError):
+                            confidence = None
+
+                        new_id = str(uuid.uuid4())
+                        cur.execute(
+                            upsert_sql,
+                            (
+                                new_id,
+                                sense_id,
+                                definition_sw,
+                                gloss_sw,
+                                IS_PRIMARY,
+                                AI_SOURCE_ID,
+                                INITIAL_REVIEW_STATUS,
+                                ai_model,
+                                prompt_version,
+                                confidence,
+                                run_id,
+                            ),
+                        )
+
+                        # rowcount meaning differs between DO NOTHING vs DO UPDATE
+                        if ON_CONFLICT == "update":
+                            # rowcount is 1 for both insert and update paths here, so
+                            # this counts rows written rather than rows created.
+                            updated += 1
                         else:
-                            skipped_conflict += 1
+                            if cur.rowcount == 1:
+                                inserted += 1
+                            else:
+                                skipped_conflict += 1
 
-                    if run:
-                        run.counts["definitions_created"] = inserted + updated
-
-                    # A bounded transaction: a failure costs at most one batch,
-                    # and the checkpoint rides along with it.
-                    if not DRY_RUN and total % BATCH_SIZE == 0:
                         if run:
-                            run.commit_batch(total)
-                            print(run.progress(total), flush=True)
-                        else:
-                            conn.commit()
+                            run.counts["definitions_created"] = inserted + updated
 
-            if DRY_RUN:
-                conn.rollback()
-            elif run:
-                run.commit_batch(total)
-            else:
-                conn.commit()
+                        # A bounded transaction: a failure costs at most one batch,
+                        # and the checkpoint rides along with it.
+                        if not DRY_RUN and total % BATCH_SIZE == 0:
+                            if run:
+                                run.commit_batch(total)
+                                print(run.progress(total), flush=True)
+                            else:
+                                conn.commit()
+
+                if DRY_RUN:
+                    conn.rollback()
+                elif run:
+                    run.commit_batch(total)
+                else:
+                    conn.commit()
+
+    finally:
+        if rejects_file is not None:
+            rejects_file.close()
 
     print("✅ Dry run finished — nothing written" if DRY_RUN else "✅ Import finished")
     print(f"Input lines read:           {total}")
@@ -242,6 +309,21 @@ def main() -> None:
     print(f"Skipped (bad/error rows):   {skipped_bad}")
     if skipped_resume:
         print(f"Skipped (already imported): {skipped_resume}")
+
+    if SKIP_VALIDATION:
+        print()
+        print("⚠️  Validation was skipped (SKIP_VALIDATION): nothing was checked.")
+    elif rejected_rows:
+        print()
+        # Reasons sum to more than rows: one definition can fail several checks.
+        print(f"Refused by the quality gate: {rejected_rows} rows")
+        for reason, count in sorted(
+            rejected_by_reason.items(), key=lambda pair: (-pair[1], pair[0])
+        ):
+            print(f"  {reason:<20}{count}")
+        print(f"Written to: {REJECTS_PATH}")
+        print("Each line has the problems found and the original row, so a bad")
+        print("prompt can be diagnosed from what it produced.")
     print(f"AI_SOURCE_ID:              {AI_SOURCE_ID}")
     print(f"IN_PATH:                   {IN_PATH.resolve()}")
     print(f"DB_URL:                    {DB_URL}")

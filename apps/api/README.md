@@ -253,6 +253,57 @@ poetry run python scripts/export_openapi.py
 poetry run python scripts/export_openapi.py --check   # what CI runs
 ```
 
+## The ingest quality gate
+
+A reviewer's time is the scarce resource. Ten times as many definitions means
+ten times as many bad ones, so `import_ai_defs.py` refuses text that cannot be
+a Swahili definition rather than leaving it for someone to find in the queue.
+
+`app/core/quality.py` is the single source of truth for these rules — the
+importer enforces them, the review queue uses the same morphology list to
+badge what slipped through earlier, and `export_candidates.py` uses it to
+decide what is not worth a model call.
+
+| Reason | What it catches |
+| --- | --- |
+| `empty` | nothing, or only whitespace |
+| `too_short` | below `MIN_LENGTH` (12) — a gloss or fragment, not a definition |
+| `too_long` | above `MAX_LENGTH` (400) — the model wrote an essay |
+| `english` | English rather than Swahili, by function-word density |
+| `refusal` | "As an AI…", "Siwezi kusaidia", or a placeholder like `n/a` |
+| `morphology_only` | Wiktionary's "Passive form of -ona" non-definitions |
+| `echoes_lemma` | the definition is just the headword |
+| `echoes_source` | the model handed back its English prompt |
+| `duplicate_in_file` | the same sense appears twice in one input |
+
+Refused rows are **written, not dropped** — to `<input>.rejected.jsonl` by
+default, one JSON object per row with the problems found and the original
+record. A bad prompt is then diagnosable from what it actually produced
+instead of guessed at.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `MIN_LENGTH` | `12` | Length floor, in characters. |
+| `MAX_LENGTH` | `400` | Length ceiling. |
+| `REJECTS_PATH` | `<input>.rejected.jsonl` | Where refused rows go. |
+| `SKIP_VALIDATION` | `false` | Turn the gate off entirely. |
+
+```bash
+# See what the gate would refuse, without writing anything.
+DRY_RUN=true poetry run python tools/ai_defs/import_ai_defs.py
+
+# Tally the reasons across a rejects file.
+jq -r '.problems[]' tools/ai_defs/out/ai_defs.jsonl.rejected.jsonl | sort | uniq -c | sort -rn
+```
+
+The thresholds are deliberately forgiving, and each check needs more than one
+signal before it fires: `english` wants both an absolute count of function
+words and a ratio, so a Swahili definition quoting an English phrase is not
+condemned by the quote. A false refusal is content silently lost, which is the
+more expensive mistake — when a corpus genuinely trips the heuristics, raise
+the thresholds rather than reaching for `SKIP_VALIDATION`. Which settings a
+run used is recorded in its `import_run.parameters`.
+
 ## Importing at volume
 
 Both importers (`tools/ingest/wiktionary/load_contract.py` and

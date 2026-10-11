@@ -5,6 +5,7 @@ from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session, aliased
 
 from app.core.ids import as_uuid
+from app.core.quality import looks_morphological
 from app.db import get_db
 from app.deps import Principal, require_person, require_role
 from app.models import Lexeme, PartOfSpeech, Sense, SenseDefinition, Source
@@ -28,13 +29,6 @@ router = APIRouter(prefix="/admin/review", dependencies=[Depends(require_role("r
 
 REVIEWER = Depends(require_person("reviewer"))
 
-MORPHOLOGY_PREFIXES = (
-    "Applicative form of",
-    "Reciprocal form of",
-    "Stative form of",
-    "Causative form of",
-    "Passive form of",
-)
 LEXEME_STATUS_ALLOWED = {"core", "slang", "regional", "deprecated", "neologism"}
 
 
@@ -139,7 +133,7 @@ def get_review_queue(
         en_text = row.en_definition_preview or ""
         en_preview = row.en_definition_preview or ""
         sw_preview = row.sw_definition_preview or ""
-        morphology_like = any(en_text.startswith(prefix) for prefix in MORPHOLOGY_PREFIXES)
+        morphology_like = looks_morphological(en_text)
         items.append(
             ReviewQueueItem(
                 sense_definition_id=row.sense_definition_id,
