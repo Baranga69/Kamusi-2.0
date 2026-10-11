@@ -260,3 +260,56 @@ def test_an_invalid_sort_is_still_rejected(client, db_session):
         params={"sort": "vibes"},
     )
     assert resp.status_code == 400
+
+
+def test_queue_flags_a_suspect_definition_without_hiding_it(client, db_session):
+    """Rows imported before the gate existed were never checked.
+
+    The flags are how a reviewer finds them. They must not filter anything
+    out: a heuristic's job here is to draw attention, and a definition the
+    importer would have refused may still be a real one.
+    """
+    language = Language(code="sw", name="Swahili")
+    pos = PartOfSpeech(code="NOUN", label="Noun")
+    db_session.add_all([language, pos])
+    db_session.commit()
+
+    lexeme = Lexeme(
+        lemma="kalamu",
+        normalized_lemma="kalamu",
+        pos_id=pos.id,
+        status="core",
+        default_language_code="sw",
+        workflow="draft",
+    )
+    db_session.add(lexeme)
+    db_session.commit()
+    sense = Sense(lexeme_id=lexeme.id, sense_number=1, workflow="draft")
+    db_session.add(sense)
+    db_session.commit()
+    db_session.add(
+        SenseDefinition(
+            sense_id=sense.id,
+            lang_code="sw",
+            definition="a tool that is used for the writing of words",
+            is_primary=True,
+            is_ai_generated=True,
+            review_status="unreviewed",
+            created_at=datetime.utcnow(),
+        )
+    )
+    db_session.commit()
+
+    resp = client.get("/admin/review/queue", headers={"X-API-Key": "dev-api-key"})
+    assert resp.status_code == 200
+    item = resp.json()[0]
+    assert "english" in item["quality_flags"]
+    assert item["lemma"] == "kalamu", "flagged, still listed"
+
+
+def test_a_clean_definition_carries_no_flags(client, db_session):
+    seed_single_unreviewed_definition(db_session)
+
+    resp = client.get("/admin/review/queue", headers={"X-API-Key": "dev-api-key"})
+    assert resp.status_code == 200
+    assert resp.json()[0]["quality_flags"] == []

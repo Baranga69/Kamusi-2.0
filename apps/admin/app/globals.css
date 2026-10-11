@@ -492,6 +492,13 @@ button:disabled {
   color: #334155;
 }
 
+/* The ingest gate would have objected to this one. Rose rather than red: a
+   heuristic drawing attention, not a ruling that the definition is wrong. */
+.badge-quality {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
 /* The model was unsure about this one. Amber rather than red: it is a hint
    about where to look first, not a verdict that the definition is wrong. */
 .badge-lowconfidence {

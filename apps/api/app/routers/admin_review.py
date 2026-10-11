@@ -5,7 +5,7 @@ from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session, aliased
 
 from app.core.ids import as_uuid
-from app.core.quality import looks_morphological
+from app.core.quality import check_definition, looks_morphological
 from app.db import get_db
 from app.deps import Principal, require_person, require_role
 from app.models import Lexeme, PartOfSpeech, Sense, SenseDefinition, Source
@@ -134,6 +134,11 @@ def get_review_queue(
         en_preview = row.en_definition_preview or ""
         sw_preview = row.sw_definition_preview or ""
         morphology_like = looks_morphological(en_text)
+        # The same rules the importer enforces. Rows that predate the gate
+        # were never checked, so this is how a reviewer spots them.
+        quality_flags = check_definition(
+            sw_preview, lemma=row.lemma, source_definition=en_preview or None
+        )
         items.append(
             ReviewQueueItem(
                 sense_definition_id=row.sense_definition_id,
@@ -148,6 +153,7 @@ def get_review_queue(
                 is_ai_generated=row.is_ai_generated,
                 ai_confidence=row.ai_confidence,
                 morphology_like=morphology_like,
+                quality_flags=quality_flags,
             )
         )
     return items

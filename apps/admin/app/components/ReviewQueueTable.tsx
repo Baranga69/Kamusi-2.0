@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { ReviewQueueItem } from "../../lib/api";
+import { qualityFlagLabel } from "../../lib/qualityFlags";
 
 interface ReviewQueueTableProps {
   items: ReviewQueueItem[];
@@ -89,6 +90,14 @@ export default function ReviewQueueTable({
             {item.is_ai_generated && <span className="badge badge-ai">AI Draft</span>}
             {item.review_status && <span className={`badge badge-${item.review_status}`}>{item.review_status}</span>}
             {item.morphology_like && <span className="badge badge-morph">Morphology</span>}
+            {/* What the ingest gate would object to. Definitions imported
+                before the gate existed were never checked, so this is how
+                they surface. Nothing is hidden on account of a flag. */}
+            {item.quality_flags?.map((flag) => (
+              <span key={flag} className="badge badge-quality" title={"Quality gate: " + flag}>
+                {qualityFlagLabel(flag)}
+              </span>
+            ))}
             {/* Only flagged when the model was notably unsure. A confident
                 definition needs no badge, and an unrecorded one says nothing. */}
             {typeof item.ai_confidence === "number" && item.ai_confidence < 0.6 && (

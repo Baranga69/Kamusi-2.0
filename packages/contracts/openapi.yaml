@@ -5710,6 +5710,12 @@ components:
           - type: number
           - type: 'null'
           title: Ai Confidence
+        quality_flags:
+          items:
+            type: string
+          type: array
+          title: Quality Flags
+          default: []
       type: object
       required:
       - sense_definition_id

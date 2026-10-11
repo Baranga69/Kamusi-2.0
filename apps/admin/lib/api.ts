@@ -143,6 +143,12 @@ export interface ReviewQueueItem {
   morphology_like: boolean;
   /** How sure the model was, 0-1. Null when it was never recorded. */
   ai_confidence?: number | null;
+  /**
+   * What the ingest quality gate objects to, from the API. Empty for a clean
+   * definition. The rules live in the backend (app/core/quality.py) so the
+   * importer and this queue cannot disagree about what counts as suspect.
+   */
+  quality_flags?: string[];
 }
 
 export interface ReviewDefinitionReference {

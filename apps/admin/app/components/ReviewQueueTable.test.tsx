@@ -19,10 +19,10 @@ const sampleItems: ReviewQueueItem[] = [
   },
 ];
 
-test("renders queue table rows", () => {
+const renderQueue = (items: ReviewQueueItem[]) =>
   render(
     <ReviewQueueTable
-      items={sampleItems}
+      items={items}
       selectedIds={new Set()}
       onToggle={() => undefined}
       onToggleAll={() => undefined}
@@ -34,7 +34,31 @@ test("renders queue table rows", () => {
     />
   );
 
+test("renders queue table rows", () => {
+  renderQueue(sampleItems);
+
   expect(screen.getByText("kula")).toBeInTheDocument();
   expect(screen.getByText("kula chakula")).toBeInTheDocument();
   expect(screen.getByText("AI Draft")).toBeInTheDocument();
+});
+
+test("shows what the ingest gate objected to, in words", () => {
+  renderQueue([{ ...sampleItems[0], quality_flags: ["english", "too_short"] }]);
+
+  expect(screen.getByText("Looks English")).toBeInTheDocument();
+  expect(screen.getByText("Too short")).toBeInTheDocument();
+  // Flagged, still listed: a heuristic draws attention, it does not filter.
+  expect(screen.getByText("kula")).toBeInTheDocument();
+});
+
+test("a flag the labels do not know still shows", () => {
+  renderQueue([{ ...sampleItems[0], quality_flags: ["some_new_rule"] }]);
+
+  expect(screen.getByText("some new rule")).toBeInTheDocument();
+});
+
+test("a clean definition gets no quality badges", () => {
+  const { container } = renderQueue([{ ...sampleItems[0], quality_flags: [] }]);
+
+  expect(container.querySelectorAll(".badge-quality")).toHaveLength(0);
 });

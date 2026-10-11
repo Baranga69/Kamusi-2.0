@@ -42,6 +42,12 @@ pnpm --filter @kamusi/admin dev
 - Use the left navigation to manage lexemes, expressions, tags, sources, and licenses.
 - Review queue supports approving, editing, and rejecting AI Swahili definitions with filters, select-all, and keyboard shortcuts.
 - Click a lemma in the review queue to open the detail view with diff preview and audit metadata.
+- Queue rows carry badges for anything the ingest quality gate objects to —
+  "Looks English", "Too short", "Repeats headword" and so on. Nothing is
+  hidden on account of a badge; it points at where to look first. The rules
+  live in the API (`apps/api/app/core/quality.py`) so the importer and this
+  queue cannot disagree about what counts as suspect — `lib/qualityFlags.ts`
+  only turns a slug into a readable label.
 - Publishing enforces readiness checks (lemma length, POS, Swahili definitions per sense, reviewed workflow state).
 - The Publish action calls the backend `/admin/lexemes/{id}/publish` endpoint to update workflow status and search entries.
 

@@ -480,6 +480,11 @@ class ReviewQueueItem(BaseModel):
     # How sure the model was, 0.0-1.0, or null for rows written before this was
     # captured. Null means "unknown", which is not the same as "poor".
     ai_confidence: float | None = None
+    # What the ingest gate would object to, from app/core/quality.py. Empty
+    # for a clean definition. Rows imported before the gate existed were never
+    # checked, so this is how a reviewer finds the suspect ones; it is advice,
+    # not a verdict, and nothing is hidden on account of it.
+    quality_flags: list[str] = []
 
 
 class ReviewDefinitionReference(BaseModel):
