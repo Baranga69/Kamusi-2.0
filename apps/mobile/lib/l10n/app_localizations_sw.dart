@@ -322,4 +322,44 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get learnWordFindNew => 'Chemsha bongo mpya';
+
+  @override
+  String get learnWordBuildTitle => 'Unda Neno';
+
+  @override
+  String get learnWordBuildCardBody =>
+      'Unganisha herufi nane kuunda maneno na maana zake.';
+
+  @override
+  String get learnWordBuildHint => 'Buruta kwenye herufi kuunda neno';
+
+  @override
+  String get learnWordBuildEasy => 'Rahisi';
+
+  @override
+  String get learnWordBuildHard => 'Ngumu';
+
+  @override
+  String get learnWordBuildEasyHint =>
+      'Maana zinaonekana tangu mwanzo kama vidokezo.';
+
+  @override
+  String get learnWordBuildHardHint => 'Maana huonekana baada ya kuunda neno.';
+
+  @override
+  String get learnWordBuildShuffle => 'Changanya herufi';
+
+  @override
+  String get learnWordBuildNew => 'Chemsha bongo mpya';
+
+  @override
+  String get learnWordBuildDone => 'Umemaliza!';
+
+  @override
+  String learnGamesOfflineReady(int count) {
+    return 'Raundi $count tayari bila intaneti';
+  }
+
+  @override
+  String get learnGamesOfflineNone => 'Hakuna raundi iliyohifadhiwa bado';
 }

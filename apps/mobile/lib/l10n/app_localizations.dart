@@ -679,6 +679,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New puzzle'**
   String get learnWordFindNew;
+
+  /// No description provided for @learnWordBuildTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Build a Word'**
+  String get learnWordBuildTitle;
+
+  /// No description provided for @learnWordBuildCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Join eight letters into words, and learn what they mean.'**
+  String get learnWordBuildCardBody;
+
+  /// No description provided for @learnWordBuildHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag across the letters to build a word'**
+  String get learnWordBuildHint;
+
+  /// No description provided for @learnWordBuildEasy.
+  ///
+  /// In en, this message translates to:
+  /// **'Easy'**
+  String get learnWordBuildEasy;
+
+  /// No description provided for @learnWordBuildHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard'**
+  String get learnWordBuildHard;
+
+  /// No description provided for @learnWordBuildEasyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Meanings are shown from the start as clues.'**
+  String get learnWordBuildEasyHint;
+
+  /// No description provided for @learnWordBuildHardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A meaning appears once you build its word.'**
+  String get learnWordBuildHardHint;
+
+  /// No description provided for @learnWordBuildShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle letters'**
+  String get learnWordBuildShuffle;
+
+  /// No description provided for @learnWordBuildNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New puzzle'**
+  String get learnWordBuildNew;
+
+  /// No description provided for @learnWordBuildDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All done!'**
+  String get learnWordBuildDone;
+
+  /// No description provided for @learnGamesOfflineReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rounds ready offline'**
+  String learnGamesOfflineReady(int count);
+
+  /// No description provided for @learnGamesOfflineNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No rounds saved yet'**
+  String get learnGamesOfflineNone;
 }
 
 class _AppLocalizationsDelegate

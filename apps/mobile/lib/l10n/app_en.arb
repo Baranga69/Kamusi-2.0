@@ -159,5 +159,24 @@
   "learnWordFindFoundTitle": "Words you have found",
   "learnWordFindEmpty": "Nothing found yet. Meanings will appear here.",
   "learnWordFindDone": "You found them all. Well done!",
-  "learnWordFindNew": "New puzzle"
+  "learnWordFindNew": "New puzzle",
+  "learnWordBuildTitle": "Build a Word",
+  "learnWordBuildCardBody": "Join eight letters into words, and learn what they mean.",
+  "learnWordBuildHint": "Drag across the letters to build a word",
+  "learnWordBuildEasy": "Easy",
+  "learnWordBuildHard": "Hard",
+  "learnWordBuildEasyHint": "Meanings are shown from the start as clues.",
+  "learnWordBuildHardHint": "A meaning appears once you build its word.",
+  "learnWordBuildShuffle": "Shuffle letters",
+  "learnWordBuildNew": "New puzzle",
+  "learnWordBuildDone": "All done!",
+  "learnGamesOfflineReady": "{count} rounds ready offline",
+  "@learnGamesOfflineReady": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnGamesOfflineNone": "No rounds saved yet"
 }

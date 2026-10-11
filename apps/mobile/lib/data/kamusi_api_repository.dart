@@ -1,6 +1,5 @@
 import '../domain/models/expression_detail.dart';
 import '../domain/models/learn_round.dart';
-import '../domain/models/word_find_puzzle.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
@@ -48,8 +47,13 @@ class KamusiApiRepository implements KamusiRepository {
   }
 
   @override
-  Future<WordFindPuzzle> fetchWordFind() async {
-    return client.getWordFind();
+  Future<Map<String, dynamic>> fetchWordFindJson() async {
+    return client.getWordFindJson();
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchWordBuildJson() async {
+    return client.getWordBuildJson();
   }
 
 }

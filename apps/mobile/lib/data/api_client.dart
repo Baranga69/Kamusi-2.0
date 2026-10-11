@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/models/expression_detail.dart';
 import '../domain/models/learn_round.dart';
-import '../domain/models/word_find_puzzle.dart';
 import '../domain/models/lexeme_public.dart';
 import '../domain/models/search_entry.dart';
 import '../domain/models/word_of_day.dart';
@@ -204,26 +203,46 @@ class ApiClient {
     return LearnRound.fromJson(data);
   }
 
-  /// A word-search grid. Cached so a puzzle survives losing signal part-way
-  /// through; the key has no date in it because a new grid on request is the
-  /// point, and the cache is only a fallback.
-  Future<WordFindPuzzle> getWordFind({
+  /// A word-search grid, as raw JSON.
+  ///
+  /// Deliberately not routed through [_read]: every call returns a *different*
+  /// puzzle, so a last-response-per-key cache would leave a player offline
+  /// with one grid replayed forever. GameRoundCache queues whole rounds
+  /// instead, and stores the JSON it is handed here.
+  Future<Map<String, dynamic>> getWordFindJson({
     String lang = 'sw',
     int size = 11,
     int count = 7,
   }) async {
-    final data = await _read(
+    final response = await get(
       '/learn/wordfind',
-      cacheKey: 'learn-wordfind:$lang:$size:$count',
       queryParameters: {'lang': lang, 'size': size, 'count': count},
     );
+    final data = response.data;
     if (data is! Map<String, dynamic>) {
       throw DioException(
         requestOptions: RequestOptions(path: '/learn/wordfind'),
         error: 'Unexpected word find response',
       );
     }
-    return WordFindPuzzle.fromJson(data);
+    return data;
+  }
+
+  /// A ring of letters and the words they spell, as raw JSON. Queued the same
+  /// way and for the same reason as the grid.
+  Future<Map<String, dynamic>> getWordBuildJson({String lang = 'sw'}) async {
+    final response = await get(
+      '/learn/wordbuild',
+      queryParameters: {'lang': lang},
+    );
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/learn/wordbuild'),
+        error: 'Unexpected word build response',
+      );
+    }
+    return data;
   }
 
   Future<ExpressionDetail> getExpression(String id, {String lang = 'sw'}) async {

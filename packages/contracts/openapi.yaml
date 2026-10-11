@@ -357,6 +357,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /learn/wordbuild:
+    get:
+      tags:
+      - learn
+      summary: Word Build
+      operationId: word_build_learn_wordbuild_get
+      parameters:
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(sw|en)$
+          default: sw
+          title: Lang
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordBuildPuzzle'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/login:
     post:
       tags:
@@ -6624,6 +6652,69 @@ components:
       - msg
       - type
       title: ValidationError
+    WordBuildPuzzle:
+      properties:
+        lang_code:
+          type: string
+          title: Lang Code
+        letters:
+          items:
+            type: string
+          type: array
+          title: Letters
+        words:
+          items:
+            $ref: '#/components/schemas/WordBuildWord'
+          type: array
+          title: Words
+      type: object
+      required:
+      - lang_code
+      - letters
+      - words
+      title: WordBuildPuzzle
+      description: 'A ring of letters and every published word they spell.
+
+
+        The whole solution set is sent, as with the other rounds: nothing is at
+
+        stake, and the puzzle has to be playable from the cache with no
+
+        connection. It is also what lets the client offer definitions as hints in
+
+        an easy mode without asking the server mid-game.'
+    WordBuildWord:
+      properties:
+        lexeme_id:
+          type: string
+          format: uuid
+          title: Lexeme Id
+        word:
+          type: string
+          title: Word
+        letters:
+          type: string
+          title: Letters
+        definition:
+          type: string
+          title: Definition
+        pos_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pos Code
+        is_pangram:
+          type: boolean
+          title: Is Pangram
+          default: false
+      type: object
+      required:
+      - lexeme_id
+      - word
+      - letters
+      - definition
+      title: WordBuildWord
+      description: One word that can be spelled from the puzzle's letters.
     WordFindPuzzle:
       properties:
         lang_code:

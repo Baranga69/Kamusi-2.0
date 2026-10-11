@@ -159,5 +159,24 @@
   "learnWordFindFoundTitle": "Maneno uliyoyapata",
   "learnWordFindEmpty": "Hakuna neno lililopatikana bado. Maana zitaonekana hapa.",
   "learnWordFindDone": "Umepata maneno yote. Hongera!",
-  "learnWordFindNew": "Chemsha bongo mpya"
+  "learnWordFindNew": "Chemsha bongo mpya",
+  "learnWordBuildTitle": "Unda Neno",
+  "learnWordBuildCardBody": "Unganisha herufi nane kuunda maneno na maana zake.",
+  "learnWordBuildHint": "Buruta kwenye herufi kuunda neno",
+  "learnWordBuildEasy": "Rahisi",
+  "learnWordBuildHard": "Ngumu",
+  "learnWordBuildEasyHint": "Maana zinaonekana tangu mwanzo kama vidokezo.",
+  "learnWordBuildHardHint": "Maana huonekana baada ya kuunda neno.",
+  "learnWordBuildShuffle": "Changanya herufi",
+  "learnWordBuildNew": "Chemsha bongo mpya",
+  "learnWordBuildDone": "Umemaliza!",
+  "learnGamesOfflineReady": "Raundi {count} tayari bila intaneti",
+  "@learnGamesOfflineReady": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnGamesOfflineNone": "Hakuna raundi iliyohifadhiwa bado"
 }

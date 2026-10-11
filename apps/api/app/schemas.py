@@ -751,6 +751,35 @@ class WordFindPuzzle(BaseModel):
     words: list[WordFindWord]
 
 
+class WordBuildWord(BaseModel):
+    """One word that can be spelled from the puzzle's letters."""
+
+    lexeme_id: uuid.UUID
+    word: str
+    letters: str
+    definition: str
+    pos_code: str | None = None
+    # True for the word that uses every letter in the ring. There is always
+    # exactly one, and it is what makes the set of letters solvable rather
+    # than arbitrary.
+    is_pangram: bool = False
+
+
+class WordBuildPuzzle(BaseModel):
+    """A ring of letters and every published word they spell.
+
+    The whole solution set is sent, as with the other rounds: nothing is at
+    stake, and the puzzle has to be playable from the cache with no
+    connection. It is also what lets the client offer definitions as hints in
+    an easy mode without asking the server mid-game.
+    """
+
+    lang_code: str
+    # The ring, already shuffled. One character each.
+    letters: list[str]
+    words: list[WordBuildWord]
+
+
 class LearnRound(BaseModel):
     kind: str
     lang_code: str

@@ -124,6 +124,35 @@ cover.
   dictionary.
 - Streak and accuracy live on the device, in UTC. No account required.
 
+### Games
+
+- **Tafuta Neno** — a word search. Finding a word opens its meaning under the
+  grid, where it stays, and tapping it goes to the entry. The grid is the way
+  in; the definition is what you leave with.
+- **Unda Neno** — eight letters in a ring, dragged into words. Two modes, and
+  the difference is only *when* the meanings appear: **easy** shows them from
+  the start, so the game is "which word means this?", and **hard** reveals
+  each one as its word is built. Unsolved answers show their length as dots
+  and never their letters. The word using all eight letters is starred.
+- Both games freeze the page scroll while a finger is on the board, so a
+  downward drag selects a word instead of scrolling. (It did scroll, once.)
+
+### Playing offline
+
+`GameRoundCache` keeps a queue of **ten rounds per game** on the device.
+
+The ordinary response cache stores the last reply per URL, which is right for
+a dictionary entry and wrong for a game: every call to `/learn/wordfind`
+returns a *different* puzzle, so caching by key would leave someone offline
+replaying one grid forever. The queue is topped up in the background whenever
+Jifunze is opened, and drawn down one round at a time — starting a game never
+waits on the network.
+
+Once the queue runs dry with no way to refill, it recycles what has already
+been played, in a new order. Ten puzzles on rotation is a better answer for
+someone on a long journey than a locked screen. The Jifunze home prints how
+many rounds are ready, so you can check before losing signal.
+
 ## Features
 
 - Search suggestions with debounce

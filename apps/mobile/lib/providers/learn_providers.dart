@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/learn_progress_store.dart';
 import '../domain/models/learn_round.dart';
+import '../data/game_round_cache.dart';
+import '../data/game_rounds_service.dart';
+import '../domain/models/word_build_puzzle.dart';
 import '../domain/models/word_find_puzzle.dart';
 import 'app_providers.dart';
 
@@ -21,9 +24,41 @@ final practiceRoundProvider =
   return ref.read(kamusiRepositoryProvider).fetchPracticeRound(kind);
 });
 
-/// A fresh word-search grid. Invalidated to get another one.
+final gameRoundCacheProvider = Provider<GameRoundCache>((ref) {
+  return GameRoundCache();
+});
+
+final gameRoundsServiceProvider = Provider<GameRoundsService>((ref) {
+  return GameRoundsService(
+    repository: ref.read(kamusiRepositoryProvider),
+    cache: ref.read(gameRoundCacheProvider),
+  );
+});
+
+/// A word-search grid, from the offline queue where possible. Invalidated to
+/// get the next one.
 final wordFindProvider = FutureProvider<WordFindPuzzle>((ref) async {
-  return ref.read(kamusiRepositoryProvider).fetchWordFind();
+  return ref.read(gameRoundsServiceProvider).nextWordFind();
+});
+
+/// A ring of letters, from the same queue.
+final wordBuildProvider = FutureProvider<WordBuildPuzzle>((ref) async {
+  return ref.read(gameRoundsServiceProvider).nextWordBuild();
+});
+
+/// How many rounds of each game are playable with no connection.
+final gameRoundsReadyProvider = FutureProvider<Map<String, int>>((ref) async {
+  return ref.read(gameRoundsServiceProvider).readyCounts();
+});
+
+/// Fills the offline queues in the background when Jifunze is opened.
+///
+/// Watched rather than awaited anywhere a player is waiting: the games are
+/// playable from whatever is already stored, and this quietly makes sure
+/// there is enough for the next journey. Never throws — a dropped connection
+/// mid-top-up is ordinary.
+final gameTopUpProvider = FutureProvider<int>((ref) async {
+  return ref.read(gameRoundsServiceProvider).topUpAll();
 });
 
 class LearnProgressController extends AsyncNotifier<LearnProgress> {

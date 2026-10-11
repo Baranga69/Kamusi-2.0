@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/learn_progress_bar.dart';
 import 'learn_round_screen.dart';
+import 'word_build_screen.dart';
 import 'word_find_screen.dart';
 
 /// The Jifunze surface.
@@ -80,6 +81,60 @@ class LearnHomeScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _openWordFind(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) async {
+    ref.invalidate(wordFindProvider);
+    try {
+      final puzzle = await ref.read(wordFindProvider.future);
+      if (!context.mounted) {
+        return;
+      }
+      if (puzzle.isEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => WordFindScreen(puzzle: puzzle)),
+      );
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      // 404 when nothing published is shaped for a board yet, which is a
+      // content state rather than a failure.
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+    }
+    ref.invalidate(gameRoundsReadyProvider);
+  }
+
+  Future<void> _openWordBuild(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) async {
+    ref.invalidate(wordBuildProvider);
+    try {
+      final puzzle = await ref.read(wordBuildProvider.future);
+      if (!context.mounted) {
+        return;
+      }
+      if (puzzle.isEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => WordBuildScreen(puzzle: puzzle)),
+      );
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+    }
+    ref.invalidate(gameRoundsReadyProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
@@ -87,6 +142,15 @@ class LearnHomeScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final daily = ref.watch(dailyRoundProvider);
     final progress = ref.watch(learnProgressProvider);
+
+    // Top the offline queues up in the background on the way in, and refresh
+    // the "ready offline" line once it has. Nothing here waits on it.
+    ref.listen(gameTopUpProvider, (previous, next) {
+      if (next.hasValue && (next.value ?? 0) > 0) {
+        ref.invalidate(gameRoundsReadyProvider);
+      }
+    });
+    ref.watch(gameTopUpProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.learnTitle)),
@@ -185,42 +249,51 @@ class LearnHomeScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 28),
-            // Its own card rather than a fifth practice tile: it is a
-            // different shape of game, not another quiz mix, and it takes a
-            // grid's worth of space to be worth opening.
-            _WordFindCard(
+            // Their own cards rather than more practice tiles: these are a
+            // different shape of game, not another quiz mix, and each takes a
+            // board's worth of space to be worth opening.
+            _GameCard(
+              icon: Icons.grid_on_outlined,
               title: l10n.learnWordFindTitle,
               body: l10n.learnWordFindCardBody,
-              onTap: () async {
-                ref.invalidate(wordFindProvider);
-                try {
-                  final puzzle = await ref.read(wordFindProvider.future);
-                  if (!context.mounted) {
-                    return;
-                  }
-                  if (puzzle.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.learnEmptyBody)),
-                    );
-                    return;
-                  }
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => WordFindScreen(puzzle: puzzle),
-                    ),
-                  );
-                } catch (_) {
-                  if (!context.mounted) {
-                    return;
-                  }
-                  // 404 when nothing published is shaped for a grid yet, which
-                  // is a content state rather than a failure.
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.learnEmptyBody)),
-                  );
-                }
-              },
+              onTap: () => _openWordFind(context, ref, l10n),
             ),
+            const SizedBox(height: 12),
+            _GameCard(
+              icon: Icons.bubble_chart_outlined,
+              title: l10n.learnWordBuildTitle,
+              body: l10n.learnWordBuildCardBody,
+              onTap: () => _openWordBuild(context, ref, l10n),
+            ),
+            const SizedBox(height: 10),
+            // What is playable with no connection. Worth stating plainly:
+            // the whole point of the queue is that someone can check before
+            // they lose signal.
+            ref.watch(gameRoundsReadyProvider).when(
+                  loading: () => const SizedBox(height: 18),
+                  error: (_, __) => const SizedBox(height: 18),
+                  data: (counts) {
+                    final total = counts.values.fold<int>(0, (a, b) => a + b);
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          total > 0 ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          total > 0
+                              ? l10n.learnGamesOfflineReady(total)
+                              : l10n.learnGamesOfflineNone,
+                          style: textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    );
+                  },
+                ),
           ],
         ),
       ),
@@ -228,13 +301,15 @@ class LearnHomeScreen extends ConsumerWidget {
   }
 }
 
-class _WordFindCard extends StatelessWidget {
-  const _WordFindCard({
+class _GameCard extends StatelessWidget {
+  const _GameCard({
+    required this.icon,
     required this.title,
     required this.body,
     required this.onTap,
   });
 
+  final IconData icon;
   final String title;
   final String body;
   final Future<void> Function() onTap;
@@ -253,11 +328,7 @@ class _WordFindCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Icon(
-                Icons.grid_on_outlined,
-                size: 32,
-                color: colorScheme.onTertiaryContainer,
-              ),
+              Icon(icon, size: 32, color: colorScheme.onTertiaryContainer),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

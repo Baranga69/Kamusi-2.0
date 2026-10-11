@@ -318,4 +318,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnWordFindNew => 'New puzzle';
+
+  @override
+  String get learnWordBuildTitle => 'Build a Word';
+
+  @override
+  String get learnWordBuildCardBody =>
+      'Join eight letters into words, and learn what they mean.';
+
+  @override
+  String get learnWordBuildHint => 'Drag across the letters to build a word';
+
+  @override
+  String get learnWordBuildEasy => 'Easy';
+
+  @override
+  String get learnWordBuildHard => 'Hard';
+
+  @override
+  String get learnWordBuildEasyHint =>
+      'Meanings are shown from the start as clues.';
+
+  @override
+  String get learnWordBuildHardHint =>
+      'A meaning appears once you build its word.';
+
+  @override
+  String get learnWordBuildShuffle => 'Shuffle letters';
+
+  @override
+  String get learnWordBuildNew => 'New puzzle';
+
+  @override
+  String get learnWordBuildDone => 'All done!';
+
+  @override
+  String learnGamesOfflineReady(int count) {
+    return '$count rounds ready offline';
+  }
+
+  @override
+  String get learnGamesOfflineNone => 'No rounds saved yet';
 }

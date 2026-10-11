@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import random
 import re
+from collections import Counter
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -29,7 +30,14 @@ from app.models import (
     Sense,
     SenseDefinition,
 )
-from app.schemas import LearnQuestion, LearnRound, WordFindPuzzle, WordFindWord
+from app.schemas import (
+    LearnQuestion,
+    LearnRound,
+    WordBuildPuzzle,
+    WordBuildWord,
+    WordFindPuzzle,
+    WordFindWord,
+)
 
 router = APIRouter(prefix="/learn", tags=["learn"])
 
@@ -554,3 +562,137 @@ def word_find(
             status_code=404, detail="Could not fit any word into a grid that size."
         )
     return WordFindPuzzle(lang_code=lang, size=size, rows=rows, words=words)
+
+
+# --- word build ------------------------------------------------------------
+#
+# A ring of letters and every published word they spell. Unlike the grid,
+# nothing is hidden: the challenge is knowing enough Swahili to see what is
+# there, which is why the definitions double as hints.
+
+# Eight, because the corpus says so. At seven letters only a quarter of
+# candidate words yield enough sub-words to make a puzzle, and at six almost
+# none do; at eight, half of them do and the best give eighteen.
+WORDBUILD_LETTERS = 8
+# Below three letters a "word" is a particle, and every ring would spell
+# dozens of them.
+WORDBUILD_MIN_WORD = 3
+# Fewer than this is a puzzle you finish before you have started.
+WORDBUILD_MIN_SOLUTIONS = 5
+# More than this is a chore rather than a game, and the list stops fitting on
+# a phone screen.
+WORDBUILD_MAX_SOLUTIONS = 16
+# Bases to try before giving up on finding a rich enough one.
+WORDBUILD_BASE_TRIES = 60
+
+
+def wordbuild_pool(db: Session, lang: str) -> list[_Word]:
+    """Published words that can be spelled out of a ring of letters."""
+    stmt = (
+        select(
+            Lexeme.id,
+            Lexeme.lemma,
+            PartOfSpeech.code,
+            SenseDefinition.definition,
+        )
+        .join(Sense, Sense.lexeme_id == Lexeme.id)
+        .join(SenseDefinition, SenseDefinition.sense_id == Sense.id)
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .where(
+            Lexeme.workflow == "published",
+            Sense.workflow == "published",
+            SenseDefinition.lang_code == lang,
+            func.length(SenseDefinition.definition) >= MIN_DEFINITION_LENGTH,
+            func.length(Lexeme.lemma) >= WORDBUILD_MIN_WORD,
+            func.length(Lexeme.lemma) <= WORDBUILD_LETTERS,
+        )
+        .where(
+            or_(
+                SenseDefinition.lang_code != "sw",
+                SenseDefinition.is_ai_generated.is_(False),
+                SenseDefinition.review_status.in_(["approved", "edited"]),
+            )
+        )
+        .order_by(Lexeme.normalized_lemma.asc(), Lexeme.id.asc())
+    )
+
+    seen_ids: set = set()
+    seen_spellings: set[str] = set()
+    pool: list[_Word] = []
+    for lexeme_id, lemma, pos_code, definition in db.execute(stmt).all():
+        if lexeme_id in seen_ids:
+            continue
+        letters = lemma.strip().lower()
+        if not WORDFIND_ALPHABET.match(letters):
+            continue
+        # Two entries spelled the same are one answer to a player.
+        if letters in seen_spellings:
+            continue
+        seen_ids.add(lexeme_id)
+        seen_spellings.add(letters)
+        pool.append(_Word(lexeme_id, lemma.strip(), pos_code, definition.strip()))
+    return pool
+
+
+def build_wordbuild(
+    pool: list[_Word], *, rng: random.Random
+) -> tuple[list[str], list[WordBuildWord]]:
+    """Pick a base word, then everything else its letters spell.
+
+    Returns empty when the published vocabulary cannot yet make a puzzle
+    worth playing, which the caller turns into a 404 rather than a thin ring
+    nobody can finish.
+    """
+    counted = [(word, Counter(word.lemma.lower())) for word in pool]
+    bases = [pair for pair in counted if len(pair[0].lemma) == WORDBUILD_LETTERS]
+    rng.shuffle(bases)
+
+    for base, base_counts in bases[:WORDBUILD_BASE_TRIES]:
+        solutions = [
+            word
+            for word, counts in counted
+            if all(need <= base_counts[letter] for letter, need in counts.items())
+        ]
+        if len(solutions) < WORDBUILD_MIN_SOLUTIONS:
+            continue
+
+        # Longest first, so trimming to the cap keeps the words worth knowing
+        # rather than a pile of three-letter particles. The base is always in
+        # the set: it is the only word using every letter.
+        solutions.sort(key=lambda word: (-len(word.lemma), word.lemma.lower()))
+        solutions = solutions[:WORDBUILD_MAX_SOLUTIONS]
+
+        letters = list(base.lemma.lower())
+        rng.shuffle(letters)
+        return letters, [
+            WordBuildWord(
+                lexeme_id=word.lexeme_id,
+                word=word.lemma,
+                letters=word.lemma.lower(),
+                definition=word.definition,
+                pos_code=word.pos_code,
+                is_pangram=len(word.lemma) == WORDBUILD_LETTERS,
+            )
+            for word in solutions
+        ]
+
+    return [], []
+
+
+@router.get("/wordbuild", response_model=WordBuildPuzzle)
+def word_build(
+    lang: str = Query("sw", pattern="^(sw|en)$"),
+    db: Session = Depends(get_db),
+) -> WordBuildPuzzle:
+    pool = wordbuild_pool(db, lang)
+    letters, words = build_wordbuild(pool, rng=random.Random())
+    if not words:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Not enough published vocabulary to build a ring yet. This "
+                f"needs an {WORDBUILD_LETTERS}-letter word whose letters also "
+                f"spell at least {WORDBUILD_MIN_SOLUTIONS} other reviewed words."
+            ),
+        )
+    return WordBuildPuzzle(lang_code=lang, letters=letters, words=words)
