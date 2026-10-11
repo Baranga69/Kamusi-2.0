@@ -26,12 +26,33 @@ import unicodedata
 # translate it produces a Swahili sentence about grammar rather than a
 # definition. The exporter skips them; the review queue flags any that landed
 # before it did.
+#
+# The named ones, for documentation and for the admin console's morphology
+# lane. This list is NOT how detection works — see MORPHOLOGY_PATTERN.
 MORPHOLOGY_PREFIXES = (
     "Applicative form of",
     "Reciprocal form of",
     "Stative form of",
     "Causative form of",
     "Passive form of",
+    "Conversive form of",
+    "Augmentative form of",
+    "Reduplicative form of",
+)
+
+# Detection matches the shape, not a list of names. An enumerated list was
+# already wrong on the first real corpus: it named five forms while the data
+# also held Conversive, Augmentative and Reduplicative, so 21 stubs passed the
+# gate. Wiktionary will keep inventing these, and a definition that opens
+# "<Word> form of" is a grammatical cross-reference whatever the word is.
+#
+# Case matters, and a leading determiner is excluded: Wiktionary writes these
+# as a capitalised label ("Passive form of -ona"), whereas "a form of
+# government that is elected" is an ordinary English definition that an
+# unanchored pattern wrongly condemned.
+MORPHOLOGY_PATTERN = re.compile(
+    r"^(?!(?:A|An|The|Another|Any|Some|One|No)\b)"
+    r"[A-Z][a-z]+(?:[- ][A-Za-z]+)? form of\b"
 )
 
 # Function words that are common in English and rare-to-absent in Swahili.
@@ -112,8 +133,7 @@ def looks_english(text: str) -> bool:
 
 def looks_morphological(text: str) -> bool:
     """True for Wiktionary's "X form of Y" non-definitions."""
-    stripped = collapse(text)
-    return any(stripped.startswith(prefix) for prefix in MORPHOLOGY_PREFIXES)
+    return bool(MORPHOLOGY_PATTERN.match(collapse(text)))
 
 
 def looks_like_refusal(text: str) -> bool:

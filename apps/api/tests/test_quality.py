@@ -122,6 +122,31 @@ def test_every_morphology_prefix_is_recognised(prefix):
     assert looks_morphological(f"{prefix} -penda")
 
 
+def test_a_form_the_list_does_not_name_is_still_caught():
+    """Detection is by shape, not by an enumerated list.
+
+    A five-name list was already wrong on the first real corpus, which also
+    held Conversive, Augmentative and Reduplicative — 21 stubs through the
+    gate. Wiktionary will keep inventing these.
+    """
+    assert looks_morphological("Contactive form of -gusa")
+    assert looks_morphological("Double-object form of -pa")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "a form of government that is elected by citizens",
+        "A form of government that is elected by citizens",
+        "the plural form of a noun already in use",
+        "one form of payment accepted at the counter",
+    ],
+)
+def test_an_english_definition_about_forms_is_not_condemned(text):
+    """The cost of over-matching here is discarding a real definition."""
+    assert not looks_morphological(text)
+
+
 def test_a_definition_merely_mentioning_a_form_survives():
     """Only a leading "X form of Y" is the non-definition."""
     assert not looks_morphological("hali ya kupenda, ni passive form of -penda")
