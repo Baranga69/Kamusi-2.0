@@ -88,6 +88,17 @@ pnpm --filter @kamusi/admin exec tsc --noEmit
 pnpm --filter @kamusi/admin build
 ```
 
+`lib/contract.test.ts` validates the request bodies this client produces
+against `packages/contracts/openapi.yaml`, which is generated from the running
+API. CI separately fails when that spec is stale, so together they mean the
+console is checked against the real server contract rather than against its
+own mocks.
+
+That gap was not theoretical: review actions once shipped returning 422 for
+every caller while the mocked tests stayed green, because the API required a
+field the console had correctly stopped sending. Add a case here whenever you
+add a request body.
+
 ## Manual testing (Lexeme Creation Studio)
 
 1. Go to **Lexemes → Create lexeme**.
