@@ -237,6 +237,10 @@ class ImportRun(Base):
     definitions_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Input lines durably written. Updated in the same transaction as the
+    # batch it describes, so it never claims more than was committed.
+    processed_lines: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_lines: Mapped[int | None] = mapped_column(Integer)
 
 
 class Lexeme(Base):

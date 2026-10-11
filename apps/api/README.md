@@ -253,6 +253,53 @@ poetry run python scripts/export_openapi.py
 poetry run python scripts/export_openapi.py --check   # what CI runs
 ```
 
+## Importing at volume
+
+Both importers (`tools/ingest/wiktionary/load_contract.py` and
+`tools/ai_defs/import_ai_defs.py`) commit in batches and can resume. A
+million-line import that commits once at the end is a million lines lost to
+one malformed row at line 999,999.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `BATCH_SIZE` | `500` | Lines per commit. Lower survives crashes with less rework; higher is faster. |
+| `RESUME` | — | A run id to continue instead of starting a new one. |
+| `DRY_RUN` | `false` | Parse and report, write nothing. |
+
+```bash
+cd apps/api
+export KAMUSI_DB_URL="postgresql://kamusi:kamusi123@localhost:5433/kamusi"
+export AI_SOURCE_ID="<source uuid>"
+export IN_PATH="tools/ai_defs/out/ai_defs.jsonl"
+
+# See what it would do, without touching the database.
+DRY_RUN=true poetry run python tools/ai_defs/import_ai_defs.py
+
+# Import for real, committing every 1000 lines.
+BATCH_SIZE=1000 poetry run python tools/ai_defs/import_ai_defs.py
+```
+
+If it dies part-way, the run is recorded as `failed` with the line it reached,
+and the work already committed is still there. Continue it with the run id the
+importer printed:
+
+```bash
+RESUME="<run-id>" poetry run python tools/ai_defs/import_ai_defs.py
+```
+
+A resumed run skips the lines its earlier attempt committed and reports the
+whole job, not just the last leg. `revert_import.py --list` shows runs that
+stopped part-way, so a resumable import is easy to find later.
+
+**Why the checkpoint is written with its batch.** `processed_lines` is updated
+in the same transaction as the rows it describes. Committing it separately
+would let the two drift apart the moment one failed — and a resume point that
+overstates progress silently skips input, which is the kind of missing data
+you find months later.
+
+A run that is `completed` or `reverted` cannot be resumed; resuming the first
+would duplicate it, and the second had its rows removed deliberately.
+
 ## Undoing an import
 
 Every bulk import is recorded in `import_run`, and every row it creates

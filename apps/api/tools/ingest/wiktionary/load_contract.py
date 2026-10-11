@@ -10,7 +10,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from import_run import import_run  # noqa: E402
+from import_run import count_lines, import_run  # noqa: E402
 
 DB_URL = os.getenv("KAMUSI_DB_URL", "postgresql://kamusi:kamusi123@localhost:5433/kamusi")
 INPUT_JSONL = sys.argv[1] if len(sys.argv) > 1 else "kamusi_contract-20260101.jsonl"
@@ -20,6 +20,15 @@ DEFAULT_STATUS = os.getenv("KAMUSI_STATUS", "core")
 
 # IMPORTANT: your workflow_status enum is draft/reviewed/published/archived
 DEFAULT_WORKFLOW = os.getenv("KAMUSI_WORKFLOW", "draft")
+
+# Rows per transaction. This file used to commit once at the very end, so a
+# failure near the finish threw away the whole import and held one transaction
+# open throughout.
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))
+# Continue an interrupted run instead of starting a new one.
+RESUME = os.getenv("RESUME") or None
+# Parse and report without writing anything.
+DRY_RUN = (os.getenv("DRY_RUN", "false") or "").lower() in {"1", "true", "yes"}
 
 
 def get_pos_map(cur) -> Dict[str, str]:
@@ -164,6 +173,8 @@ def upsert_definition_one_per_lang(
 
 
 def main() -> None:
+    read_lines = 0
+    skipped_resume = 0
     inserted_lexemes = 0
     inserted_senses = 0
     attempted_definitions = 0
@@ -181,9 +192,18 @@ def main() -> None:
         kind="wiktionary",
         tool="load_contract.py",
         input_path=str(Path(INPUT_JSONL).resolve()),
-        parameters={"status": DEFAULT_STATUS, "workflow": DEFAULT_WORKFLOW},
+        parameters={
+            "status": DEFAULT_STATUS,
+            "workflow": DEFAULT_WORKFLOW,
+            "batch_size": BATCH_SIZE,
+        },
+        resume=RESUME,
+        total_lines=count_lines(INPUT_JSONL),
+        dry_run=DRY_RUN,
     ) as run:
         run_id = run.id if run else None
+        if run and run.resume_from:
+            print(f"Resuming run {run_id} from line {run.resume_from:,}")
         with conn.cursor() as cur:
             pos_map = get_pos_map(cur)
 
@@ -192,6 +212,13 @@ def main() -> None:
                     line = line.strip()
                     if not line:
                         continue
+                    read_lines += 1
+
+                    # Lines an earlier attempt already committed.
+                    if run and run.should_skip(read_lines):
+                        skipped_resume += 1
+                        continue
+
                     obj: Dict[str, Any] = json.loads(line)
 
                     source = obj.get("source") or {}
@@ -268,19 +295,36 @@ def main() -> None:
                                 import_run_id=run_id,
                             )
 
-            conn.commit()
-            if run:
-                run.counts["lexemes_created"] = inserted_lexemes
-                run.counts["senses_created"] = inserted_senses
-                run.counts["definitions_created"] = attempted_definitions
+                    if run:
+                        run.counts["lexemes_created"] = inserted_lexemes
+                        run.counts["senses_created"] = inserted_senses
+                        run.counts["definitions_created"] = attempted_definitions
 
-    print("Done.")
+                    # A bounded transaction: a failure costs at most one batch,
+                    # and the checkpoint rides along with it.
+                    if not DRY_RUN and read_lines % BATCH_SIZE == 0:
+                        if run:
+                            run.commit_batch(read_lines)
+                            print(run.progress(read_lines), flush=True)
+                        else:
+                            conn.commit()
+
+            if DRY_RUN:
+                conn.rollback()
+            elif run:
+                run.commit_batch(read_lines)
+            else:
+                conn.commit()
+
+    print("Dry run finished — nothing written." if DRY_RUN else "Done.")
     print("Inserted lexemes:", inserted_lexemes)
     print("Inserted senses:", inserted_senses)
     print("Attempted definitions:", attempted_definitions)
     print("Skipped (unknown pos):", skipped_unknown_pos)
     print("Skipped (missing source_id):", skipped_missing_source)
-    if run_id:
+    if skipped_resume:
+        print("Skipped (already imported):", skipped_resume)
+    if run_id and not DRY_RUN:
         print()
         print("Import run:", run_id)
         print("Undo it with:")

@@ -19,7 +19,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from import_run import import_run  # noqa: E402
+from import_run import count_lines, import_run  # noqa: E402
 
 
 def env(name: str, default: str | None = None) -> str | None:
@@ -43,6 +43,14 @@ DEFAULT_PROMPT_VERSION = env("AI_PROMPT_VERSION", "unknown")
 
 # Imported definitions always land unreviewed; the admin queue promotes them.
 INITIAL_REVIEW_STATUS = "unreviewed"
+
+# Rows per transaction. A failure loses at most this much work, and the run
+# records how far it got so the rest can be resumed.
+BATCH_SIZE = int(env("BATCH_SIZE", "500"))
+# Continue an interrupted run instead of starting a new one.
+RESUME = env("RESUME")
+# Parse and report without writing anything.
+DRY_RUN = (env("DRY_RUN", "false") or "").lower() in {"1", "true", "yes"}
 
 INSERT_COLUMNS = """
   id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
@@ -89,6 +97,7 @@ def main() -> None:
     skipped_conflict = 0
     updated = 0
     skipped_bad = 0
+    skipped_resume = 0
     total = 0
 
     # Build SQL depending on conflict strategy
@@ -122,15 +131,26 @@ def main() -> None:
         """
 
     run_id = None
+    resumed_from = 0
     with psycopg.connect(DB_URL, row_factory=dict_row) as conn, import_run(
         conn,
         kind="ai_definitions",
         tool="import_ai_defs.py",
         source_id=AI_SOURCE_ID,
         input_path=str(IN_PATH.resolve()),
-        parameters={"on_conflict": ON_CONFLICT, "is_primary": IS_PRIMARY},
+        parameters={
+            "on_conflict": ON_CONFLICT,
+            "is_primary": IS_PRIMARY,
+            "batch_size": BATCH_SIZE,
+        },
+        resume=RESUME,
+        total_lines=count_lines(IN_PATH),
+        dry_run=DRY_RUN,
     ) as run:
         run_id = run.id if run else None
+        resumed_from = run.resume_from if run else 0
+        if resumed_from:
+            print(f"Resuming run {run_id} from line {resumed_from:,}")
         with conn.cursor() as cur:
             with IN_PATH.open("r", encoding="utf-8") as f:
                 for line in f:
@@ -138,6 +158,11 @@ def main() -> None:
                     if not line:
                         continue
                     total += 1
+
+                    # Lines an earlier attempt already committed.
+                    if run and run.should_skip(total):
+                        skipped_resume += 1
+                        continue
 
                     obj = json.loads(line)
 
@@ -190,23 +215,40 @@ def main() -> None:
                         else:
                             skipped_conflict += 1
 
-            conn.commit()
-            if run:
-                run.counts["definitions_created"] = inserted + updated
+                    if run:
+                        run.counts["definitions_created"] = inserted + updated
 
-    print("✅ Import finished")
+                    # A bounded transaction: a failure costs at most one batch,
+                    # and the checkpoint rides along with it.
+                    if not DRY_RUN and total % BATCH_SIZE == 0:
+                        if run:
+                            run.commit_batch(total)
+                            print(run.progress(total), flush=True)
+                        else:
+                            conn.commit()
+
+            if DRY_RUN:
+                conn.rollback()
+            elif run:
+                run.commit_batch(total)
+            else:
+                conn.commit()
+
+    print("✅ Dry run finished — nothing written" if DRY_RUN else "✅ Import finished")
     print(f"Input lines read:           {total}")
     print(f"Inserted (new sw rows):     {inserted}")
     print(f"Skipped (conflict existing):{skipped_conflict}")
     print(f"Written (update mode):      {updated}")
     print(f"Skipped (bad/error rows):   {skipped_bad}")
+    if skipped_resume:
+        print(f"Skipped (already imported): {skipped_resume}")
     print(f"AI_SOURCE_ID:              {AI_SOURCE_ID}")
     print(f"IN_PATH:                   {IN_PATH.resolve()}")
     print(f"DB_URL:                    {DB_URL}")
     print()
     print("Imported rows are is_ai_generated=true, review_status='unreviewed':")
     print("hidden from the public API until approved in the admin review queue.")
-    if run_id:
+    if run_id and not DRY_RUN:
         print()
         print(f"Import run:                {run_id}")
         print("Undo it with:")
