@@ -253,6 +253,38 @@ poetry run python scripts/export_openapi.py
 poetry run python scripts/export_openapi.py --check   # what CI runs
 ```
 
+## Undoing an import
+
+Every bulk import is recorded in `import_run`, and every row it creates
+carries that run's id. A batch that turns out to be wrong — a bad
+part-of-speech mapping, a prompt that produced nonsense, a source that turned
+out to be mislicensed — can be undone without restoring the whole database and
+losing every good edit made since.
+
+```bash
+cd apps/api
+poetry run python tools/maintenance/revert_import.py --list
+poetry run python tools/maintenance/revert_import.py <run-id>          # dry run
+poetry run python tools/maintenance/revert_import.py <run-id> --apply
+```
+
+Both importers print their run id and the exact command to undo it.
+
+**What revert refuses to delete.** A definition a human has approved, edited
+or rejected is kept: reviewing something is also a decision that it should
+exist, and the judgement is a person's work. A sense that still has
+definitions — from a later import or from hand authoring — is kept, as is a
+lexeme that still has such senses. Anything skipped is reported with the
+reason. A partial revert is the right outcome once someone has engaged with
+part of the batch.
+
+Content created by hand in the admin console belongs to no run and is never
+touched. Deleting the `import_run` record itself orphans its rows from the
+record rather than deleting them — losing the paperwork must not take the
+content with it.
+
+Take a backup first: this is the only tool here that removes content.
+
 ## Maintenance tools
 
 ### Repair AI provenance (one-off)

@@ -18,6 +18,9 @@ from pathlib import Path
 import psycopg
 from psycopg.rows import dict_row
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from import_run import import_run  # noqa: E402
+
 
 def env(name: str, default: str | None = None) -> str | None:
     v = os.getenv(name)
@@ -43,12 +46,14 @@ INITIAL_REVIEW_STATUS = "unreviewed"
 
 INSERT_COLUMNS = """
   id, sense_id, lang_code, definition, gloss, is_primary, source_id, created_at,
-  is_ai_generated, review_status, ai_model, ai_prompt_version, ai_confidence
+  is_ai_generated, review_status, ai_model, ai_prompt_version, ai_confidence,
+  import_run_id
 """
 
 INSERT_VALUES = """
   %s, %s, 'sw', %s, %s, %s, %s, now(),
-  true, %s, %s, %s, %s
+  true, %s, %s, %s, %s,
+  %s
 """
 
 
@@ -116,7 +121,16 @@ def main() -> None:
         DO NOTHING
         """
 
-    with psycopg.connect(DB_URL, row_factory=dict_row) as conn:
+    run_id = None
+    with psycopg.connect(DB_URL, row_factory=dict_row) as conn, import_run(
+        conn,
+        kind="ai_definitions",
+        tool="import_ai_defs.py",
+        source_id=AI_SOURCE_ID,
+        input_path=str(IN_PATH.resolve()),
+        parameters={"on_conflict": ON_CONFLICT, "is_primary": IS_PRIMARY},
+    ) as run:
+        run_id = run.id if run else None
         with conn.cursor() as cur:
             with IN_PATH.open("r", encoding="utf-8") as f:
                 for line in f:
@@ -161,6 +175,7 @@ def main() -> None:
                             ai_model,
                             prompt_version,
                             confidence,
+                            run_id,
                         ),
                     )
 
@@ -176,6 +191,8 @@ def main() -> None:
                             skipped_conflict += 1
 
             conn.commit()
+            if run:
+                run.counts["definitions_created"] = inserted + updated
 
     print("✅ Import finished")
     print(f"Input lines read:           {total}")
@@ -189,6 +206,11 @@ def main() -> None:
     print()
     print("Imported rows are is_ai_generated=true, review_status='unreviewed':")
     print("hidden from the public API until approved in the admin review queue.")
+    if run_id:
+        print()
+        print(f"Import run:                {run_id}")
+        print("Undo it with:")
+        print(f"  python tools/maintenance/revert_import.py {run_id}")
 
 
 if __name__ == "__main__":

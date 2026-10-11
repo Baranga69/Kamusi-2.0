@@ -204,6 +204,41 @@ class Source(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
 
+class ImportRun(Base):
+    """One bulk import, so its rows can be found and undone together.
+
+    `source_id` records where content came from; this records which run put it
+    there. "Wiktionary" is not something you can undo — "the rows loaded on
+    Tuesday from this file" is.
+    """
+
+    __tablename__ = "import_run"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'completed', 'failed', 'reverted')",
+            name="ck_import_run_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    tool: Mapped[str] = mapped_column(Text, nullable=False)
+    input_path: Mapped[str | None] = mapped_column(Text)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("source.id", ondelete="SET NULL")
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="running")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lexemes_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    senses_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    definitions_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+
 class Lexeme(Base):
     __tablename__ = "lexeme"
     __table_args__ = (UniqueConstraint("normalized_lemma", "pos_id", name="ux_lexeme_norm_pos"),)
@@ -217,6 +252,10 @@ class Lexeme(Base):
     workflow: Mapped[str] = mapped_column(workflow_status, nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    # Null for anything created by hand, or predating import tracking.
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     senses: Mapped[list["Sense"]] = relationship(back_populates="lexeme", cascade="all, delete-orphan")
 
@@ -234,6 +273,10 @@ class Sense(Base):
     workflow: Mapped[str] = mapped_column(workflow_status, nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     lexeme: Mapped[Lexeme] = relationship(back_populates="senses")
     definitions: Mapped[list["SenseDefinition"]] = relationship(
@@ -265,6 +308,9 @@ class SenseDefinition(Base):
     # "poor".
     ai_confidence: Mapped[float | None] = mapped_column(Float)
     review_note: Mapped[str | None] = mapped_column(Text)
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     sense: Mapped[Sense] = relationship(back_populates="definitions")
 
