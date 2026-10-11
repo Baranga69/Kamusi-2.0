@@ -44,10 +44,13 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
 
   bool get _complete => _found.length == _puzzle.words.length;
 
+  /// How far the tiles sit from the middle.
+  double _ringRadius(Size size) => size.shortestSide * 0.36;
+
   /// Tile centres on a circle, as fractions of the ring box.
   List<Offset> _centres(Size size) {
     final count = _ring.length;
-    final radius = size.shortestSide * 0.36;
+    final radius = _ringRadius(size);
     final centre = Offset(size.width / 2, size.height / 2);
     return List<Offset>.generate(count, (index) {
       // Start at the top and go clockwise, so the ring reads the way a clock
@@ -217,10 +220,15 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                     width: side,
                     height: side,
                     child: CustomPaint(
-                      painter: _RingLinkPainter(
+                      painter: _RingPainter(
                         centres: _centres(size),
                         selected: _selected,
-                        color: theme.colorScheme.primary,
+                        ringRadius: _ringRadius(size),
+                        tileRadius: _tileRadius(size),
+                        linkColor: theme.colorScheme.primary,
+                        ringColor: theme.colorScheme.outlineVariant,
+                        ringFill: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.35),
                       ),
                       child: Stack(
                         children: [
@@ -397,40 +405,71 @@ class _RingTile extends StatelessWidget {
   }
 }
 
-/// The line joining the tiles picked so far, so a long word stays legible as
-/// a shape rather than a guess about which letters are lit.
-class _RingLinkPainter extends CustomPainter {
-  _RingLinkPainter({
+/// The ring the letters sit on, and the line joining the ones picked so far.
+///
+/// The ring is drawn always, not only mid-drag: without it the tiles read as
+/// eight loose circles, and the shape is what tells a player these letters
+/// belong to one puzzle. The link line keeps a long word legible as a shape
+/// rather than a guess about which letters are lit.
+class _RingPainter extends CustomPainter {
+  _RingPainter({
     required this.centres,
     required this.selected,
-    required this.color,
+    required this.ringRadius,
+    required this.tileRadius,
+    required this.linkColor,
+    required this.ringColor,
+    required this.ringFill,
   });
 
   final List<Offset> centres;
   final List<int> selected;
-  final Color color;
+  final double ringRadius;
+  final double tileRadius;
+  final Color linkColor;
+  final Color ringColor;
+  final Color ringFill;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final centre = Offset(size.width / 2, size.height / 2);
+    // Outside the tiles, with a little air, so the band encloses them rather
+    // than cutting through the letters.
+    final radius = ringRadius + tileRadius + tileRadius * 0.22;
+
+    canvas.drawCircle(centre, radius, Paint()..color = ringFill);
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..color = ringColor
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke,
+    );
+
     if (selected.length < 2) {
       return;
     }
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.45)
+    final link = Paint()
+      ..color = linkColor.withValues(alpha: 0.45)
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
     final path = Path()
       ..moveTo(centres[selected.first].dx, centres[selected.first].dy);
     for (final index in selected.skip(1)) {
       path.lineTo(centres[index].dx, centres[index].dy);
     }
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, link);
   }
 
   @override
-  bool shouldRepaint(_RingLinkPainter old) =>
-      old.selected.length != selected.length || old.color != color;
+  bool shouldRepaint(_RingPainter old) =>
+      old.selected.length != selected.length ||
+      old.linkColor != linkColor ||
+      old.ringColor != ringColor ||
+      old.ringRadius != ringRadius;
 }
 
 class _ProgressRow extends StatelessWidget {

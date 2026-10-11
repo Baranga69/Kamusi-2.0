@@ -331,7 +331,7 @@ class AppLocalizationsSw extends AppLocalizations {
       'Unganisha herufi nane kuunda maneno na maana zake.';
 
   @override
-  String get learnWordBuildHint => 'Buruta kwenye herufi kuunda neno';
+  String get learnWordBuildHint => 'Vuruta kwenye herufi kuunda neno';
 
   @override
   String get learnWordBuildEasy => 'Rahisi';

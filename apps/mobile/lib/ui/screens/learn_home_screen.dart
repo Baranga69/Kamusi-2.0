@@ -200,6 +200,52 @@ class LearnHomeScreen extends ConsumerWidget {
                 );
               },
             ),
+            const SizedBox(height: 28),
+            // Their own cards rather than more practice tiles: these are a
+            // different shape of game, not another quiz mix, and each takes a
+            // board's worth of space to be worth opening.
+            _GameCard(
+              icon: Icons.grid_on_outlined,
+              title: l10n.learnWordFindTitle,
+              body: l10n.learnWordFindCardBody,
+              onTap: () => _openWordFind(context, ref, l10n),
+            ),
+            const SizedBox(height: 12),
+            _GameCard(
+              icon: Icons.bubble_chart_outlined,
+              title: l10n.learnWordBuildTitle,
+              body: l10n.learnWordBuildCardBody,
+              onTap: () => _openWordBuild(context, ref, l10n),
+            ),
+            const SizedBox(height: 10),
+            // What is playable with no connection. Worth stating plainly:
+            // the whole point of the queue is that someone can check before
+            // they lose signal.
+            ref.watch(gameRoundsReadyProvider).when(
+                  loading: () => const SizedBox(height: 18),
+                  error: (_, __) => const SizedBox(height: 18),
+                  data: (counts) {
+                    final total = counts.values.fold<int>(0, (a, b) => a + b);
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          total > 0 ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          total > 0
+                              ? l10n.learnGamesOfflineReady(total)
+                              : l10n.learnGamesOfflineNone,
+                          style: textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    );
+                  },
+                ),
             const SizedBox(height: 32),
             Text(
               l10n.learnPracticeTitle,
@@ -248,52 +294,6 @@ class LearnHomeScreen extends ConsumerWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 28),
-            // Their own cards rather than more practice tiles: these are a
-            // different shape of game, not another quiz mix, and each takes a
-            // board's worth of space to be worth opening.
-            _GameCard(
-              icon: Icons.grid_on_outlined,
-              title: l10n.learnWordFindTitle,
-              body: l10n.learnWordFindCardBody,
-              onTap: () => _openWordFind(context, ref, l10n),
-            ),
-            const SizedBox(height: 12),
-            _GameCard(
-              icon: Icons.bubble_chart_outlined,
-              title: l10n.learnWordBuildTitle,
-              body: l10n.learnWordBuildCardBody,
-              onTap: () => _openWordBuild(context, ref, l10n),
-            ),
-            const SizedBox(height: 10),
-            // What is playable with no connection. Worth stating plainly:
-            // the whole point of the queue is that someone can check before
-            // they lose signal.
-            ref.watch(gameRoundsReadyProvider).when(
-                  loading: () => const SizedBox(height: 18),
-                  error: (_, __) => const SizedBox(height: 18),
-                  data: (counts) {
-                    final total = counts.values.fold<int>(0, (a, b) => a + b);
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          total > 0 ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          total > 0
-                              ? l10n.learnGamesOfflineReady(total)
-                              : l10n.learnGamesOfflineNone,
-                          style: textTheme.bodySmall
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    );
-                  },
-                ),
           ],
         ),
       ),
