@@ -28,6 +28,17 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   final List<WordFindWord> _found = [];
   final Set<WordFindCell> _foundCells = {};
 
+  /// True while a finger is down on the grid.
+  ///
+  /// The grid lives inside a ListView, and a vertical drag would otherwise be
+  /// claimed by the scrollable before this widget ever saw it — so words
+  /// running down or diagonally could not be selected at all, only the
+  /// horizontal ones. Locking the list while a pointer is on the grid is what
+  /// makes every direction selectable. Pointer events are used rather than a
+  /// GestureDetector for the same reason: a Listener does not enter the
+  /// gesture arena, so it cannot lose it.
+  bool _dragLock = false;
+
   /// The drag in progress.
   WordFindCell? _dragStart;
   List<WordFindCell> _dragPath = const [];
@@ -79,14 +90,14 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
 
   // --- the drag ----------------------------------------------------------
 
-  void _onPanStart(Offset local, Size size) {
+  void _onPointerDown(Offset local, Size size) {
     final cell = _cellAt(local, size);
-    if (cell == null) {
-      return;
-    }
     setState(() {
+      // Locked even when the touch misses a cell, so a stray press on the
+      // grid's padding does not scroll the page out from under the puzzle.
+      _dragLock = true;
       _dragStart = cell;
-      _dragPath = [cell];
+      _dragPath = cell == null ? const [] : [cell];
       _dragIsWrong = false;
     });
   }
@@ -123,6 +134,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     final path = _dragPath;
     if (path.length < 2) {
       setState(() {
+        _dragLock = false;
         _dragStart = null;
         _dragPath = const [];
       });
@@ -140,8 +152,12 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     if (hit == null) {
       // Wrong: hold the selection red for a beat so it is clear the drag was
       // read, then clear it. Silently dropping it reads as an unresponsive
-      // grid.
-      setState(() => _dragIsWrong = true);
+      // grid. The list is unlocked straight away rather than after the
+      // flash, so a missed guess never blocks scrolling.
+      setState(() {
+        _dragIsWrong = true;
+        _dragLock = false;
+      });
       Future<void>.delayed(const Duration(milliseconds: 350), () {
         if (!mounted) {
           return;
@@ -157,6 +173,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
 
     final found = hit;
     setState(() {
+      _dragLock = false;
       _found.insert(0, found);
       _foundCells.addAll(found.cells);
       _dragStart = null;
@@ -199,6 +216,11 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
         ],
       ),
       body: ListView(
+        // Frozen while a finger is on the grid, so a downward drag selects a
+        // word instead of scrolling the screen.
+        physics: _dragLock
+            ? const NeverScrollableScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           _ProgressHeader(
@@ -211,12 +233,14 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             builder: (context, constraints) {
               final side = constraints.maxWidth;
               final size = Size(side, side);
-              return GestureDetector(
+              return Listener(
                 behavior: HitTestBehavior.opaque,
-                onPanStart: (details) => _onPanStart(details.localPosition, size),
-                onPanUpdate: (details) => _onPanUpdate(details.localPosition, size),
-                onPanEnd: (_) => _onPanEnd(),
-                onPanCancel: _onPanEnd,
+                onPointerDown: (event) =>
+                    _onPointerDown(event.localPosition, size),
+                onPointerMove: (event) =>
+                    _onPanUpdate(event.localPosition, size),
+                onPointerUp: (_) => _onPanEnd(),
+                onPointerCancel: (_) => _onPanEnd(),
                 child: SizedBox(
                   width: side,
                   height: side,
@@ -400,11 +424,12 @@ class _LetterCell extends StatelessWidget {
           ? (learnColors?.incorrectContainer ?? colorScheme.errorContainer)
           : colorScheme.primaryContainer;
       foreground = selectionIsWrong
-          ? (learnColors?.onIncorrect ?? colorScheme.onErrorContainer)
+          ? (learnColors?.onIncorrectContainer ?? colorScheme.onErrorContainer)
           : colorScheme.onPrimaryContainer;
     } else if (isFound) {
       background = learnColors?.correctContainer ?? colorScheme.secondaryContainer;
-      foreground = learnColors?.onCorrect ?? colorScheme.onSecondaryContainer;
+      foreground =
+          learnColors?.onCorrectContainer ?? colorScheme.onSecondaryContainer;
     }
 
     return Padding(
@@ -503,7 +528,7 @@ class _FoundWordCard extends StatelessWidget {
                         word.word,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: learnColors?.onCorrect,
+                          color: learnColors?.onCorrectContainer,
                         ),
                       ),
                     ),
@@ -511,7 +536,7 @@ class _FoundWordCard extends StatelessWidget {
                       Text(
                         word.posCode!,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: learnColors?.onCorrect.withValues(alpha: 0.75),
+                          color: learnColors?.onCorrectContainer.withValues(alpha: 0.78),
                         ),
                       ),
                   ],
@@ -520,7 +545,7 @@ class _FoundWordCard extends StatelessWidget {
                 Text(
                   word.definition,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: learnColors?.onCorrect,
+                    color: learnColors?.onCorrectContainer,
                   ),
                 ),
                 if (word.lexemeId.isNotEmpty) ...[
@@ -531,7 +556,7 @@ class _FoundWordCard extends StatelessWidget {
                       Text(
                         openLabel,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: learnColors?.onCorrect,
+                          color: learnColors?.onCorrectContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -539,7 +564,7 @@ class _FoundWordCard extends StatelessWidget {
                       Icon(
                         Icons.arrow_forward,
                         size: 16,
-                        color: learnColors?.onCorrect,
+                        color: learnColors?.onCorrectContainer,
                       ),
                     ],
                   ),
