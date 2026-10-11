@@ -31,6 +31,8 @@ from app.models import (
     SenseDefinition,
 )
 from app.schemas import (
+    CodewordEntry,
+    CodewordPuzzle,
     LearnQuestion,
     LearnRound,
     WordBuildPuzzle,
@@ -696,3 +698,159 @@ def word_build(
             ),
         )
     return WordBuildPuzzle(lang_code=lang, letters=letters, words=words)
+
+
+# --- codeword --------------------------------------------------------------
+#
+# Every letter is replaced by a number, the same number everywhere it occurs.
+# Crack a letter in one word and it opens in all of them, which is the whole
+# pleasure of the form — and it happens to drill exactly the thing a learner
+# of a new orthography needs: which letters actually recur in this language.
+
+CODEWORD_ENTRIES = 5
+CODEWORD_MIN_WORD = 4
+CODEWORD_MAX_WORD = 9
+# Keeping the alphabet small is what makes numbers repeat often enough to
+# deduce anything. Above this the board is a cipher with no leverage.
+CODEWORD_MAX_ALPHABET = 13
+# Letters given away at the start, so there is somewhere to begin.
+CODEWORD_REVEALED = 2
+CODEWORD_SEED_TRIES = 80
+
+
+def codeword_pool(db: Session, lang: str) -> list[_Word]:
+    """Published words of a length that fits a row of numbered cells."""
+    stmt = (
+        select(
+            Lexeme.id,
+            Lexeme.lemma,
+            PartOfSpeech.code,
+            SenseDefinition.definition,
+        )
+        .join(Sense, Sense.lexeme_id == Lexeme.id)
+        .join(SenseDefinition, SenseDefinition.sense_id == Sense.id)
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .where(
+            Lexeme.workflow == "published",
+            Sense.workflow == "published",
+            SenseDefinition.lang_code == lang,
+            func.length(SenseDefinition.definition) >= MIN_DEFINITION_LENGTH,
+            func.length(Lexeme.lemma) >= CODEWORD_MIN_WORD,
+            func.length(Lexeme.lemma) <= CODEWORD_MAX_WORD,
+        )
+        .where(
+            or_(
+                SenseDefinition.lang_code != "sw",
+                SenseDefinition.is_ai_generated.is_(False),
+                SenseDefinition.review_status.in_(["approved", "edited"]),
+            )
+        )
+        .order_by(Lexeme.normalized_lemma.asc(), Lexeme.id.asc())
+    )
+
+    seen_ids: set = set()
+    seen_spellings: set[str] = set()
+    pool: list[_Word] = []
+    for lexeme_id, lemma, pos_code, definition in db.execute(stmt).all():
+        if lexeme_id in seen_ids:
+            continue
+        letters = lemma.strip().lower()
+        if not WORDFIND_ALPHABET.match(letters) or letters in seen_spellings:
+            continue
+        seen_ids.add(lexeme_id)
+        seen_spellings.add(letters)
+        pool.append(_Word(lexeme_id, lemma.strip(), pos_code, definition.strip()))
+    return pool
+
+
+def build_codeword(
+    pool: list[_Word], *, rng: random.Random
+) -> tuple[dict[str, int], list[str], list[CodewordEntry]]:
+    """Gather words that share an alphabet, then number its letters.
+
+    Built greedily around a seed word: each addition is the candidate that
+    adds fewest new letters, because a board where every number appears once
+    is a substitution with nothing to deduce.
+    """
+    if len(pool) < CODEWORD_ENTRIES:
+        return {}, [], []
+
+    shuffled = list(pool)
+    rng.shuffle(shuffled)
+
+    for seed in shuffled[:CODEWORD_SEED_TRIES]:
+        chosen = [seed]
+        alphabet = set(seed.lemma.lower())
+
+        # Cheapest-first, recomputed each round: what is cheap changes as the
+        # alphabet grows.
+        while len(chosen) < CODEWORD_ENTRIES:
+            best = None
+            best_cost = None
+            for word in shuffled:
+                if word in chosen:
+                    continue
+                letters = set(word.lemma.lower())
+                cost = len(letters - alphabet)
+                if len(alphabet | letters) > CODEWORD_MAX_ALPHABET:
+                    continue
+                if best_cost is None or cost < best_cost:
+                    best, best_cost = word, cost
+                    if cost == 0:
+                        break
+            if best is None:
+                break
+            chosen.append(best)
+            alphabet |= set(best.lemma.lower())
+
+        if len(chosen) < CODEWORD_ENTRIES:
+            continue
+
+        letters = sorted(alphabet)
+        numbers = list(range(1, len(letters) + 1))
+        rng.shuffle(numbers)
+        codes = {letter: number for letter, number in zip(letters, numbers)}
+
+        # Give away the two commonest letters: they open the most cells and
+        # make the first deduction reachable rather than a guess.
+        frequency = Counter("".join(word.lemma.lower() for word in chosen))
+        revealed = [letter for letter, _ in frequency.most_common(CODEWORD_REVEALED)]
+
+        rng.shuffle(chosen)
+        return (
+            codes,
+            revealed,
+            [
+                CodewordEntry(
+                    lexeme_id=word.lexeme_id,
+                    word=word.lemma,
+                    letters=word.lemma.lower(),
+                    definition=word.definition,
+                    pos_code=word.pos_code,
+                )
+                for word in chosen
+            ],
+        )
+
+    return {}, [], []
+
+
+@router.get("/codeword", response_model=CodewordPuzzle)
+def codeword(
+    lang: str = Query("sw", pattern="^(sw|en)$"),
+    db: Session = Depends(get_db),
+) -> CodewordPuzzle:
+    pool = codeword_pool(db, lang)
+    codes, revealed, entries = build_codeword(pool, rng=random.Random())
+    if not entries:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Not enough published vocabulary for a codeword yet. This "
+                f"needs {CODEWORD_ENTRIES} reviewed words that between them "
+                f"use no more than {CODEWORD_MAX_ALPHABET} different letters."
+            ),
+        )
+    return CodewordPuzzle(
+        lang_code=lang, codes=codes, revealed=revealed, entries=entries
+    )

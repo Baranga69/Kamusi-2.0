@@ -385,6 +385,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /learn/codeword:
+    get:
+      tags:
+      - learn
+      summary: Codeword
+      operationId: codeword_learn_codeword_get
+      parameters:
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(sw|en)$
+          default: sw
+          title: Lang
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodewordPuzzle'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /auth/login:
     post:
       tags:
@@ -4248,6 +4276,71 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    CodewordEntry:
+      properties:
+        lexeme_id:
+          type: string
+          format: uuid
+          title: Lexeme Id
+        word:
+          type: string
+          title: Word
+        letters:
+          type: string
+          title: Letters
+        definition:
+          type: string
+          title: Definition
+        pos_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pos Code
+      type: object
+      required:
+      - lexeme_id
+      - word
+      - letters
+      - definition
+      title: CodewordEntry
+      description: One word in the grid, with the clue that identifies it.
+    CodewordPuzzle:
+      properties:
+        lang_code:
+          type: string
+          title: Lang Code
+        codes:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Codes
+        revealed:
+          items:
+            type: string
+          type: array
+          title: Revealed
+        entries:
+          items:
+            $ref: '#/components/schemas/CodewordEntry'
+          type: array
+          title: Entries
+      type: object
+      required:
+      - lang_code
+      - codes
+      - revealed
+      - entries
+      title: CodewordPuzzle
+      description: 'A set of words written as numbers, one number per letter.
+
+
+        The whole key is sent, like every other round here: nothing is at stake,
+
+        and the board has to be solvable from the cache with no connection. The
+
+        deduction is the game — knowing the key would spoil it, but a player who
+
+        wants to cheat can already read the clues.'
     ExampleCreate:
       properties:
         sense_id:

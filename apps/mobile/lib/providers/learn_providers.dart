@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/learn_progress_store.dart';
 import '../domain/models/learn_round.dart';
 import '../data/game_round_cache.dart';
+import '../data/game_settings_store.dart';
 import '../data/game_rounds_service.dart';
+import '../domain/models/codeword_puzzle.dart';
 import '../domain/models/word_build_puzzle.dart';
 import '../domain/models/word_find_puzzle.dart';
 import 'app_providers.dart';
@@ -23,6 +25,28 @@ final practiceRoundProvider =
     FutureProvider.family<LearnRound, String>((ref, kind) async {
   return ref.read(kamusiRepositoryProvider).fetchPracticeRound(kind);
 });
+
+final gameSettingsStoreProvider = Provider<GameSettingsStore>((ref) {
+  return GameSettingsStore();
+});
+
+/// Whether the games run against a clock. One setting for all of them:
+/// timed or untimed is a mood a player is in, not a property of a board.
+class TimedModeController extends AsyncNotifier<bool> {
+  @override
+  Future<bool> build() async {
+    return ref.read(gameSettingsStoreProvider).loadTimed();
+  }
+
+  Future<void> set(bool value) async {
+    state = AsyncValue.data(
+      await ref.read(gameSettingsStoreProvider).setTimed(value),
+    );
+  }
+}
+
+final timedModeProvider =
+    AsyncNotifierProvider<TimedModeController, bool>(TimedModeController.new);
 
 final gameRoundCacheProvider = Provider<GameRoundCache>((ref) {
   return GameRoundCache();
@@ -44,6 +68,11 @@ final wordFindProvider = FutureProvider<WordFindPuzzle>((ref) async {
 /// A ring of letters, from the same queue.
 final wordBuildProvider = FutureProvider<WordBuildPuzzle>((ref) async {
   return ref.read(gameRoundsServiceProvider).nextWordBuild();
+});
+
+/// A codeword board, from the same queue.
+final codewordProvider = FutureProvider<CodewordPuzzle>((ref) async {
+  return ref.read(gameRoundsServiceProvider).nextCodeword();
 });
 
 /// How many rounds of each game are playable with no connection.

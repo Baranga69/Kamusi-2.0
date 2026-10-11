@@ -178,5 +178,24 @@
       }
     }
   },
-  "learnGamesOfflineNone": "No rounds saved yet"
+  "learnGamesOfflineNone": "No rounds saved yet",
+  "learnGameTimeUp": "Time is up!",
+  "learnGameMissed": "Words you missed",
+  "learnGameTimed": "Timed",
+  "learnGameTimedOn": "A clock runs while you play.",
+  "learnGameTimedOff": "Play without a clock.",
+  "learnCodewordTitle": "Codeword",
+  "learnCodewordCardBody": "Every letter is a number. Crack the numbers, open the words.",
+  "learnCodewordHint": "Tap a number, then choose its letter.",
+  "learnCodewordPick": "Choose the letter for {code}",
+  "@learnCodewordPick": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "learnCodewordDone": "Every word is open!",
+  "learnCodewordGiven": "Given",
+  "learnCodewordClear": "Clear"
 }

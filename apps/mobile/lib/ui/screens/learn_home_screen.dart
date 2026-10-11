@@ -11,6 +11,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
 import '../widgets/learn_progress_bar.dart';
 import 'learn_round_screen.dart';
+import 'codeword_screen.dart';
 import 'word_build_screen.dart';
 import 'word_find_screen.dart';
 
@@ -81,8 +82,8 @@ class LearnHomeScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _openWordFind(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) async {
+  Future<void> _openWordFind(BuildContext context, WidgetRef ref,
+      AppLocalizations l10n, bool timed) async {
     ref.invalidate(wordFindProvider);
     try {
       final puzzle = await ref.read(wordFindProvider.future);
@@ -95,7 +96,9 @@ class LearnHomeScreen extends ConsumerWidget {
         return;
       }
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => WordFindScreen(puzzle: puzzle)),
+        MaterialPageRoute(
+          builder: (_) => WordFindScreen(puzzle: puzzle, timed: timed),
+        ),
       );
     } catch (_) {
       if (!context.mounted) {
@@ -109,8 +112,8 @@ class LearnHomeScreen extends ConsumerWidget {
     ref.invalidate(gameRoundsReadyProvider);
   }
 
-  Future<void> _openWordBuild(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) async {
+  Future<void> _openWordBuild(BuildContext context, WidgetRef ref,
+      AppLocalizations l10n, bool timed) async {
     ref.invalidate(wordBuildProvider);
     try {
       final puzzle = await ref.read(wordBuildProvider.future);
@@ -123,7 +126,37 @@ class LearnHomeScreen extends ConsumerWidget {
         return;
       }
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => WordBuildScreen(puzzle: puzzle)),
+        MaterialPageRoute(
+          builder: (_) => WordBuildScreen(puzzle: puzzle, timed: timed),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+    }
+    ref.invalidate(gameRoundsReadyProvider);
+  }
+
+  Future<void> _openCodeword(BuildContext context, WidgetRef ref,
+      AppLocalizations l10n, bool timed) async {
+    ref.invalidate(codewordProvider);
+    try {
+      final puzzle = await ref.read(codewordProvider.future);
+      if (!context.mounted) {
+        return;
+      }
+      if (puzzle.isEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CodewordScreen(puzzle: puzzle, timed: timed),
+        ),
       );
     } catch (_) {
       if (!context.mounted) {
@@ -142,6 +175,7 @@ class LearnHomeScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final daily = ref.watch(dailyRoundProvider);
     final progress = ref.watch(learnProgressProvider);
+    final timed = ref.watch(timedModeProvider).value ?? false;
 
     // Top the offline queues up in the background on the way in, and refresh
     // the "ready offline" line once it has. Nothing here waits on it.
@@ -208,16 +242,38 @@ class LearnHomeScreen extends ConsumerWidget {
               icon: Icons.grid_on_outlined,
               title: l10n.learnWordFindTitle,
               body: l10n.learnWordFindCardBody,
-              onTap: () => _openWordFind(context, ref, l10n),
+              onTap: () => _openWordFind(context, ref, l10n, timed),
             ),
             const SizedBox(height: 12),
             _GameCard(
               icon: Icons.bubble_chart_outlined,
               title: l10n.learnWordBuildTitle,
               body: l10n.learnWordBuildCardBody,
-              onTap: () => _openWordBuild(context, ref, l10n),
+              onTap: () => _openWordBuild(context, ref, l10n, timed),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            _GameCard(
+              icon: Icons.pin_outlined,
+              title: l10n.learnCodewordTitle,
+              body: l10n.learnCodewordCardBody,
+              onTap: () => _openCodeword(context, ref, l10n, timed),
+            ),
+            const SizedBox(height: 6),
+            // One switch for every game: timed or untimed is a mood a player
+            // is in, not a property of a particular board.
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: timed,
+              onChanged: (value) =>
+                  ref.read(timedModeProvider.notifier).set(value),
+              title: Text(l10n.learnGameTimed, style: textTheme.bodyMedium),
+              subtitle: Text(
+                timed ? l10n.learnGameTimedOn : l10n.learnGameTimedOff,
+                style: textTheme.bodySmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant),
+              ),
+            ),
             // What is playable with no connection. Worth stating plainly:
             // the whole point of the queue is that someone can check before
             // they lose signal.
@@ -318,8 +374,11 @@ class _GameCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final learnColors = theme.extension<KamusiLearnColors>();
+    final background = learnColors?.gameCard ?? colorScheme.secondaryContainer;
+    final foreground = learnColors?.onGameCard ?? colorScheme.onSecondaryContainer;
     return Material(
-      color: colorScheme.tertiaryContainer,
+      color: background,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -328,7 +387,7 @@ class _GameCard extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Icon(icon, size: 32, color: colorScheme.onTertiaryContainer),
+              Icon(icon, size: 32, color: foreground),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -338,14 +397,14 @@ class _GameCard extends StatelessWidget {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: colorScheme.onTertiaryContainer,
+                        color: foreground,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       body,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
+                        color: foreground.withValues(alpha: 0.85),
                       ),
                     ),
                   ],
@@ -353,7 +412,7 @@ class _GameCard extends StatelessWidget {
               ),
               Icon(
                 Icons.arrow_forward,
-                color: colorScheme.onTertiaryContainer,
+                color: foreground,
               ),
             ],
           ),

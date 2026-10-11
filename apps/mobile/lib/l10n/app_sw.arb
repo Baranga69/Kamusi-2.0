@@ -178,5 +178,24 @@
       }
     }
   },
-  "learnGamesOfflineNone": "Hakuna raundi iliyohifadhiwa bado"
+  "learnGamesOfflineNone": "Hakuna raundi iliyohifadhiwa bado",
+  "learnGameTimeUp": "Muda umeisha!",
+  "learnGameMissed": "Maneno uliyokosa",
+  "learnGameTimed": "Kwa muda",
+  "learnGameTimedOn": "Saa inahesabu wakati unacheza.",
+  "learnGameTimedOff": "Cheza bila haraka, bila saa.",
+  "learnCodewordTitle": "Neno la Siri",
+  "learnCodewordCardBody": "Kila herufi ni namba. Tambua namba, fungua maneno.",
+  "learnCodewordHint": "Gusa namba, kisha chagua herufi yake.",
+  "learnCodewordPick": "Chagua herufi ya namba {code}",
+  "@learnCodewordPick": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "learnCodewordDone": "Umefungua maneno yote!",
+  "learnCodewordGiven": "Umepewa",
+  "learnCodewordClear": "Futa"
 }

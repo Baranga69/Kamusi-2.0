@@ -156,7 +156,8 @@ class _Queues {
 class GameIds {
   static const wordFind = 'wordfind';
   static const wordBuild = 'wordbuild';
+  static const codeword = 'codeword';
   static String practice(String kind) => 'round:$kind';
 
-  static const all = [wordFind, wordBuild];
+  static const all = [wordFind, wordBuild, codeword];
 }

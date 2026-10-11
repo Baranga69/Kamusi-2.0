@@ -751,6 +751,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No rounds saved yet'**
   String get learnGamesOfflineNone;
+
+  /// No description provided for @learnGameTimeUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Time is up!'**
+  String get learnGameTimeUp;
+
+  /// No description provided for @learnGameMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Words you missed'**
+  String get learnGameMissed;
+
+  /// No description provided for @learnGameTimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed'**
+  String get learnGameTimed;
+
+  /// No description provided for @learnGameTimedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'A clock runs while you play.'**
+  String get learnGameTimedOn;
+
+  /// No description provided for @learnGameTimedOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Play without a clock.'**
+  String get learnGameTimedOff;
+
+  /// No description provided for @learnCodewordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Codeword'**
+  String get learnCodewordTitle;
+
+  /// No description provided for @learnCodewordCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every letter is a number. Crack the numbers, open the words.'**
+  String get learnCodewordCardBody;
+
+  /// No description provided for @learnCodewordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a number, then choose its letter.'**
+  String get learnCodewordHint;
+
+  /// No description provided for @learnCodewordPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the letter for {code}'**
+  String learnCodewordPick(int code);
+
+  /// No description provided for @learnCodewordDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Every word is open!'**
+  String get learnCodewordDone;
+
+  /// No description provided for @learnCodewordGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Given'**
+  String get learnCodewordGiven;
+
+  /// No description provided for @learnCodewordClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get learnCodewordClear;
 }
 
 class _AppLocalizationsDelegate

@@ -245,6 +245,19 @@ class ApiClient {
     return data;
   }
 
+  /// A codeword board, as raw JSON. Queued like the other games.
+  Future<Map<String, dynamic>> getCodewordJson({String lang = 'sw'}) async {
+    final response = await get('/learn/codeword', queryParameters: {'lang': lang});
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/learn/codeword'),
+        error: 'Unexpected codeword response',
+      );
+    }
+    return data;
+  }
+
   Future<ExpressionDetail> getExpression(String id, {String lang = 'sw'}) async {
     final data = await _read(
       '/expressions/${Uri.encodeComponent(id)}',

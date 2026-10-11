@@ -56,4 +56,9 @@ class KamusiApiRepository implements KamusiRepository {
     return client.getWordBuildJson();
   }
 
+  @override
+  Future<Map<String, dynamic>> fetchCodewordJson() async {
+    return client.getCodewordJson();
+  }
+
 }

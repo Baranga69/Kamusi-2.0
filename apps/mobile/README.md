@@ -134,8 +134,18 @@ cover.
   the start, so the game is "which word means this?", and **hard** reveals
   each one as its word is built. Unsolved answers show their length as dots
   and never their letters. The word using all eight letters is starred.
-- Both games freeze the page scroll while a finger is on the board, so a
-  downward drag selects a word instead of scrolling. (It did scroll, once.)
+- **Neno la Siri** — a codeword. Every letter is a number, the same number
+  everywhere it appears, so cracking one letter opens it in every word at
+  once. Two letters are given to start. The clues are definitions, so a board
+  you never finish has still taught you five words.
+- The boards freeze the page scroll while a finger is on them, so a downward
+  drag selects a word instead of scrolling. (It did scroll, once.)
+- **Kwa muda** — one switch on the Jifunze home puts every game on a clock.
+  Timed or untimed is a mood a player is in, not a property of a board, so it
+  is one setting rather than a prompt on each one. Off by default: a clock
+  turns a learning game into a test, and that should be opted into. When the
+  time runs out the board stays on screen with every answer revealed, because
+  being shown what you missed is the part worth having.
 
 ### Playing offline
 

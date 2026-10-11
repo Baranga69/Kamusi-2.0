@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../domain/models/word_build_puzzle.dart';
+import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
+import '../widgets/game_timer_bar.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -19,9 +21,16 @@ import 'lexeme_detail_screen.dart';
 /// definition appears only once its word is built, so the meaning is the
 /// reward rather than the route.
 class WordBuildScreen extends ConsumerStatefulWidget {
-  const WordBuildScreen({super.key, required this.puzzle});
+  const WordBuildScreen({
+    super.key,
+    required this.puzzle,
+    this.timed = false,
+  });
 
   final WordBuildPuzzle puzzle;
+
+  /// When true the ring runs against a clock and ends when it expires.
+  final bool timed;
 
   @override
   ConsumerState<WordBuildScreen> createState() => _WordBuildScreenState();
@@ -38,11 +47,17 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   bool _dragLock = false;
   bool _lastAttemptFailed = false;
 
+  /// Set when the clock runs out. Every answer is then revealed: being shown
+  /// the words you could not see is the part worth having.
+  bool _outOfTime = false;
+
   WordBuildPuzzle get _puzzle => widget.puzzle;
 
   String get _attempt => _selected.map((index) => _ring[index]).join();
 
   bool get _complete => _found.length == _puzzle.words.length;
+
+  bool get _over => _complete || _outOfTime;
 
   /// How far the tiles sit from the middle.
   double _ringRadius(Size size) => size.shortestSide * 0.36;
@@ -76,6 +91,9 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   // --- the drag ----------------------------------------------------------
 
   void _onDown(Offset local, Size size) {
+    if (_over) {
+      return;
+    }
     setState(() {
       _dragLock = true;
       _lastAttemptFailed = false;
@@ -181,6 +199,14 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             : const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          if (widget.timed) ...[
+            GameTimerBar(
+              duration: GameDurations.wordBuild,
+              paused: _over,
+              onExpired: () => setState(() => _outOfTime = true),
+            ),
+            const SizedBox(height: 14),
+          ],
           _ModeSwitch(
             easy: _easyMode,
             easyLabel: l10n.learnWordBuildEasy,
@@ -189,9 +215,11 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _easyMode
-                ? l10n.learnWordBuildEasyHint
-                : l10n.learnWordBuildHardHint,
+            _outOfTime
+                ? l10n.learnGameTimeUp
+                : _easyMode
+                    ? l10n.learnWordBuildEasyHint
+                    : l10n.learnWordBuildHardHint,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -262,7 +290,9 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
               found: _found.contains(word.letters),
               // Easy mode shows the meaning before the word is built; hard
               // mode keeps it back until it is.
-              showDefinition: _easyMode || _found.contains(word.letters),
+              showDefinition:
+                  _easyMode || _outOfTime || _found.contains(word.letters),
+              revealed: _outOfTime,
               onTap: () => _openEntry(word),
               learnColors: learnColors,
             ),
@@ -533,6 +563,7 @@ class _SolutionRow extends StatelessWidget {
     required this.showDefinition,
     required this.onTap,
     required this.learnColors,
+    this.revealed = false,
   });
 
   final WordBuildWord word;
@@ -541,12 +572,15 @@ class _SolutionRow extends StatelessWidget {
   final VoidCallback onTap;
   final KamusiLearnColors? learnColors;
 
+  /// Shown because the clock ran out rather than because it was solved.
+  final bool revealed;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Unsolved words show their length, never their letters: the dashes are
     // the puzzle, and in easy mode the definition beside them is the clue.
-    final label = found ? word.word : '·' * word.letters.length;
+    final label = found || revealed ? word.word : '·' * word.letters.length;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -557,7 +591,7 @@ class _SolutionRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: found ? onTap : null,
+          onTap: found || revealed ? onTap : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
@@ -569,7 +603,7 @@ class _SolutionRow extends StatelessWidget {
                     label,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      letterSpacing: found ? 0 : 3,
+                      letterSpacing: found || revealed ? 0 : 3,
                       color: found
                           ? learnColors?.onCorrectContainer
                           : theme.colorScheme.onSurfaceVariant,

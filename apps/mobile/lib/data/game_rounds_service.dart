@@ -1,3 +1,4 @@
+import '../domain/models/codeword_puzzle.dart';
 import '../domain/models/word_build_puzzle.dart';
 import '../domain/models/word_find_puzzle.dart';
 import '../domain/repositories/kamusi_repository.dart';
@@ -23,6 +24,8 @@ class GameRoundsService {
     switch (game) {
       case GameIds.wordBuild:
         return repository.fetchWordBuildJson;
+      case GameIds.codeword:
+        return repository.fetchCodewordJson;
       case GameIds.wordFind:
       default:
         return repository.fetchWordFindJson;
@@ -46,6 +49,9 @@ class GameRoundsService {
 
   Future<WordBuildPuzzle> nextWordBuild() async =>
       WordBuildPuzzle.fromJson(await nextRound(GameIds.wordBuild));
+
+  Future<CodewordPuzzle> nextCodeword() async =>
+      CodewordPuzzle.fromJson(await nextRound(GameIds.codeword));
 
   /// Top every game back up to its target.
   ///

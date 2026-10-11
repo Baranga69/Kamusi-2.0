@@ -780,6 +780,33 @@ class WordBuildPuzzle(BaseModel):
     words: list[WordBuildWord]
 
 
+class CodewordEntry(BaseModel):
+    """One word in the grid, with the clue that identifies it."""
+
+    lexeme_id: uuid.UUID
+    word: str
+    letters: str
+    definition: str
+    pos_code: str | None = None
+
+
+class CodewordPuzzle(BaseModel):
+    """A set of words written as numbers, one number per letter.
+
+    The whole key is sent, like every other round here: nothing is at stake,
+    and the board has to be solvable from the cache with no connection. The
+    deduction is the game — knowing the key would spoil it, but a player who
+    wants to cheat can already read the clues.
+    """
+
+    lang_code: str
+    # letter -> its number, for every letter used anywhere in the puzzle.
+    codes: dict[str, int]
+    # Letters filled in from the start, so there is somewhere to begin.
+    revealed: list[str]
+    entries: list[CodewordEntry]
+
+
 class LearnRound(BaseModel):
     kind: str
     lang_code: str

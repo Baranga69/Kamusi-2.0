@@ -359,4 +359,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnGamesOfflineNone => 'No rounds saved yet';
+
+  @override
+  String get learnGameTimeUp => 'Time is up!';
+
+  @override
+  String get learnGameMissed => 'Words you missed';
+
+  @override
+  String get learnGameTimed => 'Timed';
+
+  @override
+  String get learnGameTimedOn => 'A clock runs while you play.';
+
+  @override
+  String get learnGameTimedOff => 'Play without a clock.';
+
+  @override
+  String get learnCodewordTitle => 'Codeword';
+
+  @override
+  String get learnCodewordCardBody =>
+      'Every letter is a number. Crack the numbers, open the words.';
+
+  @override
+  String get learnCodewordHint => 'Tap a number, then choose its letter.';
+
+  @override
+  String learnCodewordPick(int code) {
+    return 'Choose the letter for $code';
+  }
+
+  @override
+  String get learnCodewordDone => 'Every word is open!';
+
+  @override
+  String get learnCodewordGiven => 'Given';
+
+  @override
+  String get learnCodewordClear => 'Clear';
 }

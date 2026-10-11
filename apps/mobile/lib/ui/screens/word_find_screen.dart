@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../domain/models/word_find_puzzle.dart';
+import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
+import '../widgets/game_timer_bar.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -14,9 +16,12 @@ import 'lexeme_detail_screen.dart';
 /// underneath the puzzle and stays there, and tapping it goes to the full
 /// entry. The found list is the real content of this screen.
 class WordFindScreen extends ConsumerStatefulWidget {
-  const WordFindScreen({super.key, required this.puzzle});
+  const WordFindScreen({super.key, required this.puzzle, this.timed = false});
 
   final WordFindPuzzle puzzle;
+
+  /// When true the board runs against a clock and ends when it expires.
+  final bool timed;
 
   @override
   ConsumerState<WordFindScreen> createState() => _WordFindScreenState();
@@ -39,6 +44,11 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   /// gesture arena, so it cannot lose it.
   bool _dragLock = false;
 
+  /// Set when the clock runs out. The board stays on screen with every
+  /// answer revealed: being shown what you missed is the part worth having,
+  /// and a bare "time up" teaches nothing.
+  bool _outOfTime = false;
+
   /// The drag in progress.
   WordFindCell? _dragStart;
   List<WordFindCell> _dragPath = const [];
@@ -47,6 +57,8 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   WordFindPuzzle get _puzzle => widget.puzzle;
 
   bool get _complete => _found.length == _puzzle.words.length;
+
+  bool get _over => _complete || _outOfTime;
 
   // --- geometry ----------------------------------------------------------
 
@@ -91,6 +103,9 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   // --- the drag ----------------------------------------------------------
 
   void _onPointerDown(Offset local, Size size) {
+    if (_over) {
+      return;
+    }
     final cell = _cellAt(local, size);
     setState(() {
       // Locked even when the touch misses a cell, so a stray press on the
@@ -223,6 +238,14 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             : const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          if (widget.timed) ...[
+            GameTimerBar(
+              duration: GameDurations.wordFind,
+              paused: _over,
+              onExpired: () => setState(() => _outOfTime = true),
+            ),
+            const SizedBox(height: 12),
+          ],
           _ProgressHeader(
             found: _found.length,
             total: _puzzle.words.length,
@@ -257,7 +280,11 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            _complete ? l10n.learnWordFindDone : l10n.learnWordFindHint,
+            _outOfTime
+                ? l10n.learnGameTimeUp
+                : _complete
+                    ? l10n.learnWordFindDone
+                    : l10n.learnWordFindHint,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -285,6 +312,23 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
                 onTap: () => _openEntry(word),
                 openLabel: l10n.learnOpenEntry,
               ),
+          ],
+          if (_outOfTime && _found.length < _puzzle.words.length) ...[
+            const SizedBox(height: 16),
+            Text(
+              l10n.learnGameMissed,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            for (final word in _puzzle.words)
+              if (!_found.contains(word))
+                _FoundWordCard(
+                  word: word,
+                  onTap: () => _openEntry(word),
+                  openLabel: l10n.learnOpenEntry,
+                  missed: true,
+                ),
           ],
         ],
       ),
@@ -497,11 +541,15 @@ class _FoundWordCard extends StatelessWidget {
     required this.word,
     required this.onTap,
     required this.openLabel,
+    this.missed = false,
   });
 
   final WordFindWord word;
   final VoidCallback onTap;
   final String openLabel;
+
+  /// Revealed because the clock ran out rather than because it was found.
+  final bool missed;
 
   @override
   Widget build(BuildContext context) {
@@ -510,8 +558,10 @@ class _FoundWordCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: learnColors?.correctContainer ??
-            theme.colorScheme.secondaryContainer,
+        color: missed
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+            : (learnColors?.correctContainer ??
+                theme.colorScheme.secondaryContainer),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -528,7 +578,7 @@ class _FoundWordCard extends StatelessWidget {
                         word.word,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: learnColors?.onCorrectContainer,
+                          color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
                         ),
                       ),
                     ),
@@ -536,7 +586,7 @@ class _FoundWordCard extends StatelessWidget {
                       Text(
                         word.posCode!,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: learnColors?.onCorrectContainer.withValues(alpha: 0.78),
+                          color: (missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer)?.withValues(alpha: 0.78),
                         ),
                       ),
                   ],
@@ -545,7 +595,7 @@ class _FoundWordCard extends StatelessWidget {
                 Text(
                   word.definition,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: learnColors?.onCorrectContainer,
+                    color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
                   ),
                 ),
                 if (word.lexemeId.isNotEmpty) ...[
@@ -556,7 +606,7 @@ class _FoundWordCard extends StatelessWidget {
                       Text(
                         openLabel,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: learnColors?.onCorrectContainer,
+                          color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -564,7 +614,7 @@ class _FoundWordCard extends StatelessWidget {
                       Icon(
                         Icons.arrow_forward,
                         size: 16,
-                        color: learnColors?.onCorrectContainer,
+                        color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
                       ),
                     ],
                   ),

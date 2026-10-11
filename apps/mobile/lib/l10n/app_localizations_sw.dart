@@ -362,4 +362,43 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get learnGamesOfflineNone => 'Hakuna raundi iliyohifadhiwa bado';
+
+  @override
+  String get learnGameTimeUp => 'Muda umeisha!';
+
+  @override
+  String get learnGameMissed => 'Maneno uliyokosa';
+
+  @override
+  String get learnGameTimed => 'Kwa muda';
+
+  @override
+  String get learnGameTimedOn => 'Saa inahesabu wakati unacheza.';
+
+  @override
+  String get learnGameTimedOff => 'Cheza bila haraka, bila saa.';
+
+  @override
+  String get learnCodewordTitle => 'Neno la Siri';
+
+  @override
+  String get learnCodewordCardBody =>
+      'Kila herufi ni namba. Tambua namba, fungua maneno.';
+
+  @override
+  String get learnCodewordHint => 'Gusa namba, kisha chagua herufi yake.';
+
+  @override
+  String learnCodewordPick(int code) {
+    return 'Chagua herufi ya namba $code';
+  }
+
+  @override
+  String get learnCodewordDone => 'Umefungua maneno yote!';
+
+  @override
+  String get learnCodewordGiven => 'Umepewa';
+
+  @override
+  String get learnCodewordClear => 'Futa';
 }

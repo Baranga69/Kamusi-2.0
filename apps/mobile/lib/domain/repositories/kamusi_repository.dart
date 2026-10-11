@@ -14,4 +14,5 @@ abstract class KamusiRepository {
   Future<LearnRound> fetchPracticeRound(String kind);
   Future<Map<String, dynamic>> fetchWordFindJson();
   Future<Map<String, dynamic>> fetchWordBuildJson();
+  Future<Map<String, dynamic>> fetchCodewordJson();
 }
