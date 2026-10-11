@@ -201,6 +201,28 @@ cd apps/api
 poetry run python scripts/seed.py
 ```
 
+### Methali and nahau
+
+A starter set of 37 common proverbs and idioms, each with a Swahili meaning
+and an English gloss:
+
+```bash
+cd apps/api
+poetry run python scripts/seed_methali.py            # report
+poetry run python scripts/seed_methali.py --apply    # load as draft
+```
+
+They load as **draft** deliberately. `expression_meaning` has no
+`review_status` column, so unlike AI definitions there is no review guard to
+hide an unchecked meaning from readers — `workflow` is the only gate. Publish
+them from the admin console, or pass `--workflow published`, once a native
+speaker has read them.
+
+Provenance is recorded on a source row that says what they are: contributed
+from a language model's knowledge of widely-cited proverbs, not transcribed
+from a published collection. The English is a gloss of the sense rather than
+a literal translation. Idempotent — matching is on normalised text.
+
 ### Demo content
 
 `seed.py` leaves the dictionary itself empty, which gives you a search box that
