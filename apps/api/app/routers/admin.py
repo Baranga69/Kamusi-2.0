@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.ids import as_uuid
 from app.db import get_db
 from app.deps import require_role
 from app.models import (
@@ -95,9 +96,13 @@ ADMIN = Depends(require_role("admin"))
 
 
 def get_or_404(db: Session, model, object_id):
-    obj = db.get(model, object_id)
+    # Path parameters arrive as strings; the primary keys are native uuids.
+    # Postgres coerces, SQLite does not, and a malformed id should be a 404
+    # rather than whatever the driver raises.
+    detail = f"{model.__name__} not found"
+    obj = db.get(model, as_uuid(object_id, detail))
     if not obj:
-        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+        raise HTTPException(status_code=404, detail=detail)
     return obj
 
 

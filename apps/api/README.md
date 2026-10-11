@@ -271,6 +271,29 @@ poetry run python tools/ai_defs/backfill_ai_provenance.py --apply \
   --jsonl ../../ai_defs.jsonl --prune-search-index
 ```
 
+### Rebuild search popularity
+
+`search_entry.popularity` is part of result ordering and nothing used to set
+it, so it was always 0. Opening an entry now records an anonymous
+`lookup_event` — what was opened, in which language, when; no IP, no user
+agent, no account — and this rolls those up:
+
+```bash
+cd apps/api
+poetry run python tools/maintenance/aggregate_popularity.py            # report
+poetry run python tools/maintenance/aggregate_popularity.py --apply    # commit
+poetry run python tools/maintenance/aggregate_popularity.py --apply --prune-after 365
+```
+
+Counts come from a sliding window (`--days`, default 90) and are recomputed
+rather than accumulated, so popularity reflects what people look up now rather
+than freezing early traffic in place. A lexeme's count is applied to every
+search entry that resolves back to it — headword, definitions, examples — so a
+definition hit for a common word rises too.
+
+Worth running nightly. It is also the report of what Swahili speakers actually
+look up, which is the most interesting dataset this project will produce.
+
 ### Reconcile the search index
 
 `search_entry` is derived, but publishing only ever adds to it — nothing

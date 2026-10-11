@@ -1,10 +1,11 @@
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, or_, select, literal, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.ids import as_uuid
 from app.db import get_db
 from app.models import (
     Example,
@@ -12,6 +13,7 @@ from app.models import (
     Expression,
     ExpressionMeaning,
     Lexeme,
+    LookupEvent,
     PartOfSpeech,
     SearchEntry,
     Sense,
@@ -328,6 +330,26 @@ def search(
     return results + [_to_result(row) for row in fuzzy_rows]
 
 
+def record_lookup(db: Session, *, target_type: str, target_id, lang_code: str) -> None:
+    """Note that somebody opened this entry.
+
+    Runs after the response is sent, so a reader never waits on it, and a
+    failure here must never turn a successful read into an error — losing one
+    popularity data point does not matter, failing the lookup does.
+
+    At a larger scale this would batch rather than insert per read.
+    """
+    try:
+        db.add(
+            LookupEvent(
+                target_type=target_type, target_id=target_id, lang_code=lang_code
+            )
+        )
+        db.commit()
+    except Exception:  # noqa: BLE001 - telemetry must not break reading
+        db.rollback()
+
+
 def _pick_definition(lexeme: Lexeme, lang: str) -> str | None:
     for sense in sorted(lexeme.senses, key=lambda s: s.sense_number):
         if sense.workflow != "published":
@@ -410,12 +432,14 @@ def word_of_day(
 @router.get("/lexemes/{lexeme_id}", response_model=LexemePublic)
 def get_lexeme(
     lexeme_id: str,
+    background_tasks: BackgroundTasks,
     lang: str = "sw",
     include_drafts: bool = Query(False),
     db: Session = Depends(get_db),
 ) -> LexemePublic:
-    # Base query: by ID
-    stmt = select(Lexeme).where(Lexeme.id == lexeme_id)
+    # Parsed rather than compared as text: the column is a native uuid, and a
+    # malformed id should be a 404 rather than a driver error.
+    stmt = select(Lexeme).where(Lexeme.id == as_uuid(lexeme_id, "Lexeme not found"))
 
     # Default behavior: published only
     if not include_drafts:
@@ -489,6 +513,17 @@ def get_lexeme(
             }
         )
 
+    # Only published reads count. A draft preview is an editor checking their
+    # own work, which says nothing about what readers want.
+    if not include_drafts:
+        background_tasks.add_task(
+            record_lookup,
+            db,
+            target_type="lexeme",
+            target_id=lexeme.id,
+            lang_code=lang,
+        )
+
     return LexemePublic(
         id=lexeme.id,
         lemma=lexeme.lemma,
@@ -501,6 +536,7 @@ def get_lexeme(
 @router.get("/lookup/lemma", response_model=LexemePublic)
 def lookup_lemma(
     lemma: str,
+    background_tasks: BackgroundTasks,
     lang: str = "sw",
     include_drafts: bool = Query(False),
     db: Session = Depends(get_db),
@@ -516,13 +552,27 @@ def lookup_lemma(
         raise HTTPException(status_code=404, detail="Lexeme not found")
 
     # Reuse the same rendering logic as /lexemes/{id}
-    return get_lexeme(str(lexeme.id), lang=lang, include_drafts=include_drafts, db=db)
+    return get_lexeme(
+        str(lexeme.id),
+        background_tasks,
+        lang=lang,
+        include_drafts=include_drafts,
+        db=db,
+    )
 
 
 @router.get("/expressions/{expression_id}", response_model=ExpressionPublic)
-def get_expression(expression_id: str, lang: str = "sw", db: Session = Depends(get_db)) -> ExpressionPublic:
+def get_expression(
+    expression_id: str,
+    background_tasks: BackgroundTasks,
+    lang: str = "sw",
+    db: Session = Depends(get_db),
+) -> ExpressionPublic:
     expression = db.scalar(
-        select(Expression).where(Expression.id == expression_id, Expression.workflow == "published")
+        select(Expression).where(
+            Expression.id == as_uuid(expression_id, "Expression not found"),
+            Expression.workflow == "published",
+        )
     )
     if not expression:
         raise HTTPException(status_code=404, detail="Expression not found")
@@ -551,6 +601,14 @@ def get_expression(expression_id: str, lang: str = "sw", db: Session = Depends(g
             if text.lang_code == lang
         ]
         examples.append({"id": example.id, "texts": texts})
+
+    background_tasks.add_task(
+        record_lookup,
+        db,
+        target_type="expression",
+        target_id=expression.id,
+        lang_code=lang,
+    )
 
     return ExpressionPublic(
         id=expression.id,

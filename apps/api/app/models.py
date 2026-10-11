@@ -504,6 +504,26 @@ class AiExplanation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
 
+class LookupEvent(Base):
+    """One entry open. Append-only, anonymous.
+
+    Aggregated into `search_entry.popularity` by
+    `tools/maintenance/aggregate_popularity.py`. No foreign key to the target:
+    an event is a historical fact, and deleting a lexeme should not rewrite
+    the record of people having looked it up.
+    """
+
+    __tablename__ = "lookup_event"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    target_type: Mapped[str] = mapped_column(Text, nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    lang_code: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class SearchEntry(Base):
     __tablename__ = "search_entry"
     __table_args__ = (UniqueConstraint("target_type", "target_id", "lang_code", name="uq_search_entry"),)
