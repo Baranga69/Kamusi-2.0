@@ -210,10 +210,13 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final learnColors = theme.extension<KamusiLearnColors>();
+    // The indigo this game wears on the shelf, carried inside.
+    final accent = learnColors?.gameAccentC ?? theme.colorScheme.tertiary;
     final active = _activeEntry;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: accent.withValues(alpha: 0.16),
         title: Text(l10n.learnCrosswordTitle),
         actions: [
           IconButton(
@@ -259,6 +262,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                   solved: _solvedCount,
                   total: _puzzle.entries.length,
                   learnColors: learnColors,
+                  accent: accent,
                 ),
                 const SizedBox(height: 10),
                 Center(
@@ -269,6 +273,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                         width: side,
                         height: side,
                         child: _Grid(
+                          accent: accent,
                           puzzle: _puzzle,
                           cells: _cells,
                           numbers: _numbers,
@@ -286,7 +291,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (active != null && !_over)
-                  _ActiveClue(entry: active)
+                  _ActiveClue(entry: active, accent: accent)
                 else
                   Text(
                     _outOfTime
@@ -349,12 +354,14 @@ class _ScoreRow extends StatelessWidget {
     required this.solved,
     required this.total,
     required this.learnColors,
+    required this.accent,
   });
 
   final int score;
   final int solved;
   final int total;
   final KamusiLearnColors? learnColors;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -374,9 +381,7 @@ class _ScoreRow extends StatelessWidget {
               minHeight: 6,
               backgroundColor: learnColors?.progressTrack ??
                   theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                learnColors?.correct ?? theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
             ),
           ),
         ),
@@ -385,7 +390,7 @@ class _ScoreRow extends StatelessWidget {
           '$score',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: learnColors?.correct,
+            color: accent,
           ),
         ),
       ],
@@ -395,6 +400,7 @@ class _ScoreRow extends StatelessWidget {
 
 class _Grid extends StatelessWidget {
   const _Grid({
+    required this.accent,
     required this.puzzle,
     required this.cells,
     required this.numbers,
@@ -407,6 +413,7 @@ class _Grid extends StatelessWidget {
     required this.learnColors,
   });
 
+  final Color accent;
   final CrosswordPuzzle puzzle;
   final Set<CrosswordCell> cells;
   final Map<CrosswordCell, int> numbers;
@@ -457,6 +464,7 @@ class _Grid extends StatelessWidget {
                       inClue: highlighted.contains(CrosswordCell(row, col)),
                       onTap: () => onTap(CrosswordCell(row, col)),
                       learnColors: learnColors,
+                      accent: accent,
                       theme: theme,
                     ),
                   ),
@@ -478,6 +486,7 @@ class _Cell extends StatelessWidget {
     required this.inClue,
     required this.onTap,
     required this.learnColors,
+    required this.accent,
     required this.theme,
   });
 
@@ -489,6 +498,7 @@ class _Cell extends StatelessWidget {
   final bool inClue;
   final VoidCallback onTap;
   final KamusiLearnColors? learnColors;
+  final Color accent;
   final ThemeData theme;
 
   @override
@@ -499,9 +509,12 @@ class _Cell extends StatelessWidget {
     }
     final colorScheme = theme.colorScheme;
     final background = isCursor
-        ? colorScheme.primaryContainer
+        ? accent.withValues(alpha: 0.42)
         : inClue
-            ? colorScheme.primaryContainer.withValues(alpha: 0.38)
+            // Light enough to read a letter through, strong enough to show
+            // which answer you are typing into — which is the only reason
+            // this highlight exists.
+            ? accent.withValues(alpha: 0.24)
             : colorScheme.surface;
 
     return Padding(
@@ -511,7 +524,10 @@ class _Cell extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: background,
-            border: Border.all(color: colorScheme.outlineVariant, width: 0.8),
+            border: Border.all(
+              color: isCursor ? accent : colorScheme.outlineVariant,
+              width: isCursor ? 1.4 : 0.8,
+            ),
             borderRadius: BorderRadius.circular(3),
           ),
           child: Stack(
@@ -552,9 +568,10 @@ class _Cell extends StatelessWidget {
 }
 
 class _ActiveClue extends StatelessWidget {
-  const _ActiveClue({required this.entry});
+  const _ActiveClue({required this.entry, required this.accent});
 
   final CrosswordEntry entry;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -562,7 +579,7 @@ class _ActiveClue extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: accent.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -571,7 +588,7 @@ class _ActiveClue extends StatelessWidget {
           Text(
             '${entry.number}${entry.isAcross ? "→" : "↓"}',
             style: theme.textTheme.labelLarge
-                ?.copyWith(fontWeight: FontWeight.w700),
+                ?.copyWith(fontWeight: FontWeight.w700, color: accent),
           ),
           const SizedBox(width: 10),
           Expanded(

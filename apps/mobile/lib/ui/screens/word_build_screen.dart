@@ -201,6 +201,8 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final learnColors = theme.extension<KamusiLearnColors>();
+    // The amber this game wears on the shelf, carried inside.
+    final accent = learnColors?.gameAccentB ?? theme.colorScheme.secondary;
 
     // Longest first: the pangram is the headline answer and the short words
     // read as the warm-up they are.
@@ -211,6 +213,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: accent.withValues(alpha: 0.16),
         title: Text(l10n.learnWordBuildTitle),
         actions: [
           IconButton(
@@ -279,6 +282,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             failed: _lastAttemptFailed,
             placeholder: l10n.learnWordBuildHint,
             learnColors: learnColors,
+            accent: accent,
           ),
           const SizedBox(height: 12),
           LayoutBuilder(
@@ -301,10 +305,9 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                         selected: _selected,
                         ringRadius: _ringRadius(size),
                         tileRadius: _tileRadius(size),
-                        linkColor: theme.colorScheme.primary,
-                        ringColor: theme.colorScheme.outlineVariant,
-                        ringFill: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.35),
+                        linkColor: accent,
+                        ringColor: accent.withValues(alpha: 0.45),
+                        ringFill: accent.withValues(alpha: 0.10),
                       ),
                       child: Stack(
                         children: [
@@ -314,6 +317,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                               centre: _centres(size)[index],
                               radius: _tileRadius(size),
                               selected: _selected.contains(index),
+                              accent: accent,
                             ),
                         ],
                       ),
@@ -339,6 +343,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
             total: _puzzle.words.length,
             complete: _complete,
             score: _score,
+            accent: accent,
             doneLabel: l10n.learnWordBuildDone,
             learnColors: learnColors,
           ),
@@ -398,12 +403,14 @@ class _AttemptBox extends StatelessWidget {
     required this.failed,
     required this.placeholder,
     required this.learnColors,
+    required this.accent,
   });
 
   final String attempt;
   final bool failed;
   final String placeholder;
   final KamusiLearnColors? learnColors;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +418,7 @@ class _AttemptBox extends StatelessWidget {
     final empty = attempt.isEmpty;
     final background = failed && empty
         ? (learnColors?.incorrectContainer ?? theme.colorScheme.errorContainer)
-        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
+        : accent.withValues(alpha: 0.14);
     final foreground = failed && empty
         ? (learnColors?.onIncorrectContainer ?? theme.colorScheme.onErrorContainer)
         : theme.colorScheme.onSurface;
@@ -446,12 +453,14 @@ class _RingTile extends StatelessWidget {
     required this.centre,
     required this.radius,
     required this.selected,
+    required this.accent,
   });
 
   final String letter;
   final Offset centre;
   final double radius;
   final bool selected;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -465,13 +474,9 @@ class _RingTile extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: selected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surfaceContainerHighest,
+          color: selected ? accent : theme.colorScheme.surfaceContainerHighest,
           border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant,
+            color: selected ? accent : theme.colorScheme.outlineVariant,
             width: 1.5,
           ),
         ),
@@ -483,9 +488,7 @@ class _RingTile extends StatelessWidget {
               letter.toUpperCase(),
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: selected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
+                color: selected ? Colors.white : theme.colorScheme.onSurface,
               ),
             ),
           ),
@@ -568,6 +571,7 @@ class _ProgressRow extends StatelessWidget {
     required this.total,
     required this.complete,
     required this.score,
+    required this.accent,
     required this.doneLabel,
     required this.learnColors,
   });
@@ -576,6 +580,7 @@ class _ProgressRow extends StatelessWidget {
   final int total;
   final bool complete;
   final int score;
+  final Color accent;
   final String doneLabel;
   final KamusiLearnColors? learnColors;
 
@@ -597,9 +602,7 @@ class _ProgressRow extends StatelessWidget {
               minHeight: 6,
               backgroundColor: learnColors?.progressTrack ??
                   theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                learnColors?.correct ?? theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
             ),
           ),
         ),
@@ -608,7 +611,7 @@ class _ProgressRow extends StatelessWidget {
           '$score',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: learnColors?.correct,
+            color: accent,
           ),
         ),
         if (complete) ...[

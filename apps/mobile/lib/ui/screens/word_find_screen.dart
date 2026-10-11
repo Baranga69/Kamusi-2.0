@@ -258,9 +258,14 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final learnColors = theme.extension<KamusiLearnColors>();
+    // This game's colour, the same one its card wears on the shelf: opening
+    // Tafuta Neno should feel like opening the teal card, not like landing
+    // on a screen that could be any of them.
+    final accent = learnColors?.gameAccentA ?? theme.colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: accent.withValues(alpha: 0.16),
         title: Text(l10n.learnWordFindTitle),
         actions: [
           IconButton(
@@ -298,6 +303,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             total: _puzzle.words.length,
             complete: _complete,
             score: _score,
+            accent: accent,
           ),
           if (!_over)
             Align(
@@ -326,6 +332,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
                   width: side,
                   height: side,
                   child: _Grid(
+                    accent: accent,
                     puzzle: _puzzle,
                     foundCells: _foundCells,
                     hintedCells: _hinted,
@@ -401,12 +408,14 @@ class _ProgressHeader extends StatelessWidget {
     required this.total,
     required this.complete,
     required this.score,
+    required this.accent,
   });
 
   final int found;
   final int total;
   final bool complete;
   final int score;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +438,7 @@ class _ProgressHeader extends StatelessWidget {
               '$score',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: learnColors?.correct,
+                color: accent,
               ),
             ),
             if (complete)
@@ -447,9 +456,7 @@ class _ProgressHeader extends StatelessWidget {
             minHeight: 6,
             backgroundColor:
                 learnColors?.progressTrack ?? theme.colorScheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              learnColors?.correct ?? theme.colorScheme.primary,
-            ),
+            valueColor: AlwaysStoppedAnimation<Color>(accent),
           ),
         ),
       ],
@@ -459,6 +466,7 @@ class _ProgressHeader extends StatelessWidget {
 
 class _Grid extends StatelessWidget {
   const _Grid({
+    required this.accent,
     required this.puzzle,
     required this.foundCells,
     required this.hintedCells,
@@ -467,6 +475,7 @@ class _Grid extends StatelessWidget {
     required this.learnColors,
   });
 
+  final Color accent;
   final WordFindPuzzle puzzle;
   final Set<WordFindCell> foundCells;
   final Set<WordFindCell> hintedCells;
@@ -476,11 +485,10 @@ class _Grid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final selected = selection.toSet();
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+        color: accent.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
@@ -500,6 +508,7 @@ class _Grid extends StatelessWidget {
                           isSelected: selected.contains(WordFindCell(row, col)),
                           selectionIsWrong: selectionIsWrong,
                           learnColors: learnColors,
+                          accent: accent,
                         ),
                       ),
                   ],
@@ -520,6 +529,7 @@ class _LetterCell extends StatelessWidget {
     required this.isSelected,
     required this.selectionIsWrong,
     required this.learnColors,
+    required this.accent,
   });
 
   final String letter;
@@ -528,6 +538,7 @@ class _LetterCell extends StatelessWidget {
   final bool isSelected;
   final bool selectionIsWrong;
   final KamusiLearnColors? learnColors;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -539,10 +550,10 @@ class _LetterCell extends StatelessWidget {
     if (isSelected) {
       background = selectionIsWrong
           ? (learnColors?.incorrectContainer ?? colorScheme.errorContainer)
-          : colorScheme.primaryContainer;
+          : accent;
       foreground = selectionIsWrong
           ? (learnColors?.onIncorrectContainer ?? colorScheme.onErrorContainer)
-          : colorScheme.onPrimaryContainer;
+          : Colors.white;
     } else if (isFound) {
       background = learnColors?.correctContainer ?? colorScheme.secondaryContainer;
       foreground =
