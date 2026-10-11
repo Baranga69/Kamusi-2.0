@@ -253,6 +253,51 @@ poetry run python scripts/export_openapi.py
 poetry run python scripts/export_openapi.py --check   # what CI runs
 ```
 
+## Publishing in bulk
+
+Publishing through the admin console is one lexeme and one click, which is
+right when a person is reading each entry and wrong for releasing a corpus of
+several thousand.
+
+```bash
+cd apps/api
+export DATABASE_URL="postgresql+psycopg://kamusi:kamusi123@localhost:5433/kamusi"
+
+python tools/maintenance/bulk_publish.py                      # dry run, report
+python tools/maintenance/bulk_publish.py --limit 298 --apply
+python tools/maintenance/bulk_publish.py --undo out/bulk_publish-<stamp>.jsonl
+```
+
+Candidates are screened by `app.services.publish.readiness_problems`, the same
+rules the console shows. The one that matters most, and the one a client
+cannot judge alone:
+
+**`no_visible_swahili_definition`** — a sense whose only Swahili definition is
+unreviewed AI has none a reader can see. The review guard keeps it out of the
+search index and `/lexemes/{id}` hides it, so publishing produces a word that
+looks complete in the database and empty in the app. **The review pass has to
+come first**; until it does, this tool will correctly refuse everything.
+
+Other reasons: `lemma_too_short`, `lemma_not_searchable`, `no_part_of_speech`,
+`no_senses`, `empty_definition`, and `sense_without_visible_swahili` for an
+entry that is usable but only partly covered.
+
+Lexemes whose senses are flagged `is_morphology` are grammatical
+cross-references ("Passive form of -ona") rather than definitions, and are
+skipped unless you pass `--include-morphology`.
+
+Every applied run writes a journal to `out/` recording each lexeme's previous
+workflow, and `--undo` restores it. Un-publishing deliberately leaves
+`search_entry` alone: the index holds rows for draft content too and `/search`
+filters by workflow, so restoring the workflow is what hides an entry again —
+deleting the rows would also discard index entries that predate the run.
+
+`readiness_problems` is not enforced by `POST /admin/lexemes/{id}/publish`,
+which still publishes whatever it is given. The console does its own checks
+before calling it, so the flows a person drives are screened; a direct API
+caller is not. Turning that on is a deliberate behaviour change and a separate
+decision.
+
 ## The ingest quality gate
 
 A reviewer's time is the scarce resource. Ten times as many definitions means
