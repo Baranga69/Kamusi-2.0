@@ -8,18 +8,56 @@ LANGUAGES = [
     {"code": "en", "name": "English"},
 ]
 
+# (code, English label, Swahili name, Swahili explanation).
+#
+# The Swahili columns existed only in one developer's database until migration
+# 0009; they live here now so every environment gets them. For a Swahili-first
+# dictionary this is the part a reader should see — "Nomino", not "NOUN".
 PARTS_OF_SPEECH = [
-    "NOUN",
-    "VERB",
-    "ADJ",
-    "ADV",
-    "PRON",
-    "PREP",
-    "CONJ",
-    "INTJ",
-    "NUM",
-    "IDEO",
-    "PROPN",
+    ("NOUN", "NOUN", "Nomino", "Neno linalotaja jina la mtu, kitu, mahali, wazo au hali."),
+    ("VERB", "VERB", "Kitenzi", "Neno linaloonyesha kitendo, tukio au hali (mf. kula, kwenda, kuwa)."),
+    ("ADJ", "ADJ", "Kivumishi", "Neno linaloeleza sifa au hali ya nomino (mf. mzuri, nyingi)."),
+    (
+        "ADV",
+        "ADV",
+        "Kielezi",
+        "Neno linaloeleza jinsi, wakati, mahali au kiwango cha kitendo/sifa"
+        " (mf. haraka, jana, hapa).",
+    ),
+    ("PRON", "PRON", "Kiwakilishi", "Neno linalochukua nafasi ya nomino (mf. mimi, yeye, hiki)."),
+    (
+        "PREP",
+        "PREP",
+        "Kihusishi",
+        "Neno linaloonyesha uhusiano wa nomino/kiwakilishi na maneno mengine"
+        " (mf. kwa, kwenye, kuhusu).",
+    ),
+    (
+        "CONJ",
+        "CONJ",
+        "Kiunganishi",
+        "Neno linalounganisha maneno, vishazi au sentensi (mf. na, au, lakini).",
+    ),
+    ("INTJ", "INTJ", "Kihisishi", "Neno la hisia au mshangao (mf. ah!, lo!, jamani!)."),
+    (
+        "NUM",
+        "NUM",
+        "Kivumishi cha Idadi",
+        "Neno linaloonyesha idadi au mpangilio (mf. tatu, wa kwanza).",
+    ),
+    (
+        "IDEO",
+        "IDEO",
+        "Kiigizo",
+        "Neno linaloiga sauti, mwendo au hisia kwa msisitizo (mf. chapu, du, puu).",
+    ),
+    (
+        "PROPN",
+        "PROPN",
+        "Jina Maalum",
+        "Nomino inayoitaja jina maalum la mtu, mahali, shirika au kitu"
+        " (mf. Nairobi, Amina, Tappi).",
+    ),
 ]
 
 REGISTERS = [
@@ -63,7 +101,15 @@ def main() -> None:
         upsert_simple(
             session,
             PartOfSpeech,
-            [{"code": code, "label": code} for code in PARTS_OF_SPEECH],
+            [
+                {
+                    "code": code,
+                    "label": label,
+                    "label_sw": label_sw,
+                    "definition_sw": definition_sw,
+                }
+                for code, label, label_sw, definition_sw in PARTS_OF_SPEECH
+            ],
             [PartOfSpeech.code],
         )
         upsert_simple(
