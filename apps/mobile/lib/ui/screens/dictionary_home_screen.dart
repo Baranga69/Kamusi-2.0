@@ -10,6 +10,7 @@ import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/language_picker.dart';
+import 'settings_screen.dart';
 import '../widgets/word_of_day_card.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -184,6 +185,18 @@ class _DictionaryHomeScreenState
               // Search and Favourites moved to the bottom bar, so the drawer
               // is where preferences live now.
               const LanguagePicker(),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: Text(l10n.settingsOpen),
+                onTap: () {
+                  // Close the drawer first, or it stays open behind the
+                  // screen it just opened.
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
+                },
+              ),
             ],
           ),
         ),

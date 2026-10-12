@@ -449,4 +449,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnDoneClose => 'Back';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsServerTitle => 'Server address';
+
+  @override
+  String get settingsServerBody =>
+      'Where the app looks for its data. Change this if your computer\'s address has moved.';
+
+  @override
+  String get settingsServerLabel => 'Address';
+
+  @override
+  String get settingsServerHint => '192.168.1.5:8000';
+
+  @override
+  String get settingsServerInvalid => 'That address cannot be read.';
+
+  @override
+  String get settingsTest => 'Test';
+
+  @override
+  String get settingsTesting => 'Testing…';
+
+  @override
+  String get settingsTestOk => 'Connected!';
+
+  @override
+  String get settingsTestFailed => 'Could not connect.';
+
+  @override
+  String get settingsSave => 'Save';
+
+  @override
+  String get settingsSaved => 'Saved.';
+
+  @override
+  String get settingsReset => 'Reset to default';
+
+  @override
+  String settingsDefaultIs(String url) {
+    return 'Default: $url';
+  }
+
+  @override
+  String get settingsOpen => 'Settings';
 }

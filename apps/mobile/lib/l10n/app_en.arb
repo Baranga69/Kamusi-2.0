@@ -236,5 +236,27 @@
     }
   },
   "learnDoneAgain": "Play again",
-  "learnDoneClose": "Back"
+  "learnDoneClose": "Back",
+  "settingsTitle": "Settings",
+  "settingsServerTitle": "Server address",
+  "settingsServerBody": "Where the app looks for its data. Change this if your computer's address has moved.",
+  "settingsServerLabel": "Address",
+  "settingsServerHint": "192.168.1.5:8000",
+  "settingsServerInvalid": "That address cannot be read.",
+  "settingsTest": "Test",
+  "settingsTesting": "Testing…",
+  "settingsTestOk": "Connected!",
+  "settingsTestFailed": "Could not connect.",
+  "settingsSave": "Save",
+  "settingsSaved": "Saved.",
+  "settingsReset": "Reset to default",
+  "settingsDefaultIs": "Default: {url}",
+  "@settingsDefaultIs": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsOpen": "Settings"
 }

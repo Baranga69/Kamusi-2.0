@@ -7,6 +7,18 @@
 
 ## Configure the API base URL
 
+> **On a phone, use Settings instead.** Open the drawer on the dictionary tab
+> and tap **Mipangilio / Settings**: type the address, press Test to check it
+> actually answers, then Save. It takes effect immediately — no rebuild, no
+> reinstall — and survives restarts.
+>
+> This exists because a build-time address is right for a release and useless
+> on a home network: a laptop's IP moves whenever the router decides it
+> should, and every move used to mean rebuilding the app to type a different
+> number. The build-time value stays the default, and "Reset to default"
+> returns to it.
+
+
 The app reads the base URL from a Dart define named `API_BASE_URL`. It defaults
 to `http://localhost:8000`, which works for the iOS simulator, desktop and web.
 Android emulators need the flag, because `localhost` there is the emulator

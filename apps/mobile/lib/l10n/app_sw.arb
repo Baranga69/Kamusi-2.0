@@ -236,5 +236,27 @@
     }
   },
   "learnDoneAgain": "Cheza tena",
-  "learnDoneClose": "Rudi"
+  "learnDoneClose": "Rudi",
+  "settingsTitle": "Mipangilio",
+  "settingsServerTitle": "Anwani ya seva",
+  "settingsServerBody": "Programu hutafuta data hapa. Badilisha ikiwa anwani ya kompyuta yako imebadilika.",
+  "settingsServerLabel": "Anwani",
+  "settingsServerHint": "192.168.1.5:8000",
+  "settingsServerInvalid": "Anwani hii haieleweki.",
+  "settingsTest": "Jaribu",
+  "settingsTesting": "Inajaribu...",
+  "settingsTestOk": "Imeunganishwa!",
+  "settingsTestFailed": "Haikuweza kuunganishwa.",
+  "settingsSave": "Hifadhi",
+  "settingsSaved": "Imehifadhiwa.",
+  "settingsReset": "Rudisha ya awali",
+  "settingsDefaultIs": "Ya awali: {url}",
+  "@settingsDefaultIs": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsOpen": "Mipangilio"
 }

@@ -913,6 +913,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back'**
   String get learnDoneClose;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get settingsServerTitle;
+
+  /// No description provided for @settingsServerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the app looks for its data. Change this if your computer\'s address has moved.'**
+  String get settingsServerBody;
+
+  /// No description provided for @settingsServerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get settingsServerLabel;
+
+  /// No description provided for @settingsServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'192.168.1.5:8000'**
+  String get settingsServerHint;
+
+  /// No description provided for @settingsServerInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That address cannot be read.'**
+  String get settingsServerInvalid;
+
+  /// No description provided for @settingsTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get settingsTest;
+
+  /// No description provided for @settingsTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing…'**
+  String get settingsTesting;
+
+  /// No description provided for @settingsTestOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected!'**
+  String get settingsTestOk;
+
+  /// No description provided for @settingsTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect.'**
+  String get settingsTestFailed;
+
+  /// No description provided for @settingsSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get settingsSave;
+
+  /// No description provided for @settingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get settingsSaved;
+
+  /// No description provided for @settingsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get settingsReset;
+
+  /// No description provided for @settingsDefaultIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: {url}'**
+  String settingsDefaultIs(String url);
+
+  /// No description provided for @settingsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsOpen;
 }
 
 class _AppLocalizationsDelegate

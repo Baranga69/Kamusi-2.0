@@ -452,4 +452,52 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get learnDoneClose => 'Rudi';
+
+  @override
+  String get settingsTitle => 'Mipangilio';
+
+  @override
+  String get settingsServerTitle => 'Anwani ya seva';
+
+  @override
+  String get settingsServerBody =>
+      'Programu hutafuta data hapa. Badilisha ikiwa anwani ya kompyuta yako imebadilika.';
+
+  @override
+  String get settingsServerLabel => 'Anwani';
+
+  @override
+  String get settingsServerHint => '192.168.1.5:8000';
+
+  @override
+  String get settingsServerInvalid => 'Anwani hii haieleweki.';
+
+  @override
+  String get settingsTest => 'Jaribu';
+
+  @override
+  String get settingsTesting => 'Inajaribu...';
+
+  @override
+  String get settingsTestOk => 'Imeunganishwa!';
+
+  @override
+  String get settingsTestFailed => 'Haikuweza kuunganishwa.';
+
+  @override
+  String get settingsSave => 'Hifadhi';
+
+  @override
+  String get settingsSaved => 'Imehifadhiwa.';
+
+  @override
+  String get settingsReset => 'Rudisha ya awali';
+
+  @override
+  String settingsDefaultIs(String url) {
+    return 'Ya awali: $url';
+  }
+
+  @override
+  String get settingsOpen => 'Mipangilio';
 }

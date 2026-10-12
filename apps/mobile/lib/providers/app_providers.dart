@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/api_client.dart';
 import '../data/language_store.dart';
 import '../data/response_cache.dart';
+import '../data/server_store.dart';
 import '../data/kamusi_api_repository.dart';
 import '../data/local_favorites_repository.dart';
 import '../data/local_recent_searches_repository.dart';
@@ -33,20 +34,29 @@ final localeProvider = Provider<Locale?>((ref) {
   return ref.watch(appLanguageProvider).locale;
 });
 
-/// Base URL of the Kamusi API.
+/// The address baked in at build time.
 ///
-/// Override per build, never per file:
 ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000   (Android emulator)
 ///   flutter run --dart-define=API_BASE_URL=http://localhost:8000  (iOS sim, desktop, web)
 ///   flutter build --dart-define=API_BASE_URL=https://api.example.com
 ///
 /// The default targets a local API so a fresh checkout works against
 /// `make api`. Release builds must pass the deployed URL explicitly.
-final apiBaseUrlProvider = Provider<String>((ref) {
-  return const String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8000',
-  );
+const String buildTimeApiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://localhost:8000',
+);
+
+final serverStoreProvider = Provider<ServerStore>((ref) => ServerStore());
+
+/// Base URL of the Kamusi API, as the app is actually using it.
+///
+/// Writable, and overridden at startup with the stored address if there is
+/// one. Everything downstream — the Dio client, the repository, every
+/// provider that reads them — watches this, so setting it is all it takes to
+/// point the app somewhere else. No rebuild, no reinstall.
+final apiBaseUrlProvider = StateProvider<String>((ref) {
+  return buildTimeApiBaseUrl;
 });
 
 /// Whether to ask the API for draft content.

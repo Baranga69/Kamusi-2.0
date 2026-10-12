@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/language_store.dart';
+import 'data/server_store.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/app_providers.dart';
 import 'ui/screens/root_shell.dart';
@@ -15,9 +16,17 @@ Future<void> main() async {
   // flashes English on its way to Swahili.
   final language = await LanguageStore().load();
 
+  // And the server address, so the first request already goes to the right
+  // place rather than failing once against a stale default.
+  final storedServer = await ServerStore().load();
+
   runApp(
     ProviderScope(
-      overrides: [appLanguageProvider.overrideWith((ref) => language)],
+      overrides: [
+        appLanguageProvider.overrideWith((ref) => language),
+        if (storedServer != null)
+          apiBaseUrlProvider.overrideWith((ref) => storedServer),
+      ],
       child: const KamusiApp(),
     ),
   );
