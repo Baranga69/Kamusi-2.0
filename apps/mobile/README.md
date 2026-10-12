@@ -148,6 +148,37 @@ cover.
   time runs out the board stays on screen with every answer revealed, because
   being shown what you missed is the part worth having.
 
+### How a board answers you
+
+Haptics say *that* something happened; sound says *which*. A board that meets
+a correct word with the same silence as a wrong one is a form, not a game.
+
+- A tick per cell or tile while dragging, so a swipe has texture.
+- A two-note rise when a word lands, a low short note when a guess spells
+  nothing — information, not a buzzer, since a wrong answer here is not a
+  failure.
+- An arpeggio and falling paper when the board is finished.
+
+The four cues in `assets/sounds/` are **synthesised**, not downloaded — see
+the generator in the commit that added them. Four short tones are a little
+arithmetic, where stock audio means a licence to keep track of, a file nobody
+can regenerate, and usually 200KB of MP3 for a 90ms beep. Everything swallows
+its own failures: a muted phone, a device with no motor and an emulator must
+all still play.
+
+**The crossword says whether you are right.** Once every square of an answer
+has a letter in it, the answer colours itself — green when it is right, red
+and a short shake when it is not. Nothing before that: judging a half-typed
+word would be giving away the answer one letter at a time. Where an across
+and a down disagree, wrong wins, because that is the one still worth doing
+something about.
+
+**Finishing is an event.** A sheet counts the score up rather than printing
+it, calls out a new personal best, and drops confetti — but only when the
+board was actually completed. Paper for running out of time would be the app
+laughing at you. The same sheet appears when the clock ends a round, because
+that is the moment a player most wants to know what they scored.
+
 ### Hints
 
 Three per board, costing 20 points each, with the count and the price both on

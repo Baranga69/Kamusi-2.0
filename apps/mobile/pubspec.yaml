@@ -16,6 +16,10 @@ dependencies:
   flutter_riverpod: ^2.5.1
   dio: ^5.5.0
   shared_preferences: ^2.2.3
+  # Short synthesised cues when a word lands. The one thing haptics cannot
+  # do is tell you *which* thing happened, and a game with no sound reads as
+  # unfinished to anyone under about twenty-five.
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +29,6 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+
+  assets:
+    - assets/sounds/

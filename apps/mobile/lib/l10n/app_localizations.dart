@@ -865,6 +865,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Learn words by playing.'**
   String get learnGamesSubheading;
+
+  /// No description provided for @learnDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Well done!'**
+  String get learnDoneTitle;
+
+  /// No description provided for @learnDonePartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Time is up'**
+  String get learnDonePartial;
+
+  /// No description provided for @learnDoneScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Your score'**
+  String get learnDoneScore;
+
+  /// No description provided for @learnDoneBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Your best: {score}'**
+  String learnDoneBest(int score);
+
+  /// No description provided for @learnDoneNewBest.
+  ///
+  /// In en, this message translates to:
+  /// **'New best!'**
+  String get learnDoneNewBest;
+
+  /// No description provided for @learnDoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'You found {found} of {total}'**
+  String learnDoneFound(int found, int total);
+
+  /// No description provided for @learnDoneAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Play again'**
+  String get learnDoneAgain;
+
+  /// No description provided for @learnDoneClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get learnDoneClose;
 }
 
 class _AppLocalizationsDelegate

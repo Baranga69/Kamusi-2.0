@@ -424,4 +424,32 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get learnGamesSubheading => 'Jifunze maneno kwa kucheza.';
+
+  @override
+  String get learnDoneTitle => 'Hongera!';
+
+  @override
+  String get learnDonePartial => 'Muda umeisha';
+
+  @override
+  String get learnDoneScore => 'Alama zako';
+
+  @override
+  String learnDoneBest(int score) {
+    return 'Rekodi yako: $score';
+  }
+
+  @override
+  String get learnDoneNewBest => 'Rekodi mpya!';
+
+  @override
+  String learnDoneFound(int found, int total) {
+    return 'Umepata $found kati ya $total';
+  }
+
+  @override
+  String get learnDoneAgain => 'Cheza tena';
+
+  @override
+  String get learnDoneClose => 'Rudi';
 }

@@ -211,5 +211,30 @@
   "learnHintNone": "Hakuna dokezo",
   "learnHintUsed": "Dokezo limetumika",
   "learnGamesHeading": "Michezo",
-  "learnGamesSubheading": "Jifunze maneno kwa kucheza."
+  "learnGamesSubheading": "Jifunze maneno kwa kucheza.",
+  "learnDoneTitle": "Hongera!",
+  "learnDonePartial": "Muda umeisha",
+  "learnDoneScore": "Alama zako",
+  "learnDoneBest": "Rekodi yako: {score}",
+  "@learnDoneBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneNewBest": "Rekodi mpya!",
+  "learnDoneFound": "Umepata {found} kati ya {total}",
+  "@learnDoneFound": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneAgain": "Cheza tena",
+  "learnDoneClose": "Rudi"
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,8 @@ import '../../domain/models/crossword_puzzle.dart';
 import '../../providers/learn_providers.dart';
 import '../theme/kamusi_learn_colors.dart';
 import '../widgets/game_timer_bar.dart';
+import '../../data/game_feedback.dart';
+import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -33,7 +37,8 @@ class CrosswordScreen extends ConsumerStatefulWidget {
   ConsumerState<CrosswordScreen> createState() => _CrosswordScreenState();
 }
 
-class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
+class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
+    with SingleTickerProviderStateMixin {
   final Map<CrosswordCell, String> _filled = {};
   final Set<int> _scored = {};
 
@@ -43,6 +48,13 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
   int _score = 0;
   Duration? _timeLeft;
   int _hintsLeft = GameHints.perBoard;
+  bool _finished = false;
+
+  /// Shakes the grid when a finished answer turns out to be wrong.
+  late final AnimationController _shake = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+  );
 
   CrosswordPuzzle get _puzzle => widget.puzzle;
 
@@ -58,6 +70,38 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
       }
     }
     return true;
+  }
+
+  /// True once every square of an answer has a letter in it, right or not.
+  bool _filledThrough(CrosswordEntry entry) =>
+      entry.cells.every((cell) => (_filled[cell] ?? '').isNotEmpty);
+
+  /// Answers the player has finished and got wrong.
+  ///
+  /// The game used to say nothing at all here: you could fill a word
+  /// incorrectly and the board would look exactly as it does when you are
+  /// right, which leaves checking your own crossword as an exercise.
+  Set<CrosswordEntry> get _wrongEntries => _puzzle.entries
+      .where((entry) => _filledThrough(entry) && !_solved(entry))
+      .toSet();
+
+  /// How a square should read: null while its answers are unfinished, true
+  /// once a finished answer through it is right, false once one is wrong.
+  ///
+  /// Wrong wins where an across and a down disagree, because that is the one
+  /// the player can still do something about.
+  bool? _cellVerdict(CrosswordCell cell) {
+    bool? verdict;
+    for (final entry in _puzzle.entriesAt(cell)) {
+      if (!_filledThrough(entry)) {
+        continue;
+      }
+      if (!_solved(entry)) {
+        return false;
+      }
+      verdict = true;
+    }
+    return verdict;
   }
 
   int get _solvedCount => _puzzle.entries.where(_solved).length;
@@ -106,11 +150,28 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
     if (cursor == null || _over) {
       return;
     }
+    final wrongBefore = _wrongEntries.length;
+    final solvedBefore = _solvedCount;
     setState(() {
       _filled[cursor] = letter;
       _awardNewlySolved();
       _advance();
     });
+
+    if (_solvedCount > solvedBefore) {
+      GameFeedback.correct();
+    } else if (_wrongEntries.length > wrongBefore) {
+      // A finished answer that is wrong: say so now rather than leaving it
+      // to be discovered at the end.
+      GameFeedback.wrong();
+      _shake.forward(from: 0);
+    } else {
+      GameFeedback.tick();
+    }
+
+    if (_complete) {
+      _finish(completed: true);
+    }
   }
 
   /// Fill in the square the cursor is on, or the first empty one in the
@@ -133,6 +194,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
     if (target == null || _solution[target] == null) {
       return;
     }
+    GameFeedback.hint();
     setState(() {
       _hintsLeft--;
       _score = (_score - GameHints.cost).clamp(0, 1 << 30);
@@ -140,6 +202,9 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
       _cursor = target;
       _awardNewlySolved();
     });
+    if (_complete) {
+      _finish(completed: true);
+    }
   }
 
   /// Delete, the way a crossword should.
@@ -195,21 +260,48 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
     }
   }
 
-  Future<void> _finish() async {
-    final best = await ref
-        .read(gameSettingsStoreProvider)
-        .recordScore(GameIds.crossword, _score);
+  Future<void> _finish({required bool completed}) async {
+    if (_finished) {
+      return;
+    }
+    _finished = true;
+
+    final store = ref.read(gameSettingsStoreProvider);
+    final previousBest = await store.bestScore(GameIds.crossword);
+    final best = await store.recordScore(GameIds.crossword, _score);
     if (!mounted) {
       return;
     }
     ref.invalidate(bestScoresProvider);
-    if (best == _score && _score > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.learnGameNewBest(_score)),
-        ),
-      );
+    if (completed) {
+      GameFeedback.complete();
     }
+
+    final theme = Theme.of(context);
+    final accent = theme.extension<KamusiLearnColors>()?.gameAccentC ??
+        theme.colorScheme.tertiary;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => GameResultSheet(
+        accent: accent,
+        score: _score,
+        best: best,
+        isNewBest: _score > previousBest && _score > 0,
+        found: _solvedCount,
+        total: _puzzle.entries.length,
+        completed: completed,
+        onAgain: () {
+          Navigator.of(sheetContext).pop();
+          ref.invalidate(crosswordProvider);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _openEntry(CrosswordEntry entry) {
@@ -260,7 +352,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                     onTick: (left) => _timeLeft = left,
                     onExpired: () {
                       setState(() => _outOfTime = true);
-                      _finish();
+                      _finish(completed: false);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -290,8 +382,22 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                       return SizedBox(
                         width: side,
                         height: side,
-                        child: _Grid(
+                        child: AnimatedBuilder(
+                          animation: _shake,
+                          builder: (context, child) {
+                            // A quick side-to-side, decaying — enough to
+                            // notice without throwing the board around.
+                            final t = _shake.value;
+                            final offset =
+                                math.sin(t * math.pi * 6) * 9 * (1 - t);
+                            return Transform.translate(
+                              offset: Offset(offset, 0),
+                              child: child,
+                            );
+                          },
+                          child: _Grid(
                           accent: accent,
+                          verdict: _cellVerdict,
                           puzzle: _puzzle,
                           cells: _cells,
                           numbers: _numbers,
@@ -302,6 +408,7 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen> {
                           revealAll: _outOfTime,
                           onTap: _tapCell,
                           learnColors: learnColors,
+                        ),
                         ),
                       );
                     },
@@ -419,6 +526,7 @@ class _ScoreRow extends StatelessWidget {
 class _Grid extends StatelessWidget {
   const _Grid({
     required this.accent,
+    required this.verdict,
     required this.puzzle,
     required this.cells,
     required this.numbers,
@@ -432,6 +540,10 @@ class _Grid extends StatelessWidget {
   });
 
   final Color accent;
+
+  /// Null while a square's answers are unfinished, true once a finished one
+  /// through it is right, false once one is wrong.
+  final bool? Function(CrosswordCell) verdict;
   final CrosswordPuzzle puzzle;
   final Set<CrosswordCell> cells;
   final Map<CrosswordCell, int> numbers;
@@ -483,6 +595,7 @@ class _Grid extends StatelessWidget {
                       onTap: () => onTap(CrosswordCell(row, col)),
                       learnColors: learnColors,
                       accent: accent,
+                      verdict: verdict(CrosswordCell(row, col)),
                       theme: theme,
                     ),
                   ),
@@ -505,6 +618,7 @@ class _Cell extends StatelessWidget {
     required this.onTap,
     required this.learnColors,
     required this.accent,
+    required this.verdict,
     required this.theme,
   });
 
@@ -517,6 +631,7 @@ class _Cell extends StatelessWidget {
   final VoidCallback onTap;
   final KamusiLearnColors? learnColors;
   final Color accent;
+  final bool? verdict;
   final ThemeData theme;
 
   @override
@@ -526,14 +641,26 @@ class _Cell extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final colorScheme = theme.colorScheme;
-    final background = isCursor
-        ? accent.withValues(alpha: 0.42)
-        : inClue
-            // Light enough to read a letter through, strong enough to show
-            // which answer you are typing into — which is the only reason
-            // this highlight exists.
-            ? accent.withValues(alpha: 0.24)
-            : colorScheme.surface;
+    // A finished answer colours its squares: green for right, red for
+    // wrong. Nothing before that — judging a half-typed word would be
+    // telling the player the answer one letter at a time.
+    final correct = learnColors?.correctContainer ?? colorScheme.secondaryContainer;
+    final incorrect = learnColors?.incorrectContainer ?? colorScheme.errorContainer;
+
+    final Color background;
+    if (verdict == false) {
+      background = incorrect;
+    } else if (verdict == true) {
+      background = correct;
+    } else if (isCursor) {
+      background = accent.withValues(alpha: 0.42);
+    } else if (inClue) {
+      // Light enough to read a letter through, strong enough to show which
+      // answer you are typing into — the only reason this highlight exists.
+      background = accent.withValues(alpha: 0.24);
+    } else {
+      background = colorScheme.surface;
+    }
 
     return Padding(
       padding: const EdgeInsets.all(0.8),
@@ -543,8 +670,12 @@ class _Cell extends StatelessWidget {
           decoration: BoxDecoration(
             color: background,
             border: Border.all(
-              color: isCursor ? accent : colorScheme.outlineVariant,
-              width: isCursor ? 1.4 : 0.8,
+              color: isCursor
+                  ? accent
+                  : verdict == false
+                      ? (learnColors?.incorrect ?? colorScheme.error)
+                      : colorScheme.outlineVariant,
+              width: isCursor || verdict == false ? 1.4 : 0.8,
             ),
             borderRadius: BorderRadius.circular(3),
           ),
@@ -571,7 +702,13 @@ class _Cell extends StatelessWidget {
                       (letter ?? '').toUpperCase(),
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
+                        color: verdict == false
+                            ? (learnColors?.onIncorrectContainer ??
+                                colorScheme.onErrorContainer)
+                            : verdict == true
+                                ? (learnColors?.onCorrectContainer ??
+                                    colorScheme.onSecondaryContainer)
+                                : colorScheme.onSurface,
                       ),
                     ),
                   ),

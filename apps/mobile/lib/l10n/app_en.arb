@@ -211,5 +211,30 @@
   "learnHintNone": "No hints left",
   "learnHintUsed": "Hint used",
   "learnGamesHeading": "Games",
-  "learnGamesSubheading": "Learn words by playing."
+  "learnGamesSubheading": "Learn words by playing.",
+  "learnDoneTitle": "Well done!",
+  "learnDonePartial": "Time is up",
+  "learnDoneScore": "Your score",
+  "learnDoneBest": "Your best: {score}",
+  "@learnDoneBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneNewBest": "New best!",
+  "learnDoneFound": "You found {found} of {total}",
+  "@learnDoneFound": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneAgain": "Play again",
+  "learnDoneClose": "Back"
 }

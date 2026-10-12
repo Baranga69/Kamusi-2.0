@@ -8,6 +8,8 @@ import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
+import '../../data/game_feedback.dart';
+import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
@@ -58,6 +60,9 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   /// where a word begins is help, lighting the whole path is the answer.
   final Set<WordFindCell> _hinted = {};
   int _hintsLeft = GameHints.perBoard;
+
+  /// So the ending is announced once, not on every rebuild after it.
+  bool _finished = false;
 
   /// The drag in progress.
   WordFindCell? _dragStart;
@@ -140,6 +145,10 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     if (path.isEmpty || _sameAs(path, _dragPath)) {
       return;
     }
+    // One tick per cell crossed, so a drag has a texture under the finger.
+    if (path.length != _dragPath.length) {
+      GameFeedback.tick();
+    }
     setState(() => _dragPath = path);
   }
 
@@ -179,6 +188,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
       // read, then clear it. Silently dropping it reads as an unresponsive
       // grid. The list is unlocked straight away rather than after the
       // flash, so a missed guess never blocks scrolling.
+      GameFeedback.wrong();
       setState(() {
         _dragIsWrong = true;
         _dragLock = false;
@@ -197,6 +207,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     }
 
     final found = hit;
+    GameFeedback.correct();
     setState(() {
       _dragLock = false;
       _score += GameScore.award(
@@ -212,19 +223,56 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     });
   }
 
-  Future<void> _recordScore() async {
-    await ref
-        .read(gameSettingsStoreProvider)
-        .recordScore(GameIds.wordFind, _score);
-    if (mounted) {
-      ref.invalidate(bestScoresProvider);
+  /// Close the board: record the score, then say so.
+  Future<void> _finish({required bool completed}) async {
+    if (_finished) {
+      return;
     }
+    _finished = true;
+
+    final store = ref.read(gameSettingsStoreProvider);
+    final previousBest = await store.bestScore(GameIds.wordFind);
+    final best = await store.recordScore(GameIds.wordFind, _score);
+    if (!mounted) {
+      return;
+    }
+    ref.invalidate(bestScoresProvider);
+    if (completed) {
+      GameFeedback.complete();
+    }
+
+    final theme = Theme.of(context);
+    final accent = theme.extension<KamusiLearnColors>()?.gameAccentA ??
+        theme.colorScheme.primary;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => GameResultSheet(
+        accent: accent,
+        score: _score,
+        best: best,
+        isNewBest: _score > previousBest && _score > 0,
+        found: _found.length,
+        total: _puzzle.words.length,
+        completed: completed,
+        onAgain: () {
+          Navigator.of(sheetContext).pop();
+          ref.invalidate(wordFindProvider);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _takeHint() {
     if (_over || _hintsLeft <= 0) {
       return;
     }
+    GameFeedback.hint();
     final unfound = _puzzle.words
         .where((word) => !_found.contains(word))
         .where((word) => !_hinted.contains(word.cells.first))
@@ -293,7 +341,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
               onTick: (left) => _timeLeft = left,
               onExpired: () {
                 setState(() => _outOfTime = true);
-                _recordScore();
+                _finish(completed: false);
               },
             ),
             const SizedBox(height: 12),

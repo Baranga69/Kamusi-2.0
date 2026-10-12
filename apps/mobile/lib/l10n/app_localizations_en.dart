@@ -421,4 +421,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnGamesSubheading => 'Learn words by playing.';
+
+  @override
+  String get learnDoneTitle => 'Well done!';
+
+  @override
+  String get learnDonePartial => 'Time is up';
+
+  @override
+  String get learnDoneScore => 'Your score';
+
+  @override
+  String learnDoneBest(int score) {
+    return 'Your best: $score';
+  }
+
+  @override
+  String get learnDoneNewBest => 'New best!';
+
+  @override
+  String learnDoneFound(int found, int total) {
+    return 'You found $found of $total';
+  }
+
+  @override
+  String get learnDoneAgain => 'Play again';
+
+  @override
+  String get learnDoneClose => 'Back';
 }

@@ -10,6 +10,8 @@ import '../../data/game_score.dart';
 import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
+import '../../data/game_feedback.dart';
+import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
@@ -60,6 +62,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   /// so a hint narrows the field rather than handing over the answer.
   final Map<String, int> _revealedLetters = {};
   int _hintsLeft = GameHints.perBoard;
+  bool _finished = false;
 
   WordBuildPuzzle get _puzzle => widget.puzzle;
 
@@ -126,12 +129,15 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
     // Dragging back onto the previous tile un-picks the last one, which is
     // how anyone expects to correct a slip without starting over.
     if (_selected.length >= 2 && _selected[_selected.length - 2] == tile) {
+      GameFeedback.tick();
       setState(() => _selected.removeLast());
       return;
     }
     if (_selected.contains(tile)) {
       return;
     }
+    // One tick per tile, so building a word has a texture under the finger.
+    GameFeedback.tick();
     setState(() => _selected.add(tile));
   }
 
@@ -139,6 +145,11 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
     final attempt = _attempt;
     final solved = attempt.length >= 3 ? _puzzle.solve(attempt) : null;
 
+    if (solved != null && !_found.contains(solved.letters)) {
+      GameFeedback.correct();
+    } else if (attempt.isNotEmpty && solved == null) {
+      GameFeedback.wrong();
+    }
     setState(() {
       _dragLock = false;
       if (solved != null && !_found.contains(solved.letters)) {
@@ -154,6 +165,9 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
       }
       _selected.clear();
     });
+    if (_complete) {
+      _finish(completed: true);
+    }
   }
 
   void _takeHint() {
@@ -170,6 +184,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
     if (unsolved.isEmpty) {
       return;
     }
+    GameFeedback.hint();
     final word = unsolved.first;
     setState(() {
       _hintsLeft--;
@@ -183,6 +198,51 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
       _ring = List<String>.from(_ring)..shuffle();
       _selected.clear();
     });
+  }
+
+  /// Close the board: record the score, then say so.
+  Future<void> _finish({required bool completed}) async {
+    if (_finished) {
+      return;
+    }
+    _finished = true;
+
+    final store = ref.read(gameSettingsStoreProvider);
+    final previousBest = await store.bestScore(GameIds.wordBuild);
+    final best = await store.recordScore(GameIds.wordBuild, _score);
+    if (!mounted) {
+      return;
+    }
+    ref.invalidate(bestScoresProvider);
+    if (completed) {
+      GameFeedback.complete();
+    }
+
+    final theme = Theme.of(context);
+    final accent = theme.extension<KamusiLearnColors>()?.gameAccentB ??
+        theme.colorScheme.secondary;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => GameResultSheet(
+        accent: accent,
+        score: _score,
+        best: best,
+        isNewBest: _score > previousBest && _score > 0,
+        found: _found.length,
+        total: _puzzle.words.length,
+        completed: completed,
+        onAgain: () {
+          Navigator.of(sheetContext).pop();
+          ref.invalidate(wordBuildProvider);
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   void _openEntry(WordBuildWord word) {
@@ -246,14 +306,7 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
               onTick: (left) => _timeLeft = left,
               onExpired: () {
                 setState(() => _outOfTime = true);
-                ref
-                    .read(gameSettingsStoreProvider)
-                    .recordScore(GameIds.wordBuild, _score)
-                    .then((_) {
-                  if (mounted) {
-                    ref.invalidate(bestScoresProvider);
-                  }
-                });
+                _finish(completed: false);
               },
             ),
             const SizedBox(height: 14),
