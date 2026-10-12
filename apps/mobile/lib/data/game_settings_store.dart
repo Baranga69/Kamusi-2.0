@@ -11,6 +11,8 @@ class GameSettingsStore {
   final String namespace;
 
   String get _timedKey => '$namespace:timed';
+  String get _soundKey => '$namespace:sound';
+  String get _hapticsKey => '$namespace:haptics';
 
   /// Off by default. A clock changes a learning game into a test, and that
   /// should be something a person opts into rather than meets unannounced.
@@ -22,6 +24,32 @@ class GameSettingsStore {
   Future<bool> setTimed(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_timedKey, value);
+    return value;
+  }
+
+  /// Both on by default. A game that is silent and still until you go
+  /// looking for a switch has no way to tell you it is a game — but it must
+  /// be one switch away for anyone on a bus, in a lecture, or simply tired
+  /// of it.
+  Future<bool> loadSound() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_soundKey) ?? true;
+  }
+
+  Future<bool> setSound(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_soundKey, value);
+    return value;
+  }
+
+  Future<bool> loadHaptics() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hapticsKey) ?? true;
+  }
+
+  Future<bool> setHaptics(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hapticsKey, value);
     return value;
   }
 

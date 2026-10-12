@@ -258,5 +258,11 @@
       }
     }
   },
-  "settingsOpen": "Mipangilio"
+  "settingsOpen": "Mipangilio",
+  "settingsSound": "Sauti",
+  "settingsSoundBody": "Mlio mwepesi unapopata neno.",
+  "settingsHaptics": "Mtetemo",
+  "settingsHapticsBody": "Mtetemo mwepesi unapochora neno.",
+  "settingsGeneral": "Kwa ujumla",
+  "settingsDone": "Sawa"
 }

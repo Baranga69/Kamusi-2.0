@@ -500,4 +500,22 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get settingsOpen => 'Mipangilio';
+
+  @override
+  String get settingsSound => 'Sauti';
+
+  @override
+  String get settingsSoundBody => 'Mlio mwepesi unapopata neno.';
+
+  @override
+  String get settingsHaptics => 'Mtetemo';
+
+  @override
+  String get settingsHapticsBody => 'Mtetemo mwepesi unapochora neno.';
+
+  @override
+  String get settingsGeneral => 'Kwa ujumla';
+
+  @override
+  String get settingsDone => 'Sawa';
 }

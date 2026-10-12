@@ -258,5 +258,11 @@
       }
     }
   },
-  "settingsOpen": "Settings"
+  "settingsOpen": "Settings",
+  "settingsSound": "Sound",
+  "settingsSoundBody": "A light ping when a word lands.",
+  "settingsHaptics": "Vibration",
+  "settingsHapticsBody": "A light buzz while drawing a word.",
+  "settingsGeneral": "General",
+  "settingsDone": "Done"
 }

@@ -371,6 +371,13 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                               radius: _tileRadius(size),
                               selected: _selected.contains(index),
                               accent: accent,
+                              // One colour per tile, so the ring reads as a
+                              // set of pieces rather than eight grey discs.
+                              tileColor: (learnColors?.tilePalette.isNotEmpty ??
+                                      false)
+                                  ? learnColors!
+                                      .tilePalette[index % learnColors.tilePalette.length]
+                                  : null,
                             ),
                         ],
                       ),
@@ -507,6 +514,7 @@ class _RingTile extends StatelessWidget {
     required this.radius,
     required this.selected,
     required this.accent,
+    required this.tileColor,
   });
 
   final String letter;
@@ -514,6 +522,7 @@ class _RingTile extends StatelessWidget {
   final double radius;
   final bool selected;
   final Color accent;
+  final Color? tileColor;
 
   @override
   Widget build(BuildContext context) {
@@ -527,11 +536,19 @@ class _RingTile extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: selected ? accent : theme.colorScheme.surfaceContainerHighest,
+          color: selected ? accent : (tileColor ?? theme.colorScheme.surfaceContainerHighest),
           border: Border.all(
-            color: selected ? accent : theme.colorScheme.outlineVariant,
-            width: 1.5,
+            color: selected ? accent : Colors.transparent,
+            width: 2.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: (selected ? accent : (tileColor ?? Colors.black))
+                  .withValues(alpha: 0.32),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         alignment: Alignment.center,
         child: FittedBox(
@@ -541,7 +558,7 @@ class _RingTile extends StatelessWidget {
               letter.toUpperCase(),
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : theme.colorScheme.onSurface,
+                color: Colors.white,
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/learn_progress_store.dart';
 import '../domain/models/learn_round.dart';
 import '../data/game_round_cache.dart';
+import '../data/game_feedback.dart';
 import '../data/game_settings_store.dart';
 import '../data/game_rounds_service.dart';
 import '../domain/models/crossword_puzzle.dart';
@@ -47,6 +48,37 @@ class TimedModeController extends AsyncNotifier<bool> {
 
 final timedModeProvider =
     AsyncNotifierProvider<TimedModeController, bool>(TimedModeController.new);
+
+/// Sound and haptics, mirrored into [GameFeedback] whenever they change so
+/// the gesture handlers never have to look them up.
+class FeedbackSettingsController extends AsyncNotifier<({bool sound, bool haptics})> {
+  @override
+  Future<({bool sound, bool haptics})> build() async {
+    final store = ref.read(gameSettingsStoreProvider);
+    final value = (sound: await store.loadSound(), haptics: await store.loadHaptics());
+    GameFeedback.configure(sound: value.sound, haptics: value.haptics);
+    return value;
+  }
+
+  Future<void> setSound(bool on) async {
+    final store = ref.read(gameSettingsStoreProvider);
+    await store.setSound(on);
+    final value = (sound: on, haptics: state.value?.haptics ?? true);
+    GameFeedback.configure(sound: value.sound, haptics: value.haptics);
+    state = AsyncValue.data(value);
+  }
+
+  Future<void> setHaptics(bool on) async {
+    final store = ref.read(gameSettingsStoreProvider);
+    await store.setHaptics(on);
+    final value = (sound: state.value?.sound ?? true, haptics: on);
+    GameFeedback.configure(sound: value.sound, haptics: value.haptics);
+    state = AsyncValue.data(value);
+  }
+}
+
+final feedbackSettingsProvider = AsyncNotifierProvider<FeedbackSettingsController,
+    ({bool sound, bool haptics})>(FeedbackSettingsController.new);
 
 final gameRoundCacheProvider = Provider<GameRoundCache>((ref) {
   return GameRoundCache();

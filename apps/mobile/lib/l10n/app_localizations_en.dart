@@ -497,4 +497,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsOpen => 'Settings';
+
+  @override
+  String get settingsSound => 'Sound';
+
+  @override
+  String get settingsSoundBody => 'A light ping when a word lands.';
+
+  @override
+  String get settingsHaptics => 'Vibration';
+
+  @override
+  String get settingsHapticsBody => 'A light buzz while drawing a word.';
+
+  @override
+  String get settingsGeneral => 'General';
+
+  @override
+  String get settingsDone => 'Done';
 }

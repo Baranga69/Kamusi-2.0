@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../data/server_store.dart';
+import '../../data/language_store.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/learn_providers.dart';
 import '../theme/kamusi_learn_colors.dart';
 
 /// Where the app looks for its data.
@@ -109,6 +111,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  static String _languageLabel(AppLocalizations l10n, AppLanguage language) {
+    switch (language) {
+      case AppLanguage.swahili:
+        return l10n.languageSwahili;
+      case AppLanguage.english:
+        return l10n.languageEnglish;
+      case AppLanguage.system:
+        return l10n.languageSystem;
+    }
+  }
+
+  Future<void> _pickLanguage(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) async {
+    final current = ref.read(appLanguageProvider);
+    final chosen = await showDialog<AppLanguage>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(l10n.settingsLanguage),
+        children: [
+          for (final language in AppLanguage.values)
+            RadioListTile<AppLanguage>(
+              value: language,
+              groupValue: current,
+              title: Text(_languageLabel(l10n, language)),
+              onChanged: (value) => Navigator.of(dialogContext).pop(value),
+            ),
+        ],
+      ),
+    );
+    if (chosen == null) {
+      return;
+    }
+    await ref.read(languageStoreProvider).save(chosen);
+    ref.read(appLanguageProvider.notifier).state = chosen;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -121,6 +159,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
+          Text(
+            l10n.settingsGeneral,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          // A dialog rather than a drawer page: picking a language is one
+          // choice from three, which is exactly what a dialog is for.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.translate_rounded),
+            title: Text(l10n.settingsLanguage),
+            subtitle: Text(_languageLabel(l10n, ref.watch(appLanguageProvider))),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickLanguage(context, ref, l10n),
+          ),
+          ref.watch(feedbackSettingsProvider).when(
+                loading: () => const SizedBox(height: 120),
+                error: (_, __) => const SizedBox(height: 120),
+                data: (feedback) => Column(
+                  children: [
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.volume_up_outlined),
+                      value: feedback.sound,
+                      onChanged: (on) => ref
+                          .read(feedbackSettingsProvider.notifier)
+                          .setSound(on),
+                      title: Text(l10n.settingsSound),
+                      subtitle: Text(
+                        l10n.settingsSoundBody,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.vibration_rounded),
+                      value: feedback.haptics,
+                      onChanged: (on) => ref
+                          .read(feedbackSettingsProvider.notifier)
+                          .setHaptics(on),
+                      title: Text(l10n.settingsHaptics),
+                      subtitle: Text(
+                        l10n.settingsHapticsBody,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 16),
           Text(
             l10n.settingsServerTitle,
             style: theme.textTheme.titleMedium

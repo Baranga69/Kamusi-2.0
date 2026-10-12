@@ -1003,6 +1003,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get settingsOpen;
+
+  /// No description provided for @settingsSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get settingsSound;
+
+  /// No description provided for @settingsSoundBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A light ping when a word lands.'**
+  String get settingsSoundBody;
+
+  /// No description provided for @settingsHaptics.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibration'**
+  String get settingsHaptics;
+
+  /// No description provided for @settingsHapticsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A light buzz while drawing a word.'**
+  String get settingsHapticsBody;
+
+  /// No description provided for @settingsGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get settingsGeneral;
+
+  /// No description provided for @settingsDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get settingsDone;
 }
 
 class _AppLocalizationsDelegate

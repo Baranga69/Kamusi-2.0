@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/language_store.dart';
+import 'data/game_feedback.dart';
+import 'data/game_settings_store.dart';
 import 'data/server_store.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/app_providers.dart';
@@ -19,6 +21,15 @@ Future<void> main() async {
   // And the server address, so the first request already goes to the right
   // place rather than failing once against a stale default.
   final storedServer = await ServerStore().load();
+
+  // Sound and haptics, before anything can play. Loading these lazily meant
+  // somebody who had turned sound off still heard the first word they found,
+  // because nothing had read the setting yet.
+  final gameSettings = GameSettingsStore();
+  GameFeedback.configure(
+    sound: await gameSettings.loadSound(),
+    haptics: await gameSettings.loadHaptics(),
+  );
 
   runApp(
     ProviderScope(

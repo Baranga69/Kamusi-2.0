@@ -38,6 +38,9 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
   final List<WordFindWord> _found = [];
   final Set<WordFindCell> _foundCells = {};
 
+  /// Which colour each found square took, so it keeps it on rebuild.
+  final Map<WordFindCell, Color> _foundColors = {};
+
   /// True while a finger is down on the grid.
   ///
   /// The grid lives inside a ListView, and a vertical drag would otherwise be
@@ -208,8 +211,16 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
 
     final found = hit;
     GameFeedback.correct();
+    final palette = Theme.of(context).extension<KamusiLearnColors>()?.tilePalette;
     setState(() {
       _dragLock = false;
+      if (palette != null && palette.isNotEmpty) {
+        // Indexed by position in the word, so a word is a run of different
+        // colours rather than a block of one.
+        for (var i = 0; i < found.cells.length; i++) {
+          _foundColors[found.cells[i]] = palette[i % palette.length];
+        }
+      }
       _score += GameScore.award(
         points: found.points,
         timeLeft: widget.timed ? _timeLeft : null,
@@ -384,6 +395,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
                     puzzle: _puzzle,
                     foundCells: _foundCells,
                     hintedCells: _hinted,
+                    foundColors: _foundColors,
                     selection: _dragPath,
                     selectionIsWrong: _dragIsWrong,
                     learnColors: learnColors,
@@ -518,6 +530,7 @@ class _Grid extends StatelessWidget {
     required this.puzzle,
     required this.foundCells,
     required this.hintedCells,
+    required this.foundColors,
     required this.selection,
     required this.selectionIsWrong,
     required this.learnColors,
@@ -527,6 +540,10 @@ class _Grid extends StatelessWidget {
   final WordFindPuzzle puzzle;
   final Set<WordFindCell> foundCells;
   final Set<WordFindCell> hintedCells;
+
+  /// The colour each found square wears. One per letter rather than one per
+  /// board: a found word reads as a row of tiles, not a shaded region.
+  final Map<WordFindCell, Color> foundColors;
   final List<WordFindCell> selection;
   final bool selectionIsWrong;
   final KamusiLearnColors? learnColors;
@@ -553,6 +570,7 @@ class _Grid extends StatelessWidget {
                           letter: puzzle.letterAt(row, col),
                           isFound: foundCells.contains(WordFindCell(row, col)),
                           isHinted: hintedCells.contains(WordFindCell(row, col)),
+                          tileColor: foundColors[WordFindCell(row, col)],
                           isSelected: selected.contains(WordFindCell(row, col)),
                           selectionIsWrong: selectionIsWrong,
                           learnColors: learnColors,
@@ -574,6 +592,7 @@ class _LetterCell extends StatelessWidget {
     required this.letter,
     required this.isFound,
     required this.isHinted,
+    required this.tileColor,
     required this.isSelected,
     required this.selectionIsWrong,
     required this.learnColors,
@@ -583,6 +602,7 @@ class _LetterCell extends StatelessWidget {
   final String letter;
   final bool isFound;
   final bool isHinted;
+  final Color? tileColor;
   final bool isSelected;
   final bool selectionIsWrong;
   final KamusiLearnColors? learnColors;
@@ -603,9 +623,9 @@ class _LetterCell extends StatelessWidget {
           ? (learnColors?.onIncorrectContainer ?? colorScheme.onErrorContainer)
           : Colors.white;
     } else if (isFound) {
-      background = learnColors?.correctContainer ?? colorScheme.secondaryContainer;
-      foreground =
-          learnColors?.onCorrectContainer ?? colorScheme.onSecondaryContainer;
+      background = tileColor ??
+          (learnColors?.correctContainer ?? colorScheme.secondaryContainer);
+      foreground = Colors.white;
     } else if (isHinted) {
       // A word starts here. Ringed rather than filled, so it reads as a
       // pointer rather than as something already found.
@@ -617,10 +637,20 @@ class _LetterCell extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(1.5),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutBack,
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: isFound
+              ? [
+                  BoxShadow(
+                    color: (tileColor ?? Colors.black).withValues(alpha: 0.32),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         alignment: Alignment.center,
         child: FittedBox(

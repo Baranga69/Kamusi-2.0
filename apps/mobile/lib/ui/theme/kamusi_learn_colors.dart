@@ -23,6 +23,7 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     required this.gameAccentA,
     required this.gameAccentB,
     required this.gameAccentC,
+    required this.tilePalette,
     required this.streak,
     required this.progressTrack,
   });
@@ -69,6 +70,14 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
   final Color gameAccentB;
   final Color gameAccentC;
 
+  /// Letter tiles, one colour per tile rather than one for the board.
+  ///
+  /// Taken from the reference the games are modelled on: a found word there
+  /// is a row of different saturated squares with white letters, which reads
+  /// as a game, where one colour repeated reads as a table. Index into it by
+  /// position so the same word always comes out the same way.
+  final List<Color> tilePalette;
+
   /// The streak flame. The one place the app is allowed to be a bit bright.
   final Color streak;
 
@@ -88,6 +97,16 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     gameAccentA: Color(0xFF2E8B82),
     gameAccentB: Color(0xFFC8761F),
     gameAccentC: Color(0xFF5A5AC8),
+    tilePalette: [
+      Color(0xFFE2574C), // coral
+      Color(0xFF3B8EDE), // blue
+      Color(0xFF3FBFAD), // teal
+      Color(0xFFF2B33D), // amber
+      Color(0xFFE2719B), // rose
+      Color(0xFF7C62D6), // violet
+      Color(0xFF2F3A4F), // ink
+      Color(0xFF53B16B), // green
+    ],
     streak: Color(0xFFE07A3F),
     progressTrack: Color(0xFFE9EBF0),
   );
@@ -106,6 +125,16 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     gameAccentA: Color(0xFF6FC3B8),
     gameAccentB: Color(0xFFE6A663),
     gameAccentC: Color(0xFF9A9AF0),
+    tilePalette: [
+      Color(0xFFEF7268),
+      Color(0xFF63A9EC),
+      Color(0xFF5CCFBE),
+      Color(0xFFF5C76A),
+      Color(0xFFEA8FB2),
+      Color(0xFF9A85E4),
+      Color(0xFF8E9BB3),
+      Color(0xFF72C488),
+    ],
     streak: Color(0xFFF2985C),
     progressTrack: Color(0xFF1F2834),
   );
@@ -129,6 +158,7 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
     Color? gameAccentA,
     Color? gameAccentB,
     Color? gameAccentC,
+    List<Color>? tilePalette,
     Color? streak,
     Color? progressTrack,
   }) {
@@ -146,6 +176,7 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
       gameAccentA: gameAccentA ?? this.gameAccentA,
       gameAccentB: gameAccentB ?? this.gameAccentB,
       gameAccentC: gameAccentC ?? this.gameAccentC,
+      tilePalette: tilePalette ?? this.tilePalette,
       streak: streak ?? this.streak,
       progressTrack: progressTrack ?? this.progressTrack,
     );
@@ -172,6 +203,11 @@ class KamusiLearnColors extends ThemeExtension<KamusiLearnColors> {
       gameAccentA: Color.lerp(gameAccentA, other.gameAccentA, t)!,
       gameAccentB: Color.lerp(gameAccentB, other.gameAccentB, t)!,
       gameAccentC: Color.lerp(gameAccentC, other.gameAccentC, t)!,
+      // Lerping a list of colours pairwise; lengths match by construction.
+      tilePalette: [
+        for (var i = 0; i < tilePalette.length; i++)
+          Color.lerp(tilePalette[i], other.tilePalette[i], t)!,
+      ],
       streak: Color.lerp(streak, other.streak, t)!,
       progressTrack: Color.lerp(progressTrack, other.progressTrack, t)!,
     );

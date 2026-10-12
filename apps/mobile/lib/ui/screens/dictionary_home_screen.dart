@@ -9,7 +9,6 @@ import '../../providers/app_providers.dart';
 import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
 import '../widgets/search_bar.dart';
-import '../widgets/language_picker.dart';
 import 'settings_screen.dart';
 import '../widgets/word_of_day_card.dart';
 import 'lexeme_detail_screen.dart';
@@ -150,6 +149,8 @@ class _DictionaryHomeScreenState
       appBar: AppBar(
         title: Text(l10n.headerTitle),
         centerTitle: true,
+        // Icon buttons rather than a drawer. A drawer hides two switches
+        // behind a gesture nobody makes; these are one tap and visible.
         actions: [
           IconButton(
             icon: Icon(
@@ -162,44 +163,14 @@ class _DictionaryHomeScreenState
             tooltip:
                 isDarkMode ? l10n.homeThemeToggleLight : l10n.homeThemeToggleDark,
           ),
-        ],
-      ),
-      drawer: Drawer(
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: colorScheme.surfaceVariant),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Text(
-                    l10n.headerTitle,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              // Search and Favourites moved to the bottom bar, so the drawer
-              // is where preferences live now.
-              const LanguagePicker(),
-              ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: Text(l10n.settingsOpen),
-                onTap: () {
-                  // Close the drawer first, or it stays open behind the
-                  // screen it just opened.
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  );
-                },
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: l10n.settingsOpen,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
-        ),
+        ],
       ),
       body: ListView(
         children: [

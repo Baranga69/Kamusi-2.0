@@ -14,12 +14,28 @@ import 'package:flutter/services.dart';
 class GameFeedback {
   const GameFeedback._();
 
+  /// Whether each channel is on, mirrored here from the stored settings.
+  ///
+  /// Plain statics rather than a provider lookup: this is called from inside
+  /// gesture handlers that fire many times a second, and a widget tree walk
+  /// per letter would be absurd. [configure] keeps them in step.
+  static bool _sound = true;
+  static bool _haptics = true;
+
+  static void configure({required bool sound, required bool haptics}) {
+    _sound = sound;
+    _haptics = haptics;
+  }
+
   // One player, reused. A new one per sound leaks handles on Android and
   // stacks overlapping cues into mush.
   static final AudioPlayer _player = AudioPlayer(playerId: 'kamusi_game')
     ..setReleaseMode(ReleaseMode.stop);
 
   static Future<void> _play(String file) async {
+    if (!_sound) {
+      return;
+    }
     try {
       await _player.stop();
       await _player.play(AssetSource('sounds/$file'), volume: 0.7);
@@ -29,6 +45,9 @@ class GameFeedback {
   }
 
   static void _buzz(Future<void> Function() haptic) {
+    if (!_haptics) {
+      return;
+    }
     haptic().catchError((_) {});
   }
 
