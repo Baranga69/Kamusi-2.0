@@ -235,6 +235,9 @@
       }
     }
   },
+  "learnDoneTotal": "ALAMA ZOTE",
+  "learnDoneOther": "Au jaribu mchezo mwingine",
+  "learnDoneMenu": "Rudi kwenye menyu",
   "learnDoneAgain": "Cheza tena",
   "learnDoneClose": "Rudi",
   "settingsTitle": "Mipangilio",

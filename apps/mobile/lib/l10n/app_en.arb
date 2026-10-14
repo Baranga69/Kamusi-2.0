@@ -235,6 +235,9 @@
       }
     }
   },
+  "learnDoneTotal": "TOTAL POINTS",
+  "learnDoneOther": "Or try another game",
+  "learnDoneMenu": "Back to menu",
   "learnDoneAgain": "Play again",
   "learnDoneClose": "Back",
   "settingsTitle": "Settings",

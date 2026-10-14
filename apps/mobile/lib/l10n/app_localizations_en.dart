@@ -445,6 +445,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get learnDoneTotal => 'TOTAL POINTS';
+
+  @override
+  String get learnDoneOther => 'Or try another game';
+
+  @override
+  String get learnDoneMenu => 'Back to menu';
+
+  @override
   String get learnDoneAgain => 'Play again';
 
   @override

@@ -902,6 +902,24 @@ abstract class AppLocalizations {
   /// **'You found {found} of {total}'**
   String learnDoneFound(int found, int total);
 
+  /// No description provided for @learnDoneTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL POINTS'**
+  String get learnDoneTotal;
+
+  /// No description provided for @learnDoneOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Or try another game'**
+  String get learnDoneOther;
+
+  /// No description provided for @learnDoneMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to menu'**
+  String get learnDoneMenu;
+
   /// No description provided for @learnDoneAgain.
   ///
   /// In en, this message translates to:

@@ -9,7 +9,7 @@ import '../../data/game_settings_store.dart';
 import '../../providers/learn_providers.dart';
 import '../widgets/game_timer_bar.dart';
 import '../../data/game_feedback.dart';
-import '../widgets/game_result_sheet.dart';
+import '../widgets/game_result_dialog.dart';
 import '../widgets/hint_button.dart';
 import '../widgets/score_pop.dart';
 import '../theme/kamusi_learn_colors.dart';
@@ -274,28 +274,32 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     final theme = Theme.of(context);
     final accent = theme.extension<KamusiLearnColors>()?.gameAccentA ??
         theme.colorScheme.primary;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => GameResultSheet(
-        accent: accent,
-        score: _score,
-        best: best,
-        isNewBest: _score > previousBest && _score > 0,
-        found: _found.length,
-        total: _puzzle.words.length,
-        completed: completed,
-        onAgain: () {
-          Navigator.of(sheetContext).pop();
-          ref.invalidate(wordFindProvider);
-          Navigator.of(context).pop();
-        },
-      ),
+    // Only a finished board burns a celebration number, so the rotation
+    // through the confetti styles counts wins rather than attempts.
+    final celebration = completed ? await store.nextCelebration() : 0;
+    if (!mounted) {
+      return;
+    }
+
+    final next = await showGameResultDialog(
+      context,
+      game: GameIds.wordFind,
+      accent: accent,
+      score: _score,
+      best: best,
+      isNewBest: _score > previousBest && _score > 0,
+      found: _found.length,
+      total: _puzzle.words.length,
+      completed: completed,
+      celebration: celebration,
     );
+    if (!mounted) {
+      return;
+    }
+    // Hand the choice back to Jifunze, which knows how to start every game.
+    // Closing the board either way: the dialog is an ending, and leaving the
+    // solved grid underneath it was always a dead end.
+    Navigator.of(context).pop(next);
   }
 
   void _takeHint() {

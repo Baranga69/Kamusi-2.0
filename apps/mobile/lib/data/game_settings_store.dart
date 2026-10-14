@@ -13,6 +13,7 @@ class GameSettingsStore {
   String get _timedKey => '$namespace:timed';
   String get _soundKey => '$namespace:sound';
   String get _hapticsKey => '$namespace:haptics';
+  String get _celebrationKey => '$namespace:celebration';
 
   /// Off by default. A clock changes a learning game into a test, and that
   /// should be something a person opts into rather than meets unannounced.
@@ -51,6 +52,19 @@ class GameSettingsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_hapticsKey, value);
     return value;
+  }
+
+  /// How many wins have been celebrated, handed out one at a time.
+  ///
+  /// The confetti style is chosen from this rather than at random, so a
+  /// player works through every style before seeing any of them twice. It
+  /// has to survive the app closing to do that, hence a stored counter and
+  /// not a field.
+  Future<int> nextCelebration() async {
+    final prefs = await SharedPreferences.getInstance();
+    final plays = prefs.getInt(_celebrationKey) ?? 0;
+    await prefs.setInt(_celebrationKey, plays + 1);
+    return plays;
   }
 
   String _bestKey(String game) => '$namespace:best:$game';

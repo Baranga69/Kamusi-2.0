@@ -448,6 +448,15 @@ class AppLocalizationsSw extends AppLocalizations {
   }
 
   @override
+  String get learnDoneTotal => 'ALAMA ZOTE';
+
+  @override
+  String get learnDoneOther => 'Au jaribu mchezo mwingine';
+
+  @override
+  String get learnDoneMenu => 'Rudi kwenye menyu';
+
+  @override
   String get learnDoneAgain => 'Cheza tena';
 
   @override

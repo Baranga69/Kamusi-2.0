@@ -83,27 +83,55 @@ class LearnHomeScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _openWordFind(BuildContext context, WidgetRef ref,
+  /// Plays [game], then whatever the result dialog asked for next.
+  ///
+  /// A loop rather than three screens pushing each other: the games stay
+  /// ignorant of how the others are started, nothing stacks up behind you,
+  /// and backing out of any board lands on Jifunze instead of on a trail of
+  /// finished puzzles.
+  Future<void> _openGame(BuildContext context, WidgetRef ref,
+      AppLocalizations l10n, bool timed, String game) async {
+    var next = game;
+    while (true) {
+      if (!context.mounted) {
+        return;
+      }
+      final opener = switch (next) {
+        GameIds.wordFind => _openWordFind,
+        GameIds.wordBuild => _openWordBuild,
+        _ => _openCrossword,
+      };
+      final chosen = await opener(context, ref, l10n, timed);
+      if (chosen == null) {
+        return;
+      }
+      next = chosen;
+    }
+  }
+
+  Future<String?> _openWordFind(BuildContext context, WidgetRef ref,
       AppLocalizations l10n, bool timed) async {
     ref.invalidate(wordFindProvider);
     try {
       final puzzle = await ref.read(wordFindProvider.future);
       if (!context.mounted) {
-        return;
+        return null;
       }
       if (puzzle.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
-        return;
+        return null;
       }
-      await Navigator.of(context).push(
+      final next = await Navigator.of(context).push<String>(
         MaterialPageRoute(
           builder: (_) => WordFindScreen(puzzle: puzzle, timed: timed),
         ),
       );
+      ref.invalidate(gameRoundsReadyProvider);
+      return next;
     } catch (_) {
       if (!context.mounted) {
-        return;
+        return null;
       }
       // 404 when nothing published is shaped for a board yet, which is a
       // content state rather than a failure.
@@ -111,62 +139,69 @@ class LearnHomeScreen extends ConsumerWidget {
           .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
     }
     ref.invalidate(gameRoundsReadyProvider);
+    return null;
   }
 
-  Future<void> _openWordBuild(BuildContext context, WidgetRef ref,
+  Future<String?> _openWordBuild(BuildContext context, WidgetRef ref,
       AppLocalizations l10n, bool timed) async {
     ref.invalidate(wordBuildProvider);
     try {
       final puzzle = await ref.read(wordBuildProvider.future);
       if (!context.mounted) {
-        return;
+        return null;
       }
       if (puzzle.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
-        return;
+        return null;
       }
-      await Navigator.of(context).push(
+      final next = await Navigator.of(context).push<String>(
         MaterialPageRoute(
           builder: (_) => WordBuildScreen(puzzle: puzzle, timed: timed),
         ),
       );
+      ref.invalidate(gameRoundsReadyProvider);
+      return next;
     } catch (_) {
       if (!context.mounted) {
-        return;
+        return null;
       }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
     }
     ref.invalidate(gameRoundsReadyProvider);
+    return null;
   }
 
-  Future<void> _openCrossword(BuildContext context, WidgetRef ref,
+  Future<String?> _openCrossword(BuildContext context, WidgetRef ref,
       AppLocalizations l10n, bool timed) async {
     ref.invalidate(crosswordProvider);
     try {
       final puzzle = await ref.read(crosswordProvider.future);
       if (!context.mounted) {
-        return;
+        return null;
       }
       if (puzzle.isEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
-        return;
+        return null;
       }
-      await Navigator.of(context).push(
+      final next = await Navigator.of(context).push<String>(
         MaterialPageRoute(
           builder: (_) => CrosswordScreen(puzzle: puzzle, timed: timed),
         ),
       );
+      ref.invalidate(gameRoundsReadyProvider);
+      return next;
     } catch (_) {
       if (!context.mounted) {
-        return;
+        return null;
       }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.learnEmptyBody)));
     }
     ref.invalidate(gameRoundsReadyProvider);
+    return null;
   }
 
   @override
@@ -258,7 +293,7 @@ class LearnHomeScreen extends ConsumerWidget {
               title: l10n.learnWordFindTitle,
               body: l10n.learnWordFindCardBody,
               best: best[GameIds.wordFind] ?? 0,
-              onTap: () => _openWordFind(context, ref, l10n, timed),
+              onTap: () => _openGame(context, ref, l10n, timed, GameIds.wordFind),
             ),
             const SizedBox(height: 12),
             _GameCard(
@@ -268,7 +303,7 @@ class LearnHomeScreen extends ConsumerWidget {
               title: l10n.learnWordBuildTitle,
               body: l10n.learnWordBuildCardBody,
               best: best[GameIds.wordBuild] ?? 0,
-              onTap: () => _openWordBuild(context, ref, l10n, timed),
+              onTap: () => _openGame(context, ref, l10n, timed, GameIds.wordBuild),
             ),
             const SizedBox(height: 12),
             _GameCard(
@@ -278,7 +313,7 @@ class LearnHomeScreen extends ConsumerWidget {
               title: l10n.learnCrosswordTitle,
               body: l10n.learnCrosswordCardBody,
               best: best[GameIds.crossword] ?? 0,
-              onTap: () => _openCrossword(context, ref, l10n, timed),
+              onTap: () => _openGame(context, ref, l10n, timed, GameIds.crossword),
             ),
             const SizedBox(height: 6),
             // One switch for every game: timed or untimed is a mood a player
