@@ -6,12 +6,12 @@ import 'app_providers.dart';
 
 final lexemeDetailProvider =
     FutureProvider.family<LexemePublic, String>((ref, id) async {
-  final repository = ref.read(kamusiRepositoryProvider);
+  final repository = ref.watch(kamusiRepositoryProvider);
   return repository.fetchLexeme(id);
 });
 
 final expressionDetailProvider =
     FutureProvider.family<ExpressionDetail, String>((ref, id) async {
-  final repository = ref.read(kamusiRepositoryProvider);
+  final repository = ref.watch(kamusiRepositoryProvider);
   return repository.fetchExpression(id);
 });

@@ -17,14 +17,14 @@ final learnProgressStoreProvider = Provider<LearnProgressStore>((ref) {
 
 /// Today's challenge, fixed for the day by the API.
 final dailyRoundProvider = FutureProvider<LearnRound>((ref) async {
-  return ref.read(kamusiRepositoryProvider).fetchDailyRound();
+  return ref.watch(kamusiRepositoryProvider).fetchDailyRound();
 });
 
 /// A practice round of a given kind. Fresh on every request, so the family
 /// argument is the kind and the provider is invalidated to get a new one.
 final practiceRoundProvider =
     FutureProvider.family<LearnRound, String>((ref, kind) async {
-  return ref.read(kamusiRepositoryProvider).fetchPracticeRound(kind);
+  return ref.watch(kamusiRepositoryProvider).fetchPracticeRound(kind);
 });
 
 final gameSettingsStoreProvider = Provider<GameSettingsStore>((ref) {
@@ -84,9 +84,13 @@ final gameRoundCacheProvider = Provider<GameRoundCache>((ref) {
   return GameRoundCache();
 });
 
+/// Watches the repository rather than reading it: the server address can be
+/// changed from Settings at runtime, and a service holding a snapshot of the
+/// old client would keep calling an address that has moved. Everything that
+/// fetches depends on the client for the same reason.
 final gameRoundsServiceProvider = Provider<GameRoundsService>((ref) {
   return GameRoundsService(
-    repository: ref.read(kamusiRepositoryProvider),
+    repository: ref.watch(kamusiRepositoryProvider),
     cache: ref.read(gameRoundCacheProvider),
   );
 });
@@ -94,17 +98,17 @@ final gameRoundsServiceProvider = Provider<GameRoundsService>((ref) {
 /// A word-search grid, from the offline queue where possible. Invalidated to
 /// get the next one.
 final wordFindProvider = FutureProvider<WordFindPuzzle>((ref) async {
-  return ref.read(gameRoundsServiceProvider).nextWordFind();
+  return ref.watch(gameRoundsServiceProvider).nextWordFind();
 });
 
 /// A ring of letters, from the same queue.
 final wordBuildProvider = FutureProvider<WordBuildPuzzle>((ref) async {
-  return ref.read(gameRoundsServiceProvider).nextWordBuild();
+  return ref.watch(gameRoundsServiceProvider).nextWordBuild();
 });
 
 /// A crossword grid, from the same queue.
 final crosswordProvider = FutureProvider<CrosswordPuzzle>((ref) async {
-  return ref.read(gameRoundsServiceProvider).nextCrossword();
+  return ref.watch(gameRoundsServiceProvider).nextCrossword();
 });
 
 /// Best score per game, for the cards on the Jifunze home.
@@ -119,7 +123,7 @@ final bestScoresProvider = FutureProvider<Map<String, int>>((ref) async {
 
 /// How many rounds of each game are playable with no connection.
 final gameRoundsReadyProvider = FutureProvider<Map<String, int>>((ref) async {
-  return ref.read(gameRoundsServiceProvider).readyCounts();
+  return ref.watch(gameRoundsServiceProvider).readyCounts();
 });
 
 /// Fills the offline queues in the background when Jifunze is opened.
@@ -129,7 +133,7 @@ final gameRoundsReadyProvider = FutureProvider<Map<String, int>>((ref) async {
 /// there is enough for the next journey. Never throws — a dropped connection
 /// mid-top-up is ordinary.
 final gameTopUpProvider = FutureProvider<int>((ref) async {
-  return ref.read(gameRoundsServiceProvider).topUpAll();
+  return ref.watch(gameRoundsServiceProvider).topUpAll();
 });
 
 class LearnProgressController extends AsyncNotifier<LearnProgress> {

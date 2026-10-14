@@ -16,7 +16,7 @@ class SearchSuggestionsController
       return;
     }
     state = const AsyncValue.loading();
-    final repository = ref.read(kamusiRepositoryProvider);
+    final repository = ref.watch(kamusiRepositoryProvider);
     state = await AsyncValue.guard(() => repository.search(query.trim()));
   }
 }
