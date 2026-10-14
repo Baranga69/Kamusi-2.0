@@ -16,6 +16,7 @@ import '../widgets/game_timer_bar.dart';
 import '../../data/game_feedback.dart';
 import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
+import '../widgets/score_pop.dart';
 import 'lexeme_detail_screen.dart';
 
 /// Chemsha Bongo — a crossword.
@@ -49,6 +50,12 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
   Duration? _timeLeft;
   int _hintsLeft = GameHints.perBoard;
   bool _finished = false;
+
+  final List<({int id, int points, Color color})> _pops = [];
+  int _nextPopId = 0;
+
+  /// Points from the entry just completed, raised after the setState.
+  int? _justAwarded;
 
   /// Shakes the grid when a finished answer turns out to be wrong.
   late final AnimationController _shake = AnimationController(
@@ -160,6 +167,15 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
 
     if (_solvedCount > solvedBefore) {
       GameFeedback.correct();
+      final awarded = _justAwarded;
+      _justAwarded = null;
+      if (awarded != null) {
+        _popPoints(
+          awarded,
+          Theme.of(context).extension<KamusiLearnColors>()?.gameAccentC ??
+              Theme.of(context).colorScheme.tertiary,
+        );
+      }
     } else if (_wrongEntries.length > wrongBefore) {
       // A finished answer that is wrong: say so now rather than leaving it
       // to be discovered at the end.
@@ -231,6 +247,18 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
     });
   }
 
+  void _popPoints(int points, Color color) {
+    final id = _nextPopId++;
+    setState(() => _pops.add((id: id, points: points, color: color)));
+  }
+
+  void _removePop(int id) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _pops.removeWhere((pop) => pop.id == id));
+  }
+
   /// Score each entry once, the moment it is completed.
   void _awardNewlySolved() {
     for (final entry in _puzzle.entries) {
@@ -239,11 +267,13 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
         continue;
       }
       _scored.add(key);
-      _score += GameScore.award(
+      final awarded = GameScore.award(
         points: entry.points,
         timeLeft: widget.timed ? _timeLeft : null,
         total: widget.timed ? GameDurations.crossword : null,
       );
+      _score += awarded;
+      _justAwarded = awarded;
     }
   }
 
@@ -382,7 +412,10 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
                       return SizedBox(
                         width: side,
                         height: side,
-                        child: AnimatedBuilder(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                        AnimatedBuilder(
                           animation: _shake,
                           builder: (context, child) {
                             // A quick side-to-side, decaying — enough to
@@ -409,6 +442,15 @@ class _CrosswordScreenState extends ConsumerState<CrosswordScreen>
                           onTap: _tapCell,
                           learnColors: learnColors,
                         ),
+                        ),
+                            for (final pop in _pops)
+                              ScorePop(
+                                key: ValueKey(pop.id),
+                                points: pop.points,
+                                color: pop.color,
+                                onDone: () => _removePop(pop.id),
+                              ),
+                          ],
                         ),
                       );
                     },
@@ -511,13 +553,7 @@ class _ScoreRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          '$score',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: accent,
-          ),
-        ),
+        BigScore(score: score, color: accent),
       ],
     );
   }

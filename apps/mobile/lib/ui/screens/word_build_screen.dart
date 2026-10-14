@@ -13,6 +13,7 @@ import '../widgets/game_timer_bar.dart';
 import '../../data/game_feedback.dart';
 import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
+import '../widgets/score_pop.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -58,11 +59,17 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
   int _score = 0;
   Duration? _timeLeft;
 
+  /// Points awarded this turn, raised once the setState has landed.
+  int? _pending;
+
   /// How many leading letters have been given away per word. One at a time,
   /// so a hint narrows the field rather than handing over the answer.
   final Map<String, int> _revealedLetters = {};
   int _hintsLeft = GameHints.perBoard;
   bool _finished = false;
+
+  final List<({int id, int points, Color color})> _pops = [];
+  int _nextPopId = 0;
 
   WordBuildPuzzle get _puzzle => widget.puzzle;
 
@@ -154,20 +161,43 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
       _dragLock = false;
       if (solved != null && !_found.contains(solved.letters)) {
         _found.add(solved.letters);
-        _score += GameScore.award(
+        final awarded = GameScore.award(
           points: solved.points,
           timeLeft: widget.timed ? _timeLeft : null,
           total: widget.timed ? GameDurations.wordBuild : null,
         );
+        _score += awarded;
+        _pending = awarded;
         _lastAttemptFailed = false;
       } else if (attempt.isNotEmpty) {
         _lastAttemptFailed = solved == null;
       }
       _selected.clear();
     });
+    final awarded = _pending;
+    _pending = null;
+    if (awarded != null) {
+      _popPoints(awarded, accentOf(context));
+    }
     if (_complete) {
       _finish(completed: true);
     }
+  }
+
+  Color accentOf(BuildContext context) =>
+      Theme.of(context).extension<KamusiLearnColors>()?.gameAccentB ??
+      Theme.of(context).colorScheme.secondary;
+
+  void _popPoints(int points, Color color) {
+    final id = _nextPopId++;
+    setState(() => _pops.add((id: id, points: points, color: color)));
+  }
+
+  void _removePop(int id) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _pops.removeWhere((pop) => pop.id == id));
   }
 
   void _takeHint() {
@@ -352,7 +382,10 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                   child: SizedBox(
                     width: side,
                     height: side,
-                    child: CustomPaint(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                      CustomPaint(
                       painter: _RingPainter(
                         centres: _centres(size),
                         selected: _selected,
@@ -381,6 +414,15 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
                             ),
                         ],
                       ),
+                    ),
+                      for (final pop in _pops)
+                        ScorePop(
+                          key: ValueKey(pop.id),
+                          points: pop.points,
+                          color: pop.color,
+                          onDone: () => _removePop(pop.id),
+                        ),
+                    ],
                     ),
                   ),
                 ),
@@ -411,6 +453,10 @@ class _WordBuildScreenState extends ConsumerState<WordBuildScreen> {
           for (final word in words)
             _SolutionRow(
               word: word,
+              color: (learnColors?.tilePalette.isNotEmpty ?? false)
+                  ? learnColors!.tilePalette[
+                      words.indexOf(word) % learnColors.tilePalette.length]
+                  : null,
               found: _found.contains(word.letters),
               // Easy mode shows the meaning before the word is built; hard
               // mode keeps it back until it is.
@@ -677,13 +723,7 @@ class _ProgressRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Text(
-          '$score',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: accent,
-          ),
-        ),
+        BigScore(score: score, color: accent),
         if (complete) ...[
           const SizedBox(width: 10),
           Text(
@@ -702,6 +742,7 @@ class _ProgressRow extends StatelessWidget {
 class _SolutionRow extends StatelessWidget {
   const _SolutionRow({
     required this.word,
+    required this.color,
     required this.found,
     required this.showDefinition,
     required this.onTap,
@@ -711,6 +752,9 @@ class _SolutionRow extends StatelessWidget {
   });
 
   final WordBuildWord word;
+
+  /// The block colour a solved row takes.
+  final Color? color;
   final bool found;
   final bool showDefinition;
   final VoidCallback onTap;
@@ -737,9 +781,13 @@ class _SolutionRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: found
-            ? (learnColors?.correctContainer ?? theme.colorScheme.secondaryContainer)
+            ? (color ??
+                learnColors?.correctContainer ??
+                theme.colorScheme.secondaryContainer)
             : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        elevation: found ? 2 : 0,
+        shadowColor: (color ?? Colors.black).withValues(alpha: 0.45),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: found || revealed ? onTap : null,
@@ -756,7 +804,9 @@ class _SolutionRow extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: found || revealed ? 0 : 3,
                       color: found
-                          ? learnColors?.onCorrectContainer
+                          ? (color != null
+                              ? Colors.white
+                              : learnColors?.onCorrectContainer)
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -767,17 +817,21 @@ class _SolutionRow extends StatelessWidget {
                     showDefinition ? word.definition : '',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: found
-                          ? learnColors?.onCorrectContainer
+                          ? (color != null
+                              ? Colors.white
+                              : learnColors?.onCorrectContainer)
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 if (word.isPangram)
                   Icon(
-                    Icons.star,
-                    size: 16,
+                    Icons.star_rounded,
+                    size: 18,
                     color: found
-                        ? learnColors?.onCorrectContainer
+                        ? (color != null
+                            ? Colors.white
+                            : learnColors?.onCorrectContainer)
                         : theme.colorScheme.outline,
                   ),
               ],

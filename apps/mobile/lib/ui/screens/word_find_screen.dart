@@ -11,6 +11,7 @@ import '../widgets/game_timer_bar.dart';
 import '../../data/game_feedback.dart';
 import '../widgets/game_result_sheet.dart';
 import '../widgets/hint_button.dart';
+import '../widgets/score_pop.dart';
 import '../theme/kamusi_learn_colors.dart';
 import 'lexeme_detail_screen.dart';
 
@@ -40,6 +41,13 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
 
   /// Which colour each found square took, so it keeps it on rebuild.
   final Map<WordFindCell, Color> _foundColors = {};
+
+  /// The colour each found word took, so its card matches its tiles.
+  final Map<String, Color> _wordColors = {};
+
+  /// Points currently drifting up off the board.
+  final List<({int id, int points, Color color})> _pops = [];
+  int _nextPopId = 0;
 
   /// True while a finger is down on the grid.
   ///
@@ -212,6 +220,16 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
     final found = hit;
     GameFeedback.correct();
     final palette = Theme.of(context).extension<KamusiLearnColors>()?.tilePalette;
+    final awarded = GameScore.award(
+      points: found.points,
+      timeLeft: widget.timed ? _timeLeft : null,
+      total: widget.timed ? GameDurations.wordFind : null,
+    );
+    // The card takes the colour of the word's first tile, so the thing that
+    // appears below is visibly the thing that just lit up in the grid.
+    final wordColor = (palette != null && palette.isNotEmpty)
+        ? palette[_found.length % palette.length]
+        : null;
     setState(() {
       _dragLock = false;
       if (palette != null && palette.isNotEmpty) {
@@ -220,18 +238,19 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
         for (var i = 0; i < found.cells.length; i++) {
           _foundColors[found.cells[i]] = palette[i % palette.length];
         }
+        _wordColors[found.letters] = wordColor!;
       }
-      _score += GameScore.award(
-        points: found.points,
-        timeLeft: widget.timed ? _timeLeft : null,
-        total: widget.timed ? GameDurations.wordFind : null,
-      );
+      _score += awarded;
       _found.insert(0, found);
       _foundCells.addAll(found.cells);
       _dragStart = null;
       _dragPath = const [];
       _dragIsWrong = false;
     });
+    _popPoints(awarded, wordColor ?? Theme.of(context).colorScheme.primary);
+    if (_complete) {
+      _finish(completed: true);
+    }
   }
 
   /// Close the board: record the score, then say so.
@@ -297,6 +316,18 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
       _score = (_score - GameHints.cost).clamp(0, 1 << 30);
       _hinted.add(unfound.first.cells.first);
     });
+  }
+
+  void _popPoints(int points, Color color) {
+    final id = _nextPopId++;
+    setState(() => _pops.add((id: id, points: points, color: color)));
+  }
+
+  void _removePop(int id) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _pops.removeWhere((pop) => pop.id == id));
   }
 
   void _openEntry(WordFindWord word) {
@@ -390,15 +421,29 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
                 child: SizedBox(
                   width: side,
                   height: side,
-                  child: _Grid(
-                    accent: accent,
-                    puzzle: _puzzle,
-                    foundCells: _foundCells,
-                    hintedCells: _hinted,
-                    foundColors: _foundColors,
-                    selection: _dragPath,
-                    selectionIsWrong: _dragIsWrong,
-                    learnColors: learnColors,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      _Grid(
+                        accent: accent,
+                        puzzle: _puzzle,
+                        foundCells: _foundCells,
+                        hintedCells: _hinted,
+                        foundColors: _foundColors,
+                        selection: _dragPath,
+                        selectionIsWrong: _dragIsWrong,
+                        learnColors: learnColors,
+                      ),
+                      // Over the middle of the board, where the eye already
+                      // is when a word lands.
+                      for (final pop in _pops)
+                        ScorePop(
+                          key: ValueKey(pop.id),
+                          points: pop.points,
+                          color: pop.color,
+                          onDone: () => _removePop(pop.id),
+                        ),
+                    ],
                   ),
                 ),
               );
@@ -435,6 +480,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
             for (final word in _found)
               _FoundWordCard(
                 word: word,
+                color: _wordColors[word.letters],
                 onTap: () => _openEntry(word),
                 openLabel: l10n.learnOpenEntry,
               ),
@@ -451,6 +497,7 @@ class _WordFindScreenState extends ConsumerState<WordFindScreen> {
               if (!_found.contains(word))
                 _FoundWordCard(
                   word: word,
+                  color: null,
                   onTap: () => _openEntry(word),
                   openLabel: l10n.learnOpenEntry,
                   missed: true,
@@ -494,13 +541,7 @@ class _ProgressHeader extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Text(
-              '$score',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: accent,
-              ),
-            ),
+            BigScore(score: score, color: accent),
             if (complete)
               Icon(
                 Icons.celebration_outlined,
@@ -707,12 +748,18 @@ class _StillHunting extends StatelessWidget {
 class _FoundWordCard extends StatelessWidget {
   const _FoundWordCard({
     required this.word,
+    required this.color,
     required this.onTap,
     required this.openLabel,
     this.missed = false,
   });
 
   final WordFindWord word;
+
+  /// The colour this word wore in the grid. A solid block rather than a pale
+  /// tint, as in the reference: the definition is the prize, so it should
+  /// look like one rather than like a table row.
+  final Color? color;
   final VoidCallback onTap;
   final String openLabel;
 
@@ -723,16 +770,28 @@ class _FoundWordCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final learnColors = theme.extension<KamusiLearnColors>();
+    final block = missed
+        ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+        : (color ??
+            learnColors?.correctContainer ??
+            theme.colorScheme.secondaryContainer);
+    // White on a saturated block; the muted roles only apply to a word the
+    // clock revealed, which should not look like a win.
+    final onBlock = missed
+        ? theme.colorScheme.onSurfaceVariant
+        : (color != null
+            ? Colors.white
+            : (learnColors?.onCorrectContainer ??
+                theme.colorScheme.onSecondaryContainer));
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: missed
-            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-            : (learnColors?.correctContainer ??
-                theme.colorScheme.secondaryContainer),
-        borderRadius: BorderRadius.circular(12),
+        color: block,
+        borderRadius: BorderRadius.circular(16),
+        elevation: missed ? 0 : 2,
+        shadowColor: (color ?? Colors.black).withValues(alpha: 0.5),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           onTap: word.lexemeId.isEmpty ? null : onTap,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -744,26 +803,43 @@ class _FoundWordCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         word.word,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: onBlock,
                         ),
                       ),
                     ),
-                    if (word.posCode != null && word.posCode!.isNotEmpty)
-                      Text(
-                        word.posCode!,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: (missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer)?.withValues(alpha: 0.78),
+                    if (!missed)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '+${word.points}',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: onBlock,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                   ],
                 ),
+                if (word.posCode != null && word.posCode!.isNotEmpty)
+                  Text(
+                    word.posCode!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: onBlock.withValues(alpha: 0.75),
+                    ),
+                  ),
                 const SizedBox(height: 6),
                 Text(
                   word.definition,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
+                    color: onBlock.withValues(alpha: 0.95),
+                    height: 1.35,
                   ),
                 ),
                 if (word.lexemeId.isNotEmpty) ...[
@@ -774,16 +850,12 @@ class _FoundWordCard extends StatelessWidget {
                       Text(
                         openLabel,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
-                          fontWeight: FontWeight.w600,
+                          color: onBlock.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        size: 16,
-                        color: missed ? theme.colorScheme.onSurfaceVariant : learnColors?.onCorrectContainer,
-                      ),
+                      Icon(Icons.arrow_forward, size: 16, color: onBlock),
                     ],
                   ),
                 ],
