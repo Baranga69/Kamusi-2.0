@@ -4,4 +4,10 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Android blocks cleartext HTTP from API 28 onwards, which otherwise
+         makes a local API unreachable from a real device. Allowed here only:
+         this manifest is merged into debug and profile builds, so release
+         builds stay HTTPS-only. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

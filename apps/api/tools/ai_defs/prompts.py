@@ -16,6 +16,15 @@ Rules:
 - confidence: number 0.0–1.0
 - notes: optional or null
 - Do NOT include the English text in the Swahili definition
-- If English definition is unclear or incomplete, write best effort and lower confidence
+- Define the WORD. Never describe its grammar: "a type of verb showing
+  state" is not a definition of anything.
+- If the English definition carries no meaning you can work from - a bare
+  grammatical cross-reference such as "Stative form of" with nothing after
+  it, or an empty or unreadable entry - return definition_sw: null with
+  confidence 0.0 and say why in notes. Do NOT invent a definition. A missing
+  entry is cheap to fix later; a fluent invented one is not, because nothing
+  downstream can tell it from a real definition.
+- If the English is thin but has real meaning (e.g. "barrier", "to weed"),
+  define the word normally and set confidence to reflect your certainty.
 JSON only.
 """

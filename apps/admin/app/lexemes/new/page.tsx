@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  createAdminClient,
+  adminClient,
   type DefinitionInput,
   type ExampleInput,
   type LanguageCode,
@@ -14,7 +14,7 @@ import {
   type License,
   type Source,
 } from "../../../lib/api";
-import { useApiKey } from "../../../lib/storage";
+import { useSession } from "../../../lib/session";
 
 const steps = ["Headword", "Senses", "Tags & metadata", "Review & publish"] as const;
 
@@ -57,7 +57,7 @@ const normalizeCheck = (lemma: string) => /[\p{L}\p{N}]/u.test(lemma);
 
 export default function LexemeWizardPage() {
   const router = useRouter();
-  const { apiKey, loaded } = useApiKey();
+  const { user, loading: sessionLoading } = useSession();
   const [activeStep, setActiveStep] = useState<StepKey>(steps[0]);
   const [lexeme, setLexeme] = useState<LexemeInput>(emptyLexeme);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -74,7 +74,7 @@ export default function LexemeWizardPage() {
   const autosaveTimer = useRef<number | null>(null);
   const dragIndex = useRef<number | null>(null);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   useEffect(() => {
     if (!client) {
@@ -467,11 +467,11 @@ export default function LexemeWizardPage() {
     return window.confirm("You have unsaved changes. Leave without saving?");
   };
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>
@@ -969,7 +969,7 @@ export default function LexemeWizardPage() {
                                   <option value="">Select source</option>
                                   {sources.map((source) => (
                                     <option key={source.id} value={source.id}>
-                                      {source.name}
+                                      {source.title}
                                     </option>
                                   ))}
                                 </select>
@@ -1041,7 +1041,7 @@ export default function LexemeWizardPage() {
                                   <option value="">Select source</option>
                                   {sources.map((source) => (
                                     <option key={source.id} value={source.id}>
-                                      {source.name}
+                                      {source.title}
                                     </option>
                                   ))}
                                 </select>
@@ -1128,8 +1128,10 @@ export default function LexemeWizardPage() {
                   <div className="stack">
                     {sources.slice(0, 5).map((source) => (
                       <div key={source.id} className="row">
-                        <strong>{source.name}</strong>
-                        <span className="muted">{source.description ?? ""}</span>
+                        <strong>{source.title}</strong>
+                        <span className="muted">
+                          {[source.author, source.year].filter(Boolean).join(" · ")}
+                        </span>
                       </div>
                     ))}
                     {sources.length > 5 && <p className="muted">{sources.length - 5} more sources available.</p>}

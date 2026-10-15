@@ -1,9 +1,13 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 import psycopg
 from psycopg.rows import dict_row
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from app.core.quality import looks_morphological  # noqa: E402
 
 DB_URL = os.getenv("KAMUSI_DB_URL", "postgresql://kamusi:kamusi123@localhost:5433/kamusi")
 OUT_PATH = Path(os.getenv("OUT_PATH", "candidates.jsonl"))
@@ -11,14 +15,6 @@ OUT_PATH = Path(os.getenv("OUT_PATH", "candidates.jsonl"))
 WIKT_SOURCE_ID = os.getenv("WIKTIONARY_SOURCE_ID", "d3c1400d-67ee-407d-a54b-1c1966b2a847")
 LIMIT = int(os.getenv("LIMIT", "1000"))
 
-# Skip morphological-only “definitions” (you can expand this list later)
-EXCLUDE_PREFIXES = (
-    "Applicative form of",
-    "Reciprocal form of",
-    "Causative form of",
-    "Passive form of",
-    "Stative form of"
-)
 
 SQL = """
 SELECT
@@ -53,7 +49,8 @@ def main():
     filtered = []
     for r in rows:
         en = (r["en_definition"] or "").strip()
-        if any(en.startswith(pfx) for pfx in EXCLUDE_PREFIXES):
+        # Morphological-only "definitions" are not worth a model call.
+        if looks_morphological(en):
             continue
         filtered.append(r)
 

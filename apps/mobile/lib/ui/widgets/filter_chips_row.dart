@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 
 class FilterChipsRow extends StatelessWidget {
   final SearchFilter selected;
@@ -44,10 +44,12 @@ class FilterChipsRow extends StatelessWidget {
           chip(l10n.filterDefinition, SearchFilter.definition),
           const SizedBox(width: 10),
           chip(l10n.filterExample, SearchFilter.example),
+          const SizedBox(width: 10),
+          chip(l10n.filterExpression, SearchFilter.expression),
         ],
       ),
     );
   }
 }
 
-enum SearchFilter { all, lemma, definition, example }
+enum SearchFilter { all, lemma, definition, example, expression }

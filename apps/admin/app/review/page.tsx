@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-import ReviewQueueTable from "../api/review/components/ReviewQueueTable";
-import { createAdminClient, type ReviewQueueItem, type ReviewStatus } from "../../lib/api";
-import { useApiKey, useReviewerName } from "../../lib/storage";
+import ReviewQueueTable from "../components/ReviewQueueTable";
+import { adminClient, type ReviewQueueItem, type ReviewStatus } from "../../lib/api";
+import { useSession } from "../../lib/session";
 
 const tabs = [
   { key: "unreviewed", label: "Needs Review" },
@@ -21,15 +21,14 @@ const lexemeStatuses = ["core", "slang", "regional", "deprecated", "neologism"] 
 const hasConflict = (error: unknown) => axios.isAxiosError(error) && error.response?.status === 409;
 
 export default function ReviewQueuePage() {
-  const { apiKey, loaded } = useApiKey();
-  const { reviewer, setReviewer } = useReviewerName();
+  const { user, loading: sessionLoading } = useSession();
   const [activeTab, setActiveTab] = useState<TabKey>("unreviewed");
   const [query, setQuery] = useState("");
   const [posCode, setPosCode] = useState("");
   const [lexemeStatus, setLexemeStatus] = useState("");
   const [aiOnly, setAiOnly] = useState(false);
   const [languageFilter, setLanguageFilter] = useState<"all" | "has_en" | "sw_only">("all");
-  const [sort, setSort] = useState<"oldest" | "newest" | "lemma">("oldest");
+  const [sort, setSort] = useState<"oldest" | "newest" | "lemma" | "confidence">("oldest");
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
@@ -46,7 +45,7 @@ export default function ReviewQueuePage() {
   const [editGloss, setEditGloss] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -86,9 +85,11 @@ export default function ReviewQueuePage() {
     setEditLoading(false);
   };
 
+  // The API records whoever the session belongs to, so there is nothing for
+  // the reviewer to type and nothing to validate here beyond being signed in.
   const ensureReviewer = () => {
-    if (!reviewer.trim()) {
-      setToast("Add your reviewer name before taking action.");
+    if (!user) {
+      setToast("Sign in before taking action.");
       return false;
     }
     return true;
@@ -144,7 +145,7 @@ export default function ReviewQueuePage() {
       return;
     }
     try {
-      await client.approveReviewItem(id, reviewer.trim());
+      await client.approveReviewItem(id);
       setToast("Definition approved.");
       await fetchQueue();
     } catch (err) {
@@ -169,7 +170,7 @@ export default function ReviewQueuePage() {
       return;
     }
     try {
-      const result = await client.bulkReview({ reviewer: reviewer.trim(), action: "approve", ids });
+      const result = await client.bulkReview({ action: "approve", ids });
       setToast(`Approved ${result.updated_count}. Skipped ${result.skipped_count}.`);
       await fetchQueue();
     } catch (err) {
@@ -196,13 +197,11 @@ export default function ReviewQueuePage() {
     try {
       if (rejectSingle && rejectingIds.length === 1) {
         await client.rejectReviewItem(rejectingIds[0], {
-          reviewer: reviewer.trim(),
           reason: rejectReason.trim(),
           note: rejectNote || undefined,
         });
       } else {
         const result = await client.bulkReview({
-          reviewer: reviewer.trim(),
           action: "reject",
           ids: rejectingIds,
           reason: rejectReason.trim(),
@@ -253,7 +252,6 @@ export default function ReviewQueuePage() {
     setEditLoading(true);
     try {
       await client.editReviewItem(editingId, {
-        reviewer: reviewer.trim(),
         definition: editDefinition.trim(),
         gloss: editGloss.trim() ? editGloss.trim() : undefined,
       });
@@ -357,11 +355,11 @@ export default function ReviewQueuePage() {
     startReject,
   ]);
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>API key missing. Add your API key to review AI definitions.</p>
@@ -385,10 +383,10 @@ export default function ReviewQueuePage() {
           </div>
         </div>
         <div className="review-toolbar">
-          <label className="field">
-            <span>Reviewer name</span>
-            <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Reviewer" />
-          </label>
+          <div className="field">
+            <span>Reviewing as</span>
+            <strong>{user ? `${user.display_name} (${user.email})` : "not signed in"}</strong>
+          </div>
           <div className="tabs">
             {tabs.map((tab) => (
               <button
@@ -438,6 +436,8 @@ export default function ReviewQueuePage() {
               <option value="oldest">Oldest</option>
               <option value="newest">Newest</option>
               <option value="lemma">Lemma</option>
+              {/* Worst first: lead with what the model was least sure about. */}
+              <option value="confidence">Least confident</option>
             </select>
           </label>
           <label className="field">

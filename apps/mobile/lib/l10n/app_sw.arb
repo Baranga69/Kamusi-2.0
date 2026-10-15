@@ -34,6 +34,7 @@
   "filterLemma": "Neno",
   "filterDefinition": "Ufafanuzi",
   "filterExample": "Mfano",
+  "filterExpression": "Usemi",
   "relatedEmpty": "Hakuna maneno yanayohusiana.",
   "retry": "Jaribu tena",
   "lexemeTitle": "Leksema",
@@ -61,5 +62,210 @@
   "expressionTitle": "Semi",
   "expressionMeanings": "Maana",
   "expressionUnableLoad": "Imeshindikana kupakia semi",
-  "meaningLabel": "Maana"
+  "meaningLabel": "Maana",
+  "offlineBanner": "Nje ya mtandao — tunaonyesha maneno yaliyohifadhiwa.",
+  "navDictionary": "Kamusi",
+  "navLearn": "Jifunze",
+  "navFavorites": "Vipendwa",
+  "learnTitle": "Jifunze",
+  "learnDailyTitle": "Changamoto ya leo",
+  "learnDailyStart": "Anza",
+  "learnDailyDone": "Umekamilisha leo",
+  "learnDailyAgain": "Jaribu tena",
+  "learnStreakNone": "Anza mfululizo wako",
+  "learnPracticeTitle": "Mazoezi",
+  "learnKindDefinition": "Neno kwa maana",
+  "learnKindMeaning": "Maana kwa neno",
+  "learnKindMethali": "Methali",
+  "learnKindMixed": "Mchanganyiko",
+  "learnAskDefinition": "Neno hili lina maana gani?",
+  "learnAskMeaning": "Neno gani lina maana hii?",
+  "learnAskMethali": "Kamilisha methali",
+  "learnCorrect": "Sawa",
+  "learnIncorrect": "Bado kidogo",
+  "learnContinue": "Endelea",
+  "learnFinish": "Maliza",
+  "learnOpenEntry": "Soma neno",
+  "learnResultPerfect": "Zote sawa",
+  "learnResultGood": "Vizuri",
+  "learnResultKeepGoing": "Endelea kujifunza",
+  "learnPlayAgain": "Jaribu tena",
+  "learnBackToLearn": "Rudi Jifunze",
+  "learnEmptyTitle": "Hakuna maswali bado",
+  "learnEmptyBody": "Maneno zaidi yaliyochapishwa yanahitajika kuunda duru.",
+  "learnErrorTitle": "Imeshindikana kupakia duru",
+  "learnLoading": "Tunatayarisha duru yako...",
+  "learnStreakDays": "Siku {count} mfululizo",
+  "@learnStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnBestStreak": "Bora: siku {count}",
+  "@learnBestStreak": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnQuestionCount": "Maswali {count}",
+  "@learnQuestionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnProgressOf": "{current} kati ya {total}",
+  "@learnProgressOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnScore": "{correct} kati ya {total} sahihi",
+  "@learnScore": {
+    "placeholders": {
+      "correct": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnAccuracy": "Usahihi wa {percent}%",
+  "@learnAccuracy": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsLanguage": "Lugha",
+  "languageSwahili": "Kiswahili",
+  "languageEnglish": "Kiingereza",
+  "languageSystem": "Fuata mipangilio ya simu",
+  "learnWordFindTitle": "Tafuta Neno",
+  "learnWordFindCardBody": "Tafuta maneno yaliyofichwa, kisha ujifunze maana zao.",
+  "learnWordFindHint": "Chora kutoka herufi ya kwanza hadi ya mwisho.",
+  "learnWordFindFoundTitle": "Maneno uliyoyapata",
+  "learnWordFindEmpty": "Hakuna neno lililopatikana bado. Maana zitaonekana hapa.",
+  "learnWordFindDone": "Umepata maneno yote. Hongera!",
+  "learnWordFindNew": "Chemsha bongo mpya",
+  "learnWordBuildTitle": "Unda Neno",
+  "learnWordBuildCardBody": "Unganisha herufi nane kuunda maneno na maana zake.",
+  "learnWordBuildHint": "Vuruta kwenye herufi kuunda neno",
+  "learnWordBuildEasy": "Rahisi",
+  "learnWordBuildHard": "Ngumu",
+  "learnWordBuildEasyHint": "Maana zinaonekana tangu mwanzo kama vidokezo.",
+  "learnWordBuildHardHint": "Maana huonekana baada ya kuunda neno.",
+  "learnWordBuildShuffle": "Changanya herufi",
+  "learnWordBuildNew": "Chemsha bongo mpya",
+  "learnWordBuildDone": "Umemaliza!",
+  "learnGamesOfflineReady": "Raundi {count} tayari bila intaneti",
+  "@learnGamesOfflineReady": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnGamesOfflineNone": "Hakuna raundi iliyohifadhiwa bado",
+  "learnGameTimeUp": "Muda umeisha!",
+  "learnGameMissed": "Maneno uliyokosa",
+  "learnGameTimed": "Kwa muda",
+  "learnGameTimedOn": "Saa inahesabu wakati unacheza.",
+  "learnGameTimedOff": "Cheza bila haraka, bila saa.",
+  "learnCrosswordTitle": "Chemsha Bongo",
+  "learnCrosswordCardBody": "Jaza maneno yanayopishana kwa kutumia maana zao.",
+  "learnCrosswordHint": "Gusa kisanduku, kisha andika herufi.",
+  "learnCrosswordAcross": "Kulala",
+  "learnCrosswordDown": "Kusimama",
+  "learnCrosswordDone": "Umejaza chemsha bongo yote!",
+  "learnGameScore": "Alama",
+  "learnGameBest": "Bora {score}",
+  "@learnGameBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "learnGameNewBest": "Rekodi mpya: alama {score}!",
+  "@learnGameNewBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "learnHint": "Dokezo",
+  "learnHintNone": "Hakuna dokezo",
+  "learnHintUsed": "Dokezo limetumika",
+  "learnGamesHeading": "Michezo",
+  "learnGamesSubheading": "Jifunze maneno kwa kucheza.",
+  "learnDoneTitle": "Hongera!",
+  "learnDonePartial": "Muda umeisha",
+  "learnDoneScore": "Alama zako",
+  "learnDoneBest": "Rekodi yako: {score}",
+  "@learnDoneBest": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneNewBest": "Rekodi mpya!",
+  "learnDoneFound": "Umepata {found} kati ya {total}",
+  "@learnDoneFound": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "learnDoneTotal": "ALAMA ZOTE",
+  "learnDoneOther": "Au jaribu mchezo mwingine",
+  "learnDoneMenu": "Rudi kwenye menyu",
+  "learnDoneAgain": "Cheza tena",
+  "learnDoneClose": "Rudi",
+  "settingsTitle": "Mipangilio",
+  "settingsServerTitle": "Anwani ya seva",
+  "settingsServerBody": "Programu hutafuta data hapa. Badilisha ikiwa anwani ya kompyuta yako imebadilika.",
+  "settingsServerLabel": "Anwani",
+  "settingsServerHint": "192.168.1.5:8000",
+  "settingsServerInvalid": "Anwani hii haieleweki.",
+  "settingsTest": "Jaribu",
+  "settingsTesting": "Inajaribu...",
+  "settingsTestOk": "Imeunganishwa!",
+  "settingsTestFailed": "Haikuweza kuunganishwa.",
+  "settingsSave": "Hifadhi",
+  "settingsSaved": "Imehifadhiwa.",
+  "settingsReset": "Rudisha ya awali",
+  "settingsDefaultIs": "Ya awali: {url}",
+  "@settingsDefaultIs": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsOpen": "Mipangilio",
+  "settingsSound": "Sauti",
+  "settingsSoundBody": "Mlio mwepesi unapopata neno.",
+  "settingsHaptics": "Mtetemo",
+  "settingsHapticsBody": "Mtetemo mwepesi unapochora neno.",
+  "settingsGeneral": "Kwa ujumla",
+  "settingsDone": "Sawa"
 }

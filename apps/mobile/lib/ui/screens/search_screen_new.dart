@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../../domain/models/search_entry.dart';
 import '../../providers/app_providers.dart';
@@ -15,6 +15,7 @@ import '../widgets/result_list_tile.dart';
 import '../widgets/search_bar.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/error_state.dart';
+import 'expression_detail_screen.dart';
 import 'lexeme_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -133,6 +134,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               matchesType(item, 'sense');
         case SearchFilter.example:
           return matchesKind(item, 'example') || matchesType(item, 'example');
+        case SearchFilter.expression:
+          return item.isExpression;
         case SearchFilter.all:
           return true;
       }
@@ -144,10 +147,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (query.isNotEmpty) {
       _recordRecent(query);
     }
-    if (entry.targetType.toLowerCase() == 'lexeme') {
+    // A hit resolves to the entry that owns it, which is not always the row
+    // that matched: a definition or example hit opens its lexeme, and an
+    // expression meaning opens its expression.
+    if (entry.isLexeme) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => LexemeDetailScreen(lexemeId: entry.targetId),
+          builder: (_) => LexemeDetailScreen(lexemeId: entry.lexemeId),
+        ),
+      );
+    } else if (entry.isExpression) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ExpressionDetailScreen(expressionId: entry.expressionId),
         ),
       );
     } else {

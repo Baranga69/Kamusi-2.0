@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import axios from "axios";
 
-import { createAdminClient, type ReviewDetail } from "../../../lib/api";
-import { useApiKey, useReviewerName } from "../../../lib/storage";
+import { adminClient, type ReviewDetail } from "../../../lib/api";
+import { useSession } from "../../../lib/session";
 
 type DiffToken = { text: string; type: "same" | "added" | "removed" };
 
@@ -70,8 +70,7 @@ const buildDiff = (original: string, updated: string) => {
 export default function ReviewDetailPage() {
   const params = useParams<{ definition_id: string }>();
   const definitionId = params.definition_id;
-  const { apiKey, loaded } = useApiKey();
-  const { reviewer, setReviewer } = useReviewerName();
+  const { user, loading: sessionLoading } = useSession();
   const [detail, setDetail] = useState<ReviewDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +82,7 @@ export default function ReviewDetailPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
 
-  const client = useMemo(() => (apiKey ? createAdminClient(apiKey) : null), [apiKey]);
+  const client = adminClient;
 
   useEffect(() => {
     if (!toast) {
@@ -93,9 +92,11 @@ export default function ReviewDetailPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  // The API records whoever the session belongs to, so there is nothing for
+  // the reviewer to type and nothing to validate here beyond being signed in.
   const ensureReviewer = () => {
-    if (!reviewer.trim()) {
-      setToast("Add your reviewer name before taking action.");
+    if (!user) {
+      setToast("Sign in before taking action.");
       return false;
     }
     return true;
@@ -135,7 +136,7 @@ export default function ReviewDetailPage() {
       return;
     }
     try {
-      await client.approveReviewItem(definitionId, reviewer.trim());
+      await client.approveReviewItem(definitionId);
       setToast("Definition approved.");
       await fetchDetail();
     } catch (err) {
@@ -159,7 +160,6 @@ export default function ReviewDetailPage() {
     setEditLoading(true);
     try {
       await client.editReviewItem(definitionId, {
-        reviewer: reviewer.trim(),
         definition: editDefinition.trim(),
         gloss: editGloss.trim() ? editGloss.trim() : undefined,
       });
@@ -187,7 +187,6 @@ export default function ReviewDetailPage() {
     }
     try {
       await client.rejectReviewItem(definitionId, {
-        reviewer: reviewer.trim(),
         reason: rejectReason.trim(),
         note: rejectNote || undefined,
       });
@@ -212,11 +211,11 @@ export default function ReviewDetailPage() {
     return buildDiff(detail.sw_definition, editDefinition);
   }, [detail, editDefinition]);
 
-  if (!loaded) {
+  if (sessionLoading) {
     return <p>Loading...</p>;
   }
 
-  if (!apiKey) {
+  if (!user) {
     return (
       <div className="card">
         <p>API key missing. Add your API key to review AI definitions.</p>
@@ -300,10 +299,10 @@ export default function ReviewDetailPage() {
                   <p>{detail.review_note || "N/A"}</p>
                 </div>
               </div>
-              <label className="field">
-                <span>Reviewer name</span>
-                <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Reviewer" />
-              </label>
+              <div className="field">
+                <span>Reviewing as</span>
+                <strong>{user ? `${user.display_name} (${user.email})` : "not signed in"}</strong>
+              </div>
               <div className="actions">
                 <button className="primary" onClick={handleApprove} disabled={!isEditable}>
                   Approve

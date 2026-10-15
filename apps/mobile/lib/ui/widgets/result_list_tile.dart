@@ -25,7 +25,9 @@ class SearchResultTile extends StatelessWidget {
     if (matchKind != null) {
       badges.add(matchKind);
     }
-    final titleText = item.lemma.isNotEmpty ? item.lemma : item.text;
+    // For a meaning hit the headline is the proverb itself, with the matched
+    // meaning shown as the snippet below it.
+    final titleText = item.title;
     final showSnippet = item.text.isNotEmpty && item.text != titleText;
     return Material(
       color: Colors.transparent,

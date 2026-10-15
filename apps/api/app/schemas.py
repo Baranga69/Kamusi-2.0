@@ -3,6 +3,10 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
+# A field called `date` with a default shadows the `date` type for annotations
+# in that class body, so the type needs a second name.
+DateOnly = date
+
 
 class LanguageCreate(BaseModel):
     code: str
@@ -378,6 +382,14 @@ class WordformRead(WordformCreate):
 
 
 class SearchResult(BaseModel):
+    """One search hit, resolved back to the entry a reader can open.
+
+    A hit resolves to either a lexeme or an expression, never both. The
+    lexeme fields stay populated for every hit that previously existed
+    (`lemma`, `definition`, `example`); they are null only on the expression
+    hits, which `/search` could not return at all before.
+    """
+
     id: uuid.UUID
     target_type: str
     target_id: uuid.UUID
@@ -385,10 +397,22 @@ class SearchResult(BaseModel):
     text: str
     normalized: str
     popularity: int
-    lexeme_id: uuid.UUID
-    lemma: str
+
+    # Populated when the hit resolves to a lexeme.
+    lexeme_id: uuid.UUID | None = None
+    lemma: str | None = None
     pos_code: str | None = None
-    match_kind: str | None = None  # "lemma" | "definition" | "example"
+
+    # Populated when the hit resolves to an expression (methali, semi, nahau).
+    expression_id: uuid.UUID | None = None
+    expression_text: str | None = None
+
+    # "lemma" | "definition" | "example" | "expression" | "meaning"
+    match_kind: str | None = None
+
+    # True when the hit came from the trigram "did you mean" pass rather than
+    # a literal match, so a client can present it differently.
+    is_fuzzy: bool = False
 
 
 class WordOfDayPublic(BaseModel):
@@ -453,6 +477,14 @@ class ReviewQueueItem(BaseModel):
     review_status: str | None
     is_ai_generated: bool
     morphology_like: bool
+    # How sure the model was, 0.0-1.0, or null for rows written before this was
+    # captured. Null means "unknown", which is not the same as "poor".
+    ai_confidence: float | None = None
+    # What the ingest gate would object to, from app/core/quality.py. Empty
+    # for a clean definition. Rows imported before the gate existed were never
+    # checked, so this is how a reviewer finds the suspect ones; it is advice,
+    # not a verdict, and nothing is hidden on account of it.
+    quality_flags: list[str] = []
 
 
 class ReviewDefinitionReference(BaseModel):
@@ -489,24 +521,27 @@ class ReviewDetail(BaseModel):
     review_note: str | None = None
 
 
+# None of these carry a `reviewer`. Who acted is read from the session and
+# recorded server-side, so accepting it here would be at best redundant and at
+# worst a way to forge an audit trail. Pydantic ignores unknown fields, so a
+# client still sending one keeps working — the value is simply not used.
+
+
 class ReviewApproveRequest(BaseModel):
-    reviewer: str
+    pass
 
 
 class ReviewEditRequest(BaseModel):
-    reviewer: str
     definition: str
     gloss: str | None = None
 
 
 class ReviewRejectRequest(BaseModel):
-    reviewer: str
     reason: str
     note: str | None = None
 
 
 class ReviewBulkRequest(BaseModel):
-    reviewer: str
     action: str
     ids: list[uuid.UUID]
     reason: str | None = None
@@ -552,3 +587,238 @@ class ExpressionPublic(BaseModel):
     region_id: uuid.UUID | None
     meanings: list[ExpressionMeaningPublic]
     examples: list[ExpressionExamplePublic]
+
+
+class LexemeListItem(BaseModel):
+    """Flat projection for the admin lexeme browser.
+
+    Deliberately not the full nested aggregate: the list view only needs enough
+    to render a row and link to the editor.
+    """
+
+    id: uuid.UUID
+    lemma: str
+    normalized_lemma: str
+    pos_id: uuid.UUID
+    pos_code: str | None = None
+    status: str
+    workflow: str
+    default_language_code: str
+    sense_count: int
+    sw_definition_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExpressionListItem(BaseModel):
+    id: uuid.UUID
+    text: str
+    normalized_text: str
+    expression_type_id: uuid.UUID
+    expression_type_code: str | None = None
+    region_id: uuid.UUID | None = None
+    workflow: str
+    meaning_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class LookupOption(BaseModel):
+    id: uuid.UUID
+    code: str
+    label: str
+
+
+class LookupBundle(BaseModel):
+    """Every seeded vocabulary the admin UI needs to populate its selects."""
+
+    languages: list[LanguageRead]
+    parts_of_speech: list[LookupOption]
+    registers: list[LookupOption]
+    domains: list[LookupOption]
+    regions: list[LookupOption]
+    expression_types: list[LookupOption]
+    tag_types: list[LookupOption]
+
+
+# --- accounts -------------------------------------------------------------
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserPublic(BaseModel):
+    id: uuid.UUID
+    email: str
+    display_name: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+
+class LoginResponse(BaseModel):
+    """A session token plus who it belongs to.
+
+    The token goes in `Authorization: Bearer`. The admin console keeps it in
+    an httpOnly cookie on its own origin so it never reaches page scripts.
+    """
+
+    token: str
+    expires_in_seconds: int
+    user: UserPublic
+
+
+class UserCreate(BaseModel):
+    email: str
+    display_name: str
+    password: str
+    role: str = "reviewer"
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class PasswordReset(BaseModel):
+    """An admin setting another account's password."""
+
+    new_password: str
+
+
+# --- learning rounds ------------------------------------------------------
+
+
+class LearnQuestion(BaseModel):
+    """One question in a round.
+
+    `answer_index` is sent to the client on purpose. Nothing is at stake here —
+    no score is submitted back, no leaderboard — and a round has to be fully
+    playable offline from the cache, which rules out asking the server to mark
+    it. Keeping it client-side also means instant feedback, which matters more
+    for learning than it would for a test.
+    """
+
+    kind: str  # "definition" | "meaning" | "methali"
+    prompt: str
+    prompt_detail: str | None = None
+    options: list[str]
+    answer_index: int
+
+    # Where to send a reader who wants the full entry afterwards. This is the
+    # point of the games: they end in the dictionary.
+    lexeme_id: uuid.UUID | None = None
+    expression_id: uuid.UUID | None = None
+
+
+class WordFindWord(BaseModel):
+    """One word hidden in the grid, with the meaning to show once it is found.
+
+    `cells` is the solution, and it is sent to the client for the same reason
+    `LearnQuestion.answer_index` is: nothing is at stake, the puzzle has to be
+    playable from the cache with no connection, and checking a drag locally is
+    instant where a round trip per attempt would not be.
+    """
+
+    lexeme_id: uuid.UUID
+    # The headword as it should be displayed, accents and capitals intact.
+    word: str
+    # The same word reduced to the letters that appear in the grid.
+    letters: str
+    definition: str
+    pos_code: str | None = None
+    # What finding this word is worth, before any speed bonus. Scored on the
+    # server so every game values a word the same way.
+    points: int = 0
+    # [[row, col], ...] in reading order, so the client can highlight the path.
+    cells: list[list[int]]
+
+
+class WordFindPuzzle(BaseModel):
+    """A word-search grid built from published, reviewed vocabulary."""
+
+    lang_code: str
+    size: int
+    # One string per row, `size` letters long. A list of strings rather than a
+    # list of lists: it is a third of the JSON and trivial to index.
+    rows: list[str]
+    words: list[WordFindWord]
+
+
+class WordBuildWord(BaseModel):
+    """One word that can be spelled from the puzzle's letters."""
+
+    lexeme_id: uuid.UUID
+    word: str
+    letters: str
+    definition: str
+    pos_code: str | None = None
+    points: int = 0
+    # True for the word that uses every letter in the ring. There is always
+    # exactly one, and it is what makes the set of letters solvable rather
+    # than arbitrary.
+    is_pangram: bool = False
+
+
+class WordBuildPuzzle(BaseModel):
+    """A ring of letters and every published word they spell.
+
+    The whole solution set is sent, as with the other rounds: nothing is at
+    stake, and the puzzle has to be playable from the cache with no
+    connection. It is also what lets the client offer definitions as hints in
+    an easy mode without asking the server mid-game.
+    """
+
+    lang_code: str
+    # The ring, already shuffled. One character each.
+    letters: list[str]
+    words: list[WordBuildWord]
+
+
+class CrosswordEntry(BaseModel):
+    """One answer in the grid, with its clue."""
+
+    lexeme_id: uuid.UUID
+    # The clue number, shared with a perpendicular entry starting in the
+    # same cell, exactly as a printed crossword numbers them.
+    number: int
+    direction: str  # "across" | "down"
+    row: int
+    col: int
+    word: str
+    answer: str
+    definition: str
+    pos_code: str | None = None
+    points: int = 0
+
+
+class CrosswordPuzzle(BaseModel):
+    """An interlocking grid of words, clued by their definitions.
+
+    Only the entries are sent; the client derives which cells are fillable
+    from them. The answers come too, as everywhere else here: nothing is at
+    stake and the board has to work from the cache with no connection.
+    """
+
+    lang_code: str
+    size: int
+    entries: list[CrosswordEntry]
+
+
+class LearnRound(BaseModel):
+    kind: str
+    lang_code: str
+    questions: list[LearnQuestion]
+
+    # Set on the daily round: the UTC date it belongs to, so a client can tell
+    # a cached round apart from today's.
+    date: DateOnly | None = None

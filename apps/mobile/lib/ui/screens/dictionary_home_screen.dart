@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -9,8 +9,8 @@ import '../../providers/app_providers.dart';
 import '../../providers/recent_searches_provider.dart';
 import '../../providers/word_of_day_provider.dart';
 import '../widgets/search_bar.dart';
+import 'settings_screen.dart';
 import '../widgets/word_of_day_card.dart';
-import 'favorites_screen.dart';
 import 'lexeme_detail_screen.dart';
 
 class DictionaryHomeScreen extends ConsumerStatefulWidget {
@@ -149,6 +149,8 @@ class _DictionaryHomeScreenState
       appBar: AppBar(
         title: Text(l10n.headerTitle),
         centerTitle: true,
+        // Icon buttons rather than a drawer. A drawer hides two switches
+        // behind a gesture nobody makes; these are one tap and visible.
         actions: [
           IconButton(
             icon: Icon(
@@ -161,45 +163,14 @@ class _DictionaryHomeScreenState
             tooltip:
                 isDarkMode ? l10n.homeThemeToggleLight : l10n.homeThemeToggleDark,
           ),
-        ],
-      ),
-      drawer: Drawer(
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: colorScheme.surfaceVariant),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Text(
-                    l10n.headerTitle,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.search),
-                title: Text(l10n.bottomNavSearch),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  widget.onOpenSearch?.call();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.star_border),
-                title: Text(l10n.bottomNavFavorites),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _openFavorites();
-                },
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: l10n.settingsOpen,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
-        ),
+        ],
       ),
       body: ListView(
         children: [
@@ -232,16 +203,6 @@ class _DictionaryHomeScreenState
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => LexemeDetailScreen(lexemeId: lexemeId),
-      ),
-    );
-  }
-
-  void _openFavorites() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FavoritesScreen(
-          onOpenSearch: widget.onOpenSearch,
-        ),
       ),
     );
   }

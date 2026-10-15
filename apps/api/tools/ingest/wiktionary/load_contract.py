@@ -3,10 +3,14 @@ import json
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import psycopg
 from psycopg.rows import dict_row
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from import_run import count_lines, import_run  # noqa: E402
 
 DB_URL = os.getenv("KAMUSI_DB_URL", "postgresql://kamusi:kamusi123@localhost:5433/kamusi")
 INPUT_JSONL = sys.argv[1] if len(sys.argv) > 1 else "kamusi_contract-20260101.jsonl"
@@ -16,6 +20,15 @@ DEFAULT_STATUS = os.getenv("KAMUSI_STATUS", "core")
 
 # IMPORTANT: your workflow_status enum is draft/reviewed/published/archived
 DEFAULT_WORKFLOW = os.getenv("KAMUSI_WORKFLOW", "draft")
+
+# Rows per transaction. This file used to commit once at the very end, so a
+# failure near the finish threw away the whole import and held one transaction
+# open throughout.
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "500"))
+# Continue an interrupted run instead of starting a new one.
+RESUME = os.getenv("RESUME") or None
+# Parse and report without writing anything.
+DRY_RUN = (os.getenv("DRY_RUN", "false") or "").lower() in {"1", "true", "yes"}
 
 
 def get_pos_map(cur) -> Dict[str, str]:
@@ -47,6 +60,7 @@ def insert_lexeme(
     default_language_code: str,
     status: str,
     workflow: str,
+    import_run_id: Optional[str] = None,
 ) -> str:
     new_id = str(uuid.uuid4())
     cur.execute(
@@ -54,15 +68,24 @@ def insert_lexeme(
         INSERT INTO lexeme (
             id, lemma, normalized_lemma, pos_id,
             status, default_language_code, workflow,
-            created_at, updated_at
+            created_at, updated_at, import_run_id
         )
         VALUES (
             %s, %s, %s, %s,
             %s, %s, %s,
-            now(), now()
+            now(), now(), %s
         )
         """,
-        (new_id, lemma, normalized_lemma, pos_id, status, default_language_code, workflow),
+        (
+            new_id,
+            lemma,
+            normalized_lemma,
+            pos_id,
+            status,
+            default_language_code,
+            workflow,
+            import_run_id,
+        ),
     )
     return new_id
 
@@ -82,23 +105,29 @@ def select_sense_id(cur, lexeme_id: str, sense_number: int) -> Optional[str]:
     return row["id"] if row else None
 
 
-def insert_sense(cur, lexeme_id: str, sense_number: int, workflow: str) -> str:
+def insert_sense(
+    cur,
+    lexeme_id: str,
+    sense_number: int,
+    workflow: str,
+    import_run_id: Optional[str] = None,
+) -> str:
     new_id = str(uuid.uuid4())
     cur.execute(
         """
         INSERT INTO sense (
             id, lexeme_id, sense_number,
             domain_id, register_id, usage_note,
-            workflow, created_at, updated_at
+            workflow, created_at, updated_at, import_run_id
         )
         VALUES (
             %s, %s, %s,
             NULL, NULL, NULL,
             %s,
-            now(), now()
+            now(), now(), %s
         )
         """,
-        (new_id, lexeme_id, sense_number, workflow),
+        (new_id, lexeme_id, sense_number, workflow, import_run_id),
     )
     return new_id
 
@@ -111,6 +140,7 @@ def upsert_definition_one_per_lang(
     gloss: Optional[str],
     is_primary: bool,
     source_id: str,
+    import_run_id: Optional[str] = None,
 ) -> None:
     """
     Your DB enforces UNIQUE(sense_id, lang_code).
@@ -120,11 +150,11 @@ def upsert_definition_one_per_lang(
         """
         INSERT INTO sense_definition (
             id, sense_id, lang_code, definition, gloss,
-            is_primary, source_id, created_at
+            is_primary, source_id, created_at, import_run_id
         )
         VALUES (
             %s, %s, %s, %s, %s,
-            %s, %s, now()
+            %s, %s, now(), %s
         )
         ON CONFLICT (sense_id, lang_code)
         DO NOTHING
@@ -137,11 +167,14 @@ def upsert_definition_one_per_lang(
             gloss,
             is_primary,
             source_id,
+            import_run_id,
         ),
     )
 
 
 def main() -> None:
+    read_lines = 0
+    skipped_resume = 0
     inserted_lexemes = 0
     inserted_senses = 0
     attempted_definitions = 0
@@ -153,7 +186,24 @@ def main() -> None:
     print(f"DEFAULT_WORKFLOW (lexeme/sense.workflow): {DEFAULT_WORKFLOW}")
     print(f"INPUT: {INPUT_JSONL}")
 
-    with psycopg.connect(DB_URL, row_factory=dict_row) as conn:
+    run_id = None
+    with psycopg.connect(DB_URL, row_factory=dict_row) as conn, import_run(
+        conn,
+        kind="wiktionary",
+        tool="load_contract.py",
+        input_path=str(Path(INPUT_JSONL).resolve()),
+        parameters={
+            "status": DEFAULT_STATUS,
+            "workflow": DEFAULT_WORKFLOW,
+            "batch_size": BATCH_SIZE,
+        },
+        resume=RESUME,
+        total_lines=count_lines(INPUT_JSONL),
+        dry_run=DRY_RUN,
+    ) as run:
+        run_id = run.id if run else None
+        if run and run.resume_from:
+            print(f"Resuming run {run_id} from line {run.resume_from:,}")
         with conn.cursor() as cur:
             pos_map = get_pos_map(cur)
 
@@ -162,6 +212,13 @@ def main() -> None:
                     line = line.strip()
                     if not line:
                         continue
+                    read_lines += 1
+
+                    # Lines an earlier attempt already committed.
+                    if run and run.should_skip(read_lines):
+                        skipped_resume += 1
+                        continue
+
                     obj: Dict[str, Any] = json.loads(line)
 
                     source = obj.get("source") or {}
@@ -188,7 +245,14 @@ def main() -> None:
                     lexeme_id = select_lexeme_id(cur, normalized, pos_id, default_lang)
                     if not lexeme_id:
                         lexeme_id = insert_lexeme(
-                            cur, lemma, normalized, pos_id, default_lang, status, workflow
+                            cur,
+                            lemma,
+                            normalized,
+                            pos_id,
+                            default_lang,
+                            status,
+                            workflow,
+                            import_run_id=run_id,
                         )
                         inserted_lexemes += 1
 
@@ -197,7 +261,13 @@ def main() -> None:
 
                         sense_id = select_sense_id(cur, lexeme_id, sense_number)
                         if not sense_id:
-                            sense_id = insert_sense(cur, lexeme_id, sense_number, workflow)
+                            sense_id = insert_sense(
+                                cur,
+                                lexeme_id,
+                                sense_number,
+                                workflow,
+                                import_run_id=run_id,
+                            )
                             inserted_senses += 1
 
                         # Your schema allows only 1 definition per language per sense.
@@ -222,16 +292,43 @@ def main() -> None:
                                 gloss=d.get("gloss"),
                                 is_primary=bool(d.get("is_primary", False)),
                                 source_id=source_id,
+                                import_run_id=run_id,
                             )
 
-            conn.commit()
+                    if run:
+                        run.counts["lexemes_created"] = inserted_lexemes
+                        run.counts["senses_created"] = inserted_senses
+                        run.counts["definitions_created"] = attempted_definitions
 
-    print("Done.")
+                    # A bounded transaction: a failure costs at most one batch,
+                    # and the checkpoint rides along with it.
+                    if not DRY_RUN and read_lines % BATCH_SIZE == 0:
+                        if run:
+                            run.commit_batch(read_lines)
+                            print(run.progress(read_lines), flush=True)
+                        else:
+                            conn.commit()
+
+            if DRY_RUN:
+                conn.rollback()
+            elif run:
+                run.commit_batch(read_lines)
+            else:
+                conn.commit()
+
+    print("Dry run finished — nothing written." if DRY_RUN else "Done.")
     print("Inserted lexemes:", inserted_lexemes)
     print("Inserted senses:", inserted_senses)
     print("Attempted definitions:", attempted_definitions)
     print("Skipped (unknown pos):", skipped_unknown_pos)
     print("Skipped (missing source_id):", skipped_missing_source)
+    if skipped_resume:
+        print("Skipped (already imported):", skipped_resume)
+    if run_id and not DRY_RUN:
+        print()
+        print("Import run:", run_id)
+        print("Undo it with:")
+        print(f"  python tools/maintenance/revert_import.py {run_id}")
 
 
 if __name__ == "__main__":

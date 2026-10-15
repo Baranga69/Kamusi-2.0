@@ -1,14 +1,19 @@
 """add sense definition review columns
 
-Revision ID: 0002_add_sense_definition_review_columns
+Revision ID: 0002_sense_def_review_cols
 Revises: 0001_create_schema
 Create Date: 2024-09-18 00:00:00.000000
+
+The identifier is kept under 32 characters because Alembic stores it in
+alembic_version.version_num, which is varchar(32). A longer id makes
+`alembic upgrade head` fail with StringDataRightTruncation and roll the whole
+upgrade back, so no migration applies at all.
 """
 
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0002_add_sense_definition_review_columns"
+revision = "0002_sense_def_review_cols"
 down_revision = "0001_create_schema"
 branch_labels = None
 depends_on = None

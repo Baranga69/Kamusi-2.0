@@ -1,9 +1,9 @@
 {
-  "name": "Kamusi Mobile",
-  "short_name": "Kamusi",
+  "name": "Kamusi 2.0",
+  "short_name": "Kamusi 2.0",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
-  "description": "Kamusi Flutter app scaffold"
+  "description": "Kamusi 2.0 Flutter app scaffold"
 }

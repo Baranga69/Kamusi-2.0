@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session, aliased
 
+from app.core.ids import as_uuid
+from app.core.quality import check_definition, looks_morphological
 from app.db import get_db
-from app.deps import require_api_key
+from app.deps import Principal, require_person, require_role
 from app.models import Lexeme, PartOfSpeech, Sense, SenseDefinition, Source
 from app.schemas import (
     ReviewActionResponse,
@@ -20,17 +22,25 @@ from app.schemas import (
     ReviewSourceInfo,
 )
 
-router = APIRouter(prefix="/admin/review", dependencies=[Depends(require_api_key)])
+# Reading the queue is open to any role that can review. Acting on an item
+# requires a signed-in account rather than the shared API key, because the
+# decision is recorded against whoever made it.
+router = APIRouter(prefix="/admin/review", dependencies=[Depends(require_role("reviewer"))])
 
-MORPHOLOGY_PREFIXES = (
-    "Applicative form of",
-    "Reciprocal form of",
-    "Stative form of",
-    "Causative form of",
-    "Passive form of",
-)
+REVIEWER = Depends(require_person("reviewer"))
+
 LEXEME_STATUS_ALLOWED = {"core", "slang", "regional", "deprecated", "neologism"}
 
+
+
+def reviewer_name(principal: Principal) -> str:
+    """Who to record against a review decision.
+
+    Taken from the session, never from the request body: a client-supplied
+    name would make the audit trail unverifiable. The email is stored rather
+    than the display name because it is unique and stable.
+    """
+    return principal.user.email
 
 
 def build_review_note(reason: str, note: str | None) -> str:
@@ -53,6 +63,7 @@ def get_review_queue(
     status: str = "unreviewed",
     q: str | None = None,
     pos_code: str | None = None,
+    lexeme_status: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     sort: str = "oldest",
@@ -73,6 +84,7 @@ def get_review_queue(
             sw_definition.created_at,
             sw_definition.review_status,
             sw_definition.is_ai_generated,
+            sw_definition.ai_confidence,
         )
         .join(Sense, sw_definition.sense_id == Sense.id)
         .join(Lexeme, Sense.lexeme_id == Lexeme.id)
@@ -91,12 +103,25 @@ def get_review_queue(
         stmt = stmt.where(Lexeme.lemma.ilike(f"%{q}%"))
     if pos_code:
         stmt = stmt.where(PartOfSpeech.code == pos_code)
+    if lexeme_status:
+        if lexeme_status not in LEXEME_STATUS_ALLOWED:
+            raise HTTPException(status_code=400, detail="Invalid lexeme status")
+        stmt = stmt.where(Lexeme.status == lexeme_status)
     if sort == "oldest":
         stmt = stmt.order_by(sw_definition.created_at.asc())
     elif sort == "newest":
         stmt = stmt.order_by(sw_definition.created_at.desc())
     elif sort == "lemma":
         stmt = stmt.order_by(Lexeme.lemma.asc())
+    elif sort == "confidence":
+        # Worst first. Reviewer attention is the scarcest thing here, so lead
+        # with what the model was least sure about. Rows with no recorded
+        # confidence sort last: unknown is not the same as poor, and putting
+        # them first would bury the definitions that genuinely need a look.
+        stmt = stmt.order_by(
+            sw_definition.ai_confidence.asc().nullslast(),
+            sw_definition.created_at.asc(),
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid sort option")
 
@@ -108,7 +133,12 @@ def get_review_queue(
         en_text = row.en_definition_preview or ""
         en_preview = row.en_definition_preview or ""
         sw_preview = row.sw_definition_preview or ""
-        morphology_like = any(en_text.startswith(prefix) for prefix in MORPHOLOGY_PREFIXES)
+        morphology_like = looks_morphological(en_text)
+        # The same rules the importer enforces. Rows that predate the gate
+        # were never checked, so this is how a reviewer spots them.
+        quality_flags = check_definition(
+            sw_preview, lemma=row.lemma, source_definition=en_preview or None
+        )
         items.append(
             ReviewQueueItem(
                 sense_definition_id=row.sense_definition_id,
@@ -121,7 +151,9 @@ def get_review_queue(
                 created_at=row.created_at,
                 review_status=row.review_status,
                 is_ai_generated=row.is_ai_generated,
+                ai_confidence=row.ai_confidence,
                 morphology_like=morphology_like,
+                quality_flags=quality_flags,
             )
         )
     return items
@@ -135,7 +167,7 @@ def get_review_item(sense_definition_id: str, db: Session = Depends(get_db)) -> 
         .join(Lexeme, Sense.lexeme_id == Lexeme.id)
         .join(PartOfSpeech, Lexeme.pos_id == PartOfSpeech.id)
         .outerjoin(Source, SenseDefinition.source_id == Source.id)
-        .where(SenseDefinition.id == sense_definition_id)
+        .where(SenseDefinition.id == as_uuid(sense_definition_id, "Sense definition not found"))
     )
     row = db.execute(stmt).first()
     if not row:
@@ -189,19 +221,20 @@ def get_review_item(sense_definition_id: str, db: Session = Depends(get_db)) -> 
 
 
 def require_unreviewed_update(db: Session, definition_id: str, values: dict) -> ReviewActionResponse:
+    key = as_uuid(definition_id, "Sense definition not found")
     stmt = (
         update(SenseDefinition)
-        .where(SenseDefinition.id == definition_id, SenseDefinition.review_status == "unreviewed")
+        .where(SenseDefinition.id == key, SenseDefinition.review_status == "unreviewed")
         .values(**values)
     )
     result = db.execute(stmt)
     if result.rowcount == 0:
-        existing = db.get(SenseDefinition, definition_id)
+        existing = db.get(SenseDefinition, key)
         if not existing:
             raise HTTPException(status_code=404, detail="Sense definition not found")
         raise HTTPException(status_code=409, detail="Sense definition already reviewed")
     db.commit()
-    updated = db.get(SenseDefinition, definition_id)
+    updated = db.get(SenseDefinition, key)
     if not updated:
         raise HTTPException(status_code=404, detail="Sense definition not found")
     return ReviewActionResponse(
@@ -214,11 +247,14 @@ def require_unreviewed_update(db: Session, definition_id: str, values: dict) -> 
 
 @router.post("/item/{definition_id}/approve", response_model=ReviewActionResponse)
 def approve_review_item(
-    definition_id: str, payload: ReviewApproveRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewApproveRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     values = {
         "review_status": "approved",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
@@ -226,7 +262,10 @@ def approve_review_item(
 
 @router.post("/item/{definition_id}/edit", response_model=ReviewActionResponse)
 def edit_review_item(
-    definition_id: str, payload: ReviewEditRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewEditRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     definition_text = payload.definition.strip()
     if not definition_text:
@@ -235,7 +274,7 @@ def edit_review_item(
         "definition": definition_text,
         "gloss": payload.gloss,
         "review_status": "edited",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
@@ -243,21 +282,28 @@ def edit_review_item(
 
 @router.post("/item/{definition_id}/reject", response_model=ReviewActionResponse)
 def reject_review_item(
-    definition_id: str, payload: ReviewRejectRequest, db: Session = Depends(get_db)
+    definition_id: str,
+    payload: ReviewRejectRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
 ) -> ReviewActionResponse:
     if not payload.reason.strip():
         raise HTTPException(status_code=422, detail="Reject reason is required")
     values = {
         "review_status": "rejected",
         "review_note": build_review_note(payload.reason.strip(), payload.note),
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": datetime.utcnow(),
     }
     return require_unreviewed_update(db, definition_id, values)
 
 
 @router.post("/bulk", response_model=ReviewBulkResponse)
-def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)) -> ReviewBulkResponse:
+def bulk_review_action(
+    payload: ReviewBulkRequest,
+    principal: Principal = REVIEWER,
+    db: Session = Depends(get_db),
+) -> ReviewBulkResponse:
     if not payload.ids:
         raise HTTPException(status_code=422, detail="At least one id is required")
     if payload.action not in {"approve", "reject"}:
@@ -272,7 +318,7 @@ def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)
 
     values = {
         "review_status": "approved" if payload.action == "approve" else "rejected",
-        "reviewed_by": payload.reviewer,
+        "reviewed_by": reviewer_name(principal),
         "reviewed_at": now,
     }
     if review_note:
@@ -281,14 +327,17 @@ def bulk_review_action(payload: ReviewBulkRequest, db: Session = Depends(get_db)
     stmt = (
         update(SenseDefinition)
         .where(
-            SenseDefinition.id.in_(payload.ids),
+            SenseDefinition.id.in_([as_uuid(item, "Invalid id") for item in payload.ids]),
             SenseDefinition.review_status == "unreviewed",
         )
         .values(**values)
     )
 
-    with db.begin():
-        result = db.execute(stmt)
+    # Not `with db.begin()`: the session already has a transaction open by the
+    # time this runs — resolving the caller queries app_user — and opening a
+    # second one raises. The single-item path commits the same way.
+    result = db.execute(stmt)
+    db.commit()
 
     updated = result.rowcount or 0
     skipped = len(payload.ids) - updated

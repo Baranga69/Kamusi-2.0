@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Index,
     DateTime,
     Float,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -48,7 +50,25 @@ relation_type = SqlEnum(
     "antonym",
     "derived",
     "related",
+    # Derived verb forms, appended to the live enum before migration 0009
+    # adopted it. Also available as the dedicated `morph_relation_type`.
+    "APPLICATIVE_OF",
+    "RECIPROCAL_OF",
+    "STATIVE_OF",
+    "CAUSATIVE_OF",
+    "PASSIVE_OF",
     name="relation_type",
+    native_enum=True,
+    create_type=False,
+)
+
+morph_relation_type = SqlEnum(
+    "APPLICATIVE_OF",
+    "RECIPROCAL_OF",
+    "STATIVE_OF",
+    "CAUSATIVE_OF",
+    "PASSIVE_OF",
+    name="morph_relation_type",
     native_enum=True,
     create_type=False,
 )
@@ -86,6 +106,42 @@ ai_mode = SqlEnum(
 )
 
 
+USER_ROLES = ("reviewer", "editor", "admin")
+
+
+class AppUser(Base):
+    """An account that can sign in to the admin console.
+
+    `role` is text with a CHECK constraint rather than an enum, so adding a
+    role later does not need an ALTER TYPE. `sessions_valid_from` is the
+    revocation point: a session token issued before it is rejected, so
+    deactivating an account or changing a password ends existing sessions.
+    """
+
+    __tablename__ = "app_user"
+    __table_args__ = (
+        CheckConstraint("role IN ('reviewer', 'editor', 'admin')", name="ck_app_user_role"),
+        # Addresses are compared case-insensitively at login, so uniqueness
+        # has to be too. Declared here as well as in the migration so the
+        # constraint also exists when the schema is built from metadata.
+        Index("ux_app_user_email_lower", text("lower(email)"), unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="reviewer")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    sessions_valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Language(Base):
     __tablename__ = "language"
 
@@ -99,6 +155,10 @@ class PartOfSpeech(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String, nullable=False)
+    # What a Swahili reader should actually see: "Nomino", not "NOUN".
+    # Nullable because a part of speech may be added before it is glossed.
+    label_sw: Mapped[str | None] = mapped_column(Text)
+    definition_sw: Mapped[str | None] = mapped_column(Text)
 
 
 class Register(Base):
@@ -166,6 +226,45 @@ class Source(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
 
+class ImportRun(Base):
+    """One bulk import, so its rows can be found and undone together.
+
+    `source_id` records where content came from; this records which run put it
+    there. "Wiktionary" is not something you can undo — "the rows loaded on
+    Tuesday from this file" is.
+    """
+
+    __tablename__ = "import_run"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'completed', 'failed', 'reverted')",
+            name="ck_import_run_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    tool: Mapped[str] = mapped_column(Text, nullable=False)
+    input_path: Mapped[str | None] = mapped_column(Text)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("source.id", ondelete="SET NULL")
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="running")
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lexemes_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    senses_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    definitions_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+    # Input lines durably written. Updated in the same transaction as the
+    # batch it describes, so it never claims more than was committed.
+    processed_lines: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_lines: Mapped[int | None] = mapped_column(Integer)
+
+
 class Lexeme(Base):
     __tablename__ = "lexeme"
     __table_args__ = (UniqueConstraint("normalized_lemma", "pos_id", name="ux_lexeme_norm_pos"),)
@@ -179,6 +278,10 @@ class Lexeme(Base):
     workflow: Mapped[str] = mapped_column(workflow_status, nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    # Null for anything created by hand, or predating import tracking.
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     senses: Mapped[list["Sense"]] = relationship(back_populates="lexeme", cascade="all, delete-orphan")
 
@@ -194,8 +297,16 @@ class Sense(Base):
     register_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("register.id"))
     usage_note: Mapped[str | None] = mapped_column(Text)
     workflow: Mapped[str] = mapped_column(workflow_status, nullable=False, default="draft")
+    # True for a sense whose only content is "X form of Y". Set on 1,626 of
+    # the first 3,902 senses, and what a rule that downgrades morphology-only
+    # entries would read.
+    is_morphology: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     lexeme: Mapped[Lexeme] = relationship(back_populates="senses")
     definitions: Mapped[list["SenseDefinition"]] = relationship(
@@ -222,7 +333,14 @@ class SenseDefinition(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ai_model: Mapped[str | None] = mapped_column(String)
     ai_prompt_version: Mapped[str | None] = mapped_column(String)
+    # How sure the model was, 0.0-1.0. Null on anything written before this
+    # was captured, which the review queue treats as "unknown" rather than
+    # "poor".
+    ai_confidence: Mapped[float | None] = mapped_column(Float)
     review_note: Mapped[str | None] = mapped_column(Text)
+    import_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("import_run.id", ondelete="SET NULL")
+    )
 
     sense: Mapped[Sense] = relationship(back_populates="definitions")
 
@@ -322,6 +440,37 @@ class SenseTag(Base):
     confidence: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     start_year: Mapped[int | None] = mapped_column(Integer)
     end_year: Mapped[int | None] = mapped_column(Integer)
+
+
+class MorphRelation(Base):
+    """A derived verb form pointing at the form it was built from.
+
+    Wiktionary expresses these as English "definitions" ("Applicative form of
+    -penda"), which tell a reader nothing and are refused at ingest. The
+    relation is the part worth keeping, as a link rather than as prose.
+    """
+
+    __tablename__ = "morph_relation"
+    __table_args__ = (
+        UniqueConstraint(
+            "from_lexeme_id",
+            "to_lexeme_id",
+            "relation_type",
+            name="morph_relation_from_lexeme_id_to_lexeme_id_relation_type_key",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    from_lexeme_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lexeme.id", ondelete="CASCADE"), nullable=False
+    )
+    to_lexeme_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lexeme.id", ondelete="CASCADE"), nullable=False
+    )
+    relation_type: Mapped[str] = mapped_column(morph_relation_type, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
+    )
 
 
 class LexemeRelation(Base):
@@ -460,6 +609,26 @@ class AiExplanation(Base):
     model_version: Mapped[str] = mapped_column(String, nullable=False)
     prompt_version: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+class LookupEvent(Base):
+    """One entry open. Append-only, anonymous.
+
+    Aggregated into `search_entry.popularity` by
+    `tools/maintenance/aggregate_popularity.py`. No foreign key to the target:
+    an event is a historical fact, and deleting a lexeme should not rewrite
+    the record of people having looked it up.
+    """
+
+    __tablename__ = "lookup_event"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    target_type: Mapped[str] = mapped_column(Text, nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    lang_code: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
 
 
 class SearchEntry(Base):

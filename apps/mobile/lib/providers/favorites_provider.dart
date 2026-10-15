@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models/favorite_item.dart';
-import '../domain/repositories/favorites_repository.dart';
 import 'app_providers.dart';
 
 class FavoritesController extends AsyncNotifier<List<FavoriteItem>> {

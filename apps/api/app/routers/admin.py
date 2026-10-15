@@ -1,25 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.ids import as_uuid
 from app.db import get_db
-from app.deps import require_api_key
+from app.deps import require_role
 from app.models import (
+    Domain,
     Example,
+    ExpressionType,
     ExampleText,
     Expression,
     ExpressionExample,
     ExpressionExampleText,
     ExpressionLink,
     ExpressionMeaning,
+    Language,
     Lexeme,
     LexemeTag,
     License,
+    Region,
+    Register,
+    PartOfSpeech,
     Sense,
     SenseDefinition,
     SenseTag,
     Source,
     Tag,
+    TagType,
     Wordform,
 )
 from app.normalize import normalize_sw
@@ -43,9 +51,12 @@ from app.schemas import (
     ExpressionMeaningCreate,
     ExpressionMeaningRead,
     ExpressionMeaningUpdate,
+    ExpressionListItem,
     ExpressionRead,
     ExpressionUpdate,
+    LanguageRead,
     LexemeCreate,
+    LexemeListItem,
     LexemeRead,
     LexemeTagCreate,
     LexemeTagRead,
@@ -54,6 +65,8 @@ from app.schemas import (
     LicenseCreate,
     LicenseRead,
     LicenseUpdate,
+    LookupBundle,
+    LookupOption,
     SenseCreate,
     SenseDefinitionCreate,
     SenseDefinitionRead,
@@ -75,17 +88,209 @@ from app.schemas import (
 )
 from app.services.publish import publish_expression, publish_lexeme, review_expression, review_lexeme
 
-router = APIRouter(prefix="/admin", dependencies=[Depends(require_api_key)])
+# Editors may write content. Managing licences, sources and accounts, and
+# deleting anything, needs admin — applied per route below via ADMIN.
+router = APIRouter(prefix="/admin", dependencies=[Depends(require_role("editor"))])
+
+ADMIN = Depends(require_role("admin"))
 
 
 def get_or_404(db: Session, model, object_id):
-    obj = db.get(model, object_id)
+    # Path parameters arrive as strings; the primary keys are native uuids.
+    # Postgres coerces, SQLite does not, and a malformed id should be a 404
+    # rather than whatever the driver raises.
+    detail = f"{model.__name__} not found"
+    obj = db.get(model, as_uuid(object_id, detail))
     if not obj:
-        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+        raise HTTPException(status_code=404, detail=detail)
     return obj
 
 
-@router.post("/licenses", response_model=LicenseRead)
+def lookup_options(db: Session, model) -> list[LookupOption]:
+    rows = db.scalars(select(model).order_by(model.code.asc())).all()
+    return [LookupOption(id=row.id, code=row.code, label=row.label) for row in rows]
+
+
+@router.get("/lookups", response_model=LookupBundle)
+def get_lookups(db: Session = Depends(get_db)) -> LookupBundle:
+    """Seeded vocabularies, so the admin UI never has to hardcode an id."""
+    languages = db.scalars(select(Language).order_by(Language.code.asc())).all()
+    return LookupBundle(
+        languages=[LanguageRead(code=row.code, name=row.name) for row in languages],
+        parts_of_speech=lookup_options(db, PartOfSpeech),
+        registers=lookup_options(db, Register),
+        domains=lookup_options(db, Domain),
+        regions=lookup_options(db, Region),
+        expression_types=lookup_options(db, ExpressionType),
+        tag_types=lookup_options(db, TagType),
+    )
+
+
+WORKFLOW_STATUSES = {"draft", "reviewed", "published", "archived"}
+
+
+def validate_workflow(status: str | None) -> str | None:
+    if status is not None and status not in WORKFLOW_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid workflow status")
+    return status
+
+
+@router.get("/lexemes", response_model=list[LexemeListItem])
+def list_lexemes(
+    query: str | None = None,
+    status: str | None = None,
+    pos_code: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[LexemeListItem]:
+    validate_workflow(status)
+
+    sense_count = (
+        select(func.count(Sense.id))
+        .where(Sense.lexeme_id == Lexeme.id)
+        .correlate(Lexeme)
+        .scalar_subquery()
+    )
+    sw_definition_count = (
+        select(func.count(SenseDefinition.id))
+        .join(Sense, SenseDefinition.sense_id == Sense.id)
+        .where(Sense.lexeme_id == Lexeme.id, SenseDefinition.lang_code == "sw")
+        .correlate(Lexeme)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Lexeme,
+            PartOfSpeech.code.label("pos_code"),
+            sense_count.label("sense_count"),
+            sw_definition_count.label("sw_definition_count"),
+        )
+        .outerjoin(PartOfSpeech, PartOfSpeech.id == Lexeme.pos_id)
+        .order_by(Lexeme.normalized_lemma.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if query:
+        stmt = stmt.where(Lexeme.normalized_lemma.like(f"%{normalize_sw(query)}%"))
+    if status:
+        stmt = stmt.where(Lexeme.workflow == status)
+    if pos_code:
+        stmt = stmt.where(PartOfSpeech.code == pos_code)
+
+    return [
+        LexemeListItem(
+            id=row.Lexeme.id,
+            lemma=row.Lexeme.lemma,
+            normalized_lemma=row.Lexeme.normalized_lemma,
+            pos_id=row.Lexeme.pos_id,
+            pos_code=row.pos_code,
+            status=row.Lexeme.status,
+            workflow=row.Lexeme.workflow,
+            default_language_code=row.Lexeme.default_language_code,
+            sense_count=row.sense_count or 0,
+            sw_definition_count=row.sw_definition_count or 0,
+            created_at=row.Lexeme.created_at,
+            updated_at=row.Lexeme.updated_at,
+        )
+        for row in db.execute(stmt).all()
+    ]
+
+
+@router.get("/expressions", response_model=list[ExpressionListItem])
+def list_expressions(
+    query: str | None = None,
+    status: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[ExpressionListItem]:
+    validate_workflow(status)
+
+    meaning_count = (
+        select(func.count(ExpressionMeaning.id))
+        .where(ExpressionMeaning.expression_id == Expression.id)
+        .correlate(Expression)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Expression,
+            ExpressionType.code.label("expression_type_code"),
+            meaning_count.label("meaning_count"),
+        )
+        .outerjoin(ExpressionType, ExpressionType.id == Expression.expression_type_id)
+        .order_by(Expression.normalized_text.asc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if query:
+        stmt = stmt.where(Expression.normalized_text.like(f"%{normalize_sw(query)}%"))
+    if status:
+        stmt = stmt.where(Expression.workflow == status)
+
+    return [
+        ExpressionListItem(
+            id=row.Expression.id,
+            text=row.Expression.text,
+            normalized_text=row.Expression.normalized_text,
+            expression_type_id=row.Expression.expression_type_id,
+            expression_type_code=row.expression_type_code,
+            region_id=row.Expression.region_id,
+            workflow=row.Expression.workflow,
+            meaning_count=row.meaning_count or 0,
+            created_at=row.Expression.created_at,
+            updated_at=row.Expression.updated_at,
+        )
+        for row in db.execute(stmt).all()
+    ]
+
+
+@router.get("/tags", response_model=list[TagRead])
+def list_tags(
+    query: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[TagRead]:
+    stmt = select(Tag).order_by(Tag.name.asc()).limit(limit).offset(offset)
+    if query:
+        stmt = stmt.where(Tag.name.ilike(f"%{query}%"))
+    return [TagRead.model_validate(tag, from_attributes=True) for tag in db.scalars(stmt).all()]
+
+
+@router.get("/sources", response_model=list[SourceRead])
+def list_sources(
+    query: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[SourceRead]:
+    stmt = select(Source).order_by(Source.title.asc()).limit(limit).offset(offset)
+    if query:
+        stmt = stmt.where(Source.title.ilike(f"%{query}%"))
+    return [
+        SourceRead.model_validate(source, from_attributes=True)
+        for source in db.scalars(stmt).all()
+    ]
+
+
+@router.get("/licenses", response_model=list[LicenseRead])
+def list_licenses(
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> list[LicenseRead]:
+    stmt = select(License).order_by(License.name.asc()).limit(limit).offset(offset)
+    return [
+        LicenseRead.model_validate(license_, from_attributes=True)
+        for license_ in db.scalars(stmt).all()
+    ]
+
+
+@router.post("/licenses", response_model=LicenseRead, dependencies=[ADMIN])
 def create_license(payload: LicenseCreate, db: Session = Depends(get_db)) -> LicenseRead:
     license_ = License(**payload.model_dump())
     db.add(license_)
@@ -100,7 +305,7 @@ def get_license(license_id: str, db: Session = Depends(get_db)) -> LicenseRead:
     return LicenseRead(**license_.__dict__)
 
 
-@router.put("/licenses/{license_id}", response_model=LicenseRead)
+@router.put("/licenses/{license_id}", response_model=LicenseRead, dependencies=[ADMIN])
 def update_license(license_id: str, payload: LicenseUpdate, db: Session = Depends(get_db)) -> LicenseRead:
     license_ = get_or_404(db, License, license_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -110,7 +315,7 @@ def update_license(license_id: str, payload: LicenseUpdate, db: Session = Depend
     return LicenseRead(**license_.__dict__)
 
 
-@router.delete("/licenses/{license_id}")
+@router.delete("/licenses/{license_id}", dependencies=[ADMIN])
 def delete_license(license_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     license_ = get_or_404(db, License, license_id)
     db.delete(license_)
@@ -118,7 +323,7 @@ def delete_license(license_id: str, db: Session = Depends(get_db)) -> dict[str, 
     return {"status": "deleted"}
 
 
-@router.post("/sources", response_model=SourceRead)
+@router.post("/sources", response_model=SourceRead, dependencies=[ADMIN])
 def create_source(payload: SourceCreate, db: Session = Depends(get_db)) -> SourceRead:
     source = Source(**payload.model_dump())
     db.add(source)
@@ -133,7 +338,7 @@ def get_source(source_id: str, db: Session = Depends(get_db)) -> SourceRead:
     return SourceRead(**source.__dict__)
 
 
-@router.put("/sources/{source_id}", response_model=SourceRead)
+@router.put("/sources/{source_id}", response_model=SourceRead, dependencies=[ADMIN])
 def update_source(source_id: str, payload: SourceUpdate, db: Session = Depends(get_db)) -> SourceRead:
     source = get_or_404(db, Source, source_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -143,7 +348,7 @@ def update_source(source_id: str, payload: SourceUpdate, db: Session = Depends(g
     return SourceRead(**source.__dict__)
 
 
-@router.delete("/sources/{source_id}")
+@router.delete("/sources/{source_id}", dependencies=[ADMIN])
 def delete_source(source_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     source = get_or_404(db, Source, source_id)
     db.delete(source)
@@ -180,7 +385,7 @@ def update_lexeme(lexeme_id: str, payload: LexemeUpdate, db: Session = Depends(g
     return LexemeRead(**lexeme.__dict__)
 
 
-@router.delete("/lexemes/{lexeme_id}")
+@router.delete("/lexemes/{lexeme_id}", dependencies=[ADMIN])
 def delete_lexeme(lexeme_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     lexeme = get_or_404(db, Lexeme, lexeme_id)
     db.delete(lexeme)
@@ -225,7 +430,7 @@ def update_sense(sense_id: str, payload: SenseUpdate, db: Session = Depends(get_
     return SenseRead(**sense.__dict__)
 
 
-@router.delete("/senses/{sense_id}")
+@router.delete("/senses/{sense_id}", dependencies=[ADMIN])
 def delete_sense(sense_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     sense = get_or_404(db, Sense, sense_id)
     db.delete(sense)
@@ -262,7 +467,7 @@ def update_sense_definition(
     return SenseDefinitionRead(**definition.__dict__)
 
 
-@router.delete("/sense-definitions/{definition_id}")
+@router.delete("/sense-definitions/{definition_id}", dependencies=[ADMIN])
 def delete_sense_definition(definition_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     definition = get_or_404(db, SenseDefinition, definition_id)
     db.delete(definition)
@@ -295,7 +500,7 @@ def update_example(example_id: str, payload: ExampleUpdate, db: Session = Depend
     return ExampleRead(**example.__dict__)
 
 
-@router.delete("/examples/{example_id}")
+@router.delete("/examples/{example_id}", dependencies=[ADMIN])
 def delete_example(example_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     example = get_or_404(db, Example, example_id)
     db.delete(example)
@@ -330,7 +535,7 @@ def update_example_text(
     return ExampleTextRead(**example_text.__dict__)
 
 
-@router.delete("/example-texts/{example_text_id}")
+@router.delete("/example-texts/{example_text_id}", dependencies=[ADMIN])
 def delete_example_text(example_text_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     example_text = get_or_404(db, ExampleText, example_text_id)
     db.delete(example_text)
@@ -367,7 +572,7 @@ def update_expression(expression_id: str, payload: ExpressionUpdate, db: Session
     return ExpressionRead(**expression.__dict__)
 
 
-@router.delete("/expressions/{expression_id}")
+@router.delete("/expressions/{expression_id}", dependencies=[ADMIN])
 def delete_expression(expression_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     expression = get_or_404(db, Expression, expression_id)
     db.delete(expression)
@@ -416,7 +621,7 @@ def update_expression_meaning(
     return ExpressionMeaningRead(**meaning.__dict__)
 
 
-@router.delete("/expression-meanings/{meaning_id}")
+@router.delete("/expression-meanings/{meaning_id}", dependencies=[ADMIN])
 def delete_expression_meaning(meaning_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     meaning = get_or_404(db, ExpressionMeaning, meaning_id)
     db.delete(meaning)
@@ -453,7 +658,7 @@ def update_expression_example(
     return ExpressionExampleRead(**example.__dict__)
 
 
-@router.delete("/expression-examples/{example_id}")
+@router.delete("/expression-examples/{example_id}", dependencies=[ADMIN])
 def delete_expression_example(example_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     example = get_or_404(db, ExpressionExample, example_id)
     db.delete(example)
@@ -492,7 +697,7 @@ def update_expression_example_text(
     return ExpressionExampleTextRead(**example_text.__dict__)
 
 
-@router.delete("/expression-example-texts/{example_text_id}")
+@router.delete("/expression-example-texts/{example_text_id}", dependencies=[ADMIN])
 def delete_expression_example_text(example_text_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     example_text = get_or_404(db, ExpressionExampleText, example_text_id)
     db.delete(example_text)
@@ -529,7 +734,7 @@ def update_expression_link(
     return ExpressionLinkRead(**link.__dict__)
 
 
-@router.delete("/expression-links/{link_id}")
+@router.delete("/expression-links/{link_id}", dependencies=[ADMIN])
 def delete_expression_link(link_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     link = get_or_404(db, ExpressionLink, link_id)
     db.delete(link)
@@ -562,7 +767,7 @@ def update_tag(tag_id: str, payload: TagUpdate, db: Session = Depends(get_db)) -
     return TagRead(**tag.__dict__)
 
 
-@router.delete("/tags/{tag_id}")
+@router.delete("/tags/{tag_id}", dependencies=[ADMIN])
 def delete_tag(tag_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     tag = get_or_404(db, Tag, tag_id)
     db.delete(tag)
@@ -601,7 +806,7 @@ def update_lexeme_tag(
     return LexemeTagRead(**lexeme_tag.__dict__)
 
 
-@router.delete("/lexeme-tags/{lexeme_id}/{tag_id}")
+@router.delete("/lexeme-tags/{lexeme_id}/{tag_id}", dependencies=[ADMIN])
 def delete_lexeme_tag(lexeme_id: str, tag_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     stmt = select(LexemeTag).where(LexemeTag.lexeme_id == lexeme_id, LexemeTag.tag_id == tag_id)
     lexeme_tag = db.scalar(stmt)
@@ -643,7 +848,7 @@ def update_sense_tag(
     return SenseTagRead(**sense_tag.__dict__)
 
 
-@router.delete("/sense-tags/{sense_id}/{tag_id}")
+@router.delete("/sense-tags/{sense_id}/{tag_id}", dependencies=[ADMIN])
 def delete_sense_tag(sense_id: str, tag_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     stmt = select(SenseTag).where(SenseTag.sense_id == sense_id, SenseTag.tag_id == tag_id)
     sense_tag = db.scalar(stmt)
@@ -684,7 +889,7 @@ def update_wordform(wordform_id: str, payload: WordformUpdate, db: Session = Dep
     return WordformRead(**wordform.__dict__)
 
 
-@router.delete("/wordforms/{wordform_id}")
+@router.delete("/wordforms/{wordform_id}", dependencies=[ADMIN])
 def delete_wordform(wordform_id: str, db: Session = Depends(get_db)) -> dict[str, str]:
     wordform = get_or_404(db, Wordform, wordform_id)
     db.delete(wordform)
